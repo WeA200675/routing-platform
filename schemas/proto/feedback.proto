@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package routing.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+import "route.proto";
+
+enum FeedbackType {
+  FEEDBACK_TYPE_UNSPECIFIED = 0;
+  FEEDBACK_TYPE_POSITIVE = 1;
+  FEEDBACK_TYPE_NEGATIVE = 2;
+  FEEDBACK_TYPE_ROUTING_ERROR = 3;
+  FEEDBACK_TYPE_DATA_ERROR = 4;
+  FEEDBACK_TYPE_NAVIGATION_ERROR = 5;
+  FEEDBACK_TYPE_TRAFFIC_ERROR = 6;
+  FEEDBACK_TYPE_UI_ERROR = 7;
+  FEEDBACK_TYPE_GPS_ERROR = 8;
+  FEEDBACK_TYPE_OTHER = 9;
+}
+
+message FeedbackMarker {
+  string marker_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  GeoPoint position = 3;
+  string matched_segment_id = 4;
+  double route_position_m = 5;
+  FeedbackType type = 6;
+  repeated string reason_codes = 7;
+  uint32 severity = 8; // 1..5
+  string note = 9;
+  bool reviewed_after_drive = 10;
+}
+
+message TracePoint {
+  google.protobuf.Timestamp timestamp = 1;
+  GeoPoint position = 2;
+  optional double speed_kmh = 3;
+  optional double bearing_deg = 4;
+  optional double accuracy_m = 5;
+  string matched_segment_id = 6;
+}
+
+message DriveSession {
+  string session_id = 1;
+  google.protobuf.Timestamp started_at = 2;
+  google.protobuf.Timestamp ended_at = 3;
+  RouteRequest request = 4;
+  RouteResult route_snapshot = 5;
+  repeated TracePoint driven_trace = 6;
+  repeated FeedbackMarker feedback = 7;
+  string navigation_mode = 8;
+  string presentation_mode = 9;
+  VersionStamp versions = 10;
+}

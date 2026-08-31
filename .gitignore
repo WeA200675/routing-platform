@@ -1,0 +1,11 @@
+/build/
+/.cache/
+*.osm.pbf
+*.mbtiles
+*.pmtiles
+*.tar
+*.tar.gz
+*.zip
+*.sqlite
+*.db
+.DS_Store

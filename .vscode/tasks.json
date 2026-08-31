@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Routing: Configure Debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "windows-debug"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Routing: Build Debug",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "build-debug"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Routing: Test Debug",
+      "type": "shell",
+      "command": "ctest",
+      "args": [
+        "--preset",
+        "test-debug"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Routing: Build + Test",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Routing: Build Debug",
+        "Routing: Test Debug"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

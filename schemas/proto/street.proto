@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package routing.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+message StreetSegment {
+  string segment_id = 1;
+  repeated string source_ids = 2;
+  uint32 version = 3;
+  repeated GeoPoint geometry = 4;
+  string start_node_id = 5;
+  string end_node_id = 6;
+  double length_m = 7;
+  string country_code = 8;
+  string region_code = 9;
+  string municipality = 10;
+  string timezone = 11;
+  RoadClassification classification = 12;
+  SegmentDirection forward = 13;
+  SegmentDirection backward = 14;
+  PhysicalRoadProperties physical = 15;
+  DerivedRoadFeatures derived = 16;
+  repeated Restriction restrictions = 17;
+  repeated SourceAssertion assertions = 18;
+  google.protobuf.Timestamp valid_from = 19;
+  google.protobuf.Timestamp valid_to = 20;
+}
+
+message RoadClassification {
+  string source_road_class = 1;
+  string functional_class = 2;
+  string legal_road_class = 3;
+  string network_class = 4;
+  string route_reference = 5;
+  string international_reference = 6;
+  bool is_motorway = 7;
+  bool is_motorroad = 8;
+  bool is_link = 9;
+  bool is_service_road = 10;
+  string service_type = 11;
+  bool is_residential = 12;
+  bool is_living_street = 13;
+  bool is_track = 14;
+  bool is_private = 15;
+  uint32 importance_level = 16; // 0..100
+  optional double network_continuity = 17; // 0..1
+}
+
+message SegmentDirection {
+  bool allowed = 1;
+  bool one_way = 2;
+  optional uint32 lane_count = 3;
+  optional double speed_limit_kmh = 4;
+  optional double advisory_speed_kmh = 5;
+  optional double freeflow_speed_kmh = 6;
+  optional double practical_speed_kmh = 7;
+  optional double gradient_avg_pct = 8;
+  optional double gradient_max_pct = 9;
+  optional string overtaking = 10;
+  optional bool shoulder_present = 11;
+}
+
+message PhysicalRoadProperties {
+  optional uint32 lanes_total = 1;
+  optional double lane_width_avg_m = 2;
+  optional double lane_width_min_m = 3;
+  optional double carriageway_width_m = 4;
+  optional double usable_width_m = 5;
+  optional double shoulder_left_m = 6;
+  optional double shoulder_right_m = 7;
+  optional bool median_present = 8;
+  optional bool divided_highway = 9;
+  optional bool emergency_lane = 10;
+  optional bool climbing_lane = 11;
+  optional string surface_material = 12;
+  optional bool paved = 13;
+  optional string smoothness = 14;
+  optional string track_grade = 15;
+  optional double condition_score = 16; // 0..1
+}
+
+message DerivedRoadFeatures {
+  optional double curvature_score = 1;
+  optional double serpentine_score = 2;
+  optional double sinuosity = 3;
+  optional uint32 curve_count = 4;
+  optional uint32 tight_curve_count = 5;
+  optional uint32 hairpin_count = 6;
+  optional double minimum_curve_radius_m = 7;
+  optional double ascent_m = 8;
+  optional double descent_m = 9;
+  optional double mountain_road_score = 10;
+  optional double urban_stress_score = 11;
+  optional double flow_score = 12;
+  optional double comfort_score = 13;
+  optional double stress_score = 14;
+  optional double road_quality_score = 15;
+  optional double attention_demand_score = 16;
+  optional double stop_go_score = 17;
+  optional double uncertainty_score = 18;
+}
+
+enum RestrictionTarget {
+  RESTRICTION_TARGET_UNSPECIFIED = 0;
+  RESTRICTION_TARGET_ACCESS = 1;
+  RESTRICTION_TARGET_SPEED = 2;
+  RESTRICTION_TARGET_HEIGHT = 3;
+  RESTRICTION_TARGET_WIDTH = 4;
+  RESTRICTION_TARGET_LENGTH = 5;
+  RESTRICTION_TARGET_WEIGHT = 6;
+  RESTRICTION_TARGET_AXLE_LOAD = 7;
+  RESTRICTION_TARGET_DIRECTION = 8;
+  RESTRICTION_TARGET_TOLL = 9;
+  RESTRICTION_TARGET_SEASONAL = 10;
+}
+
+message Restriction {
+  string restriction_id = 1;
+  RestrictionTarget target = 2;
+  string vehicle_scope = 3;
+  string operator = 4;
+  string value = 5;
+  string condition_expression = 6;
+  google.protobuf.Timestamp valid_from = 7;
+  google.protobuf.Timestamp valid_to = 8;
+  DataProvenance provenance = 9;
+}
+
+message SourceAssertion {
+  string attribute_path = 1;
+  string serialized_value = 2;
+  DataProvenance provenance = 3;
+}

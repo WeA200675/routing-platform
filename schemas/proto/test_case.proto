@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package routing.v1;
+
+import "route.proto";
+
+enum AssertionSeverity {
+  ASSERTION_SEVERITY_UNSPECIFIED = 0;
+  ASSERTION_SEVERITY_WARNING = 1;
+  ASSERTION_SEVERITY_REQUIRED = 2;
+  ASSERTION_SEVERITY_SAFETY_CRITICAL = 3;
+}
+
+enum AssertionOperator {
+  ASSERTION_OPERATOR_UNSPECIFIED = 0;
+  ASSERTION_OPERATOR_EQ = 1;
+  ASSERTION_OPERATOR_NE = 2;
+  ASSERTION_OPERATOR_LT = 3;
+  ASSERTION_OPERATOR_LE = 4;
+  ASSERTION_OPERATOR_GT = 5;
+  ASSERTION_OPERATOR_GE = 6;
+  ASSERTION_OPERATOR_CONTAINS = 7;
+  ASSERTION_OPERATOR_NOT_CONTAINS = 8;
+}
+
+message RoutingAssertion {
+  string assertion_id = 1;
+  string metric_or_path = 2;
+  AssertionOperator op = 3;
+  string expected_value = 4;
+  AssertionSeverity severity = 5;
+  string explanation = 6;
+}
+
+message RoutingTestCase {
+  string test_case_id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string tags = 4;
+  RouteRequest request = 5;
+  repeated RoutingAssertion assertions = 6;
+  repeated string expected_corridor_segment_ids = 7;
+  repeated string undesired_segment_ids = 8;
+  bool gold = 9;
+  bool frozen_map_data = 10;
+}

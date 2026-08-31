@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package routing.v1;
+
+import "common.proto";
+
+enum RuleOperator {
+  RULE_OPERATOR_UNSPECIFIED = 0;
+  RULE_OPERATOR_EQ = 1;
+  RULE_OPERATOR_NE = 2;
+  RULE_OPERATOR_LT = 3;
+  RULE_OPERATOR_LE = 4;
+  RULE_OPERATOR_GT = 5;
+  RULE_OPERATOR_GE = 6;
+  RULE_OPERATOR_BETWEEN = 7;
+  RULE_OPERATOR_IN = 8;
+  RULE_OPERATOR_NOT_IN = 9;
+  RULE_OPERATOR_EXISTS = 10;
+  RULE_OPERATOR_UNKNOWN = 11;
+}
+
+enum RuleAction {
+  RULE_ACTION_UNSPECIFIED = 0;
+  RULE_ACTION_STRONGLY_PREFER = 1;
+  RULE_ACTION_PREFER = 2;
+  RULE_ACTION_NEUTRAL = 3;
+  RULE_ACTION_AVOID = 4;
+  RULE_ACTION_STRONGLY_AVOID = 5;
+  RULE_ACTION_EXCLUDE = 6;
+  RULE_ACTION_REQUIRE = 7;
+  RULE_ACTION_LIMIT = 8;
+  RULE_ACTION_BONUS = 9;
+  RULE_ACTION_PENALTY = 10;
+  RULE_ACTION_CAP = 11;
+  RULE_ACTION_OVERRIDE = 12;
+}
+
+enum ConditionJoin {
+  CONDITION_JOIN_UNSPECIFIED = 0;
+  CONDITION_JOIN_ALL = 1;
+  CONDITION_JOIN_ANY = 2;
+}
+
+message RuleCondition {
+  string attribute = 1;
+  RuleOperator op = 2;
+  repeated string values = 3;
+  bool negate = 4;
+}
+
+message RuleException {
+  string exception_id = 1;
+  string name = 2;
+  ConditionJoin join = 3;
+  repeated RuleCondition conditions = 4;
+}
+
+message RoutingRule {
+  string rule_id = 1;
+  string name = 2;
+  string category = 3;
+  bool enabled = 4;
+  string scope = 5;
+  string attribute = 6;
+  RuleOperator op = 7;
+  repeated string values = 8;
+  RuleAction action = 9;
+  uint32 strength = 10; // 0..100
+  int32 priority = 11;
+  ConditionJoin condition_join = 12;
+  repeated RuleCondition conditions = 13;
+  repeated RuleException exceptions = 14;
+  repeated string vehicle_scopes = 15;
+  repeated string profile_scopes = 16;
+  string time_expression = 17;
+  string explanation_template = 18;
+  SemanticVersion version = 19;
+}
+
+message RuleSet {
+  string rule_set_id = 1;
+  string name = 2;
+  SemanticVersion version = 3;
+  repeated RoutingRule rules = 4;
+}
