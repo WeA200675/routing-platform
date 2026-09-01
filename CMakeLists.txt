@@ -48,6 +48,7 @@ add_library(
     STATIC
         core/src/cost_engine.cpp
         core/src/road_analysis.cpp
+        core/src/route_analysis.cpp
 )
 
 target_include_directories(
@@ -201,6 +202,22 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         road_analysis_test
         PRIVATE
             routing_core
+    )
+
+        add_executable(
+        route_analysis_test
+        tests/unit/route_analysis_test.cpp
+    )
+
+    target_link_libraries(
+        route_analysis_test
+        PRIVATE
+            routing_core
+    )
+
+    add_test(
+        NAME route_analysis_test
+        COMMAND route_analysis_test
     )
 
     add_test(
