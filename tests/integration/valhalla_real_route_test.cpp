@@ -152,6 +152,34 @@ if (!has_street_name) {
   return fail("Expected at least one maneuver street name.");
 }
 
+const auto has_street =
+    [&route](const std::string& expected_name) {
+      for (const auto& maneuver : route.maneuvers) {
+        for (const auto& street_name : maneuver.street_names) {
+          if (street_name == expected_name) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    };
+
+if (!has_street("Adlerkreisel")) {
+  return fail(
+      "Expected reference street name: Adlerkreisel.");
+}
+
+if (!has_street("Herrengasse")) {
+  return fail(
+      "Expected reference street name: Herrengasse.");
+}
+
+if (!has_street("Schulgass")) {
+  return fail(
+      "Expected reference street name: Schulgass.");
+}
+
 const bool has_engine_type =
     std::any_of(
         route.maneuvers.begin(),

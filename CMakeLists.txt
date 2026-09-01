@@ -116,6 +116,7 @@ add_library(
     routing_valhalla_adapter
     STATIC
         adapters/valhalla/src/valhalla_routing_engine.cpp
+        adapters/valhalla/src/valhalla_parsing.cpp
 )
 
 target_include_directories(
@@ -205,6 +206,22 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_executable(
         routing_engine_contract_test
         tests/unit/routing_engine_contract_test.cpp
+    )
+
+        add_executable(
+        valhalla_parsing_test
+        tests/unit/valhalla_parsing_test.cpp
+    )
+
+    target_link_libraries(
+        valhalla_parsing_test
+        PRIVATE
+            routing_valhalla_adapter
+    )
+
+    add_test(
+        NAME valhalla_parsing_test
+        COMMAND valhalla_parsing_test
     )
 
     target_link_libraries(
