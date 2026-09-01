@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <algorithm>
 
 #include "routing/adapters/valhalla/valhalla_routing_engine.hpp"
 
@@ -116,6 +117,53 @@ int main() {
         " s");
   }
 
+  if (route.geometry.size() < 2) {
+  return fail(
+      "Expected decoded route geometry, got " +
+      std::to_string(route.geometry.size()) +
+      " points");
+}
+
+if (route.maneuvers.empty()) {
+  return fail("Expected at least one route maneuver.");
+}
+
+const bool has_instruction =
+    std::any_of(
+        route.maneuvers.begin(),
+        route.maneuvers.end(),
+        [](const routing::core::RouteManeuver& maneuver) {
+          return !maneuver.instruction.empty();
+        });
+
+if (!has_instruction) {
+  return fail("Expected at least one maneuver instruction.");
+}
+
+const bool has_street_name =
+    std::any_of(
+        route.maneuvers.begin(),
+        route.maneuvers.end(),
+        [](const routing::core::RouteManeuver& maneuver) {
+          return !maneuver.street_names.empty();
+        });
+
+if (!has_street_name) {
+  return fail("Expected at least one maneuver street name.");
+}
+
+const bool has_engine_type =
+    std::any_of(
+        route.maneuvers.begin(),
+        route.maneuvers.end(),
+        [](const routing::core::RouteManeuver& maneuver) {
+          return maneuver.engine_type.has_value();
+        });
+
+if (!has_engine_type) {
+  return fail("Expected preserved Valhalla maneuver types.");
+}
+
   std::cout
       << "PASS: real Valhalla route\n"
       << "  engine:   "
@@ -128,7 +176,13 @@ int main() {
       << " m\n"
       << "  duration: "
       << route.duration_s
-      << " s\n";
+      << " s\n"
+      << "  geometry: "
+      << route.geometry.size()
+      << " points\n"
+      << "  maneuvers: "
+      << route.maneuvers.size()
+      << '\n';
 
   return 0;
 }
