@@ -192,6 +192,71 @@ if (!has_engine_type) {
   return fail("Expected preserved Valhalla maneuver types.");
 }
 
+  // Multi-leg regression:
+  // Maneuver shape indices from individual Valhalla legs must be
+  // translated into indices of our combined RoutePath geometry.
+  routing::core::RouteRequest via_request = request;
+
+  via_request.via_points.push_back({
+      47.1530,
+      9.5150,
+  });
+
+  const auto via_result = engine.route(via_request);
+
+  if (!via_result.success) {
+    return fail(
+        "Multi-leg routing failed: " +
+        via_result.error_code +
+        " - " +
+        via_result.error_message);
+  }
+
+  if (via_result.routes.size() != 1) {
+    return fail(
+        "Expected exactly one multi-leg route, got " +
+        std::to_string(via_result.routes.size()));
+  }
+
+  const auto& via_route = via_result.routes.front();
+
+  if (via_route.geometry.size() < 3) {
+    return fail(
+        "Expected multi-leg route geometry.");
+  }
+
+  if (via_route.maneuvers.empty()) {
+    return fail(
+        "Expected multi-leg route maneuvers.");
+  }
+
+  std::size_t max_end_shape_index = 0;
+
+  for (const auto& maneuver : via_route.maneuvers) {
+    if (maneuver.begin_shape_index >
+        maneuver.end_shape_index) {
+      return fail(
+          "Maneuver begin shape index exceeds end shape index.");
+    }
+
+    if (maneuver.end_shape_index >=
+        via_route.geometry.size()) {
+      return fail(
+          "Maneuver shape index exceeds combined route geometry.");
+    }
+
+    max_end_shape_index =
+        std::max(
+            max_end_shape_index,
+            maneuver.end_shape_index);
+  }
+
+  if (max_end_shape_index !=
+      via_route.geometry.size() - 1) {
+    return fail(
+        "Multi-leg maneuver indices do not span the combined geometry.");
+  }
+
   std::cout
       << "PASS: real Valhalla route\n"
       << "  engine:   "

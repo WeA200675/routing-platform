@@ -105,6 +105,11 @@ routing::core::RoutingResult parse_route_response(
     auto leg_geometry =
         detail::decode_polyline6(encoded_shape);
 
+    const std::size_t shape_index_offset =
+    path.geometry.empty()
+        ? 0
+        : path.geometry.size() - 1;
+
     if (!path.geometry.empty() &&
         !leg_geometry.empty()) {
       leg_geometry.erase(leg_geometry.begin());
@@ -146,15 +151,23 @@ routing::core::RoutingResult parse_route_response(
                 "time",
                 0.0);
 
-        maneuver.begin_shape_index =
+        const auto local_begin_shape_index =
             source.get<std::size_t>(
                 "begin_shape_index",
                 0);
 
-        maneuver.end_shape_index =
+        const auto local_end_shape_index =
             source.get<std::size_t>(
                 "end_shape_index",
-                maneuver.begin_shape_index);
+                local_begin_shape_index);
+
+        maneuver.begin_shape_index =
+            shape_index_offset +
+            local_begin_shape_index;
+
+        maneuver.end_shape_index =
+            shape_index_offset +
+            local_end_shape_index;
 
         if (const auto bearing_before =
                 source.get_optional<std::uint16_t>(
