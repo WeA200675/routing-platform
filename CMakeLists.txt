@@ -119,6 +119,7 @@ add_library(
     STATIC
         adapters/valhalla/src/valhalla_routing_engine.cpp
         adapters/valhalla/src/valhalla_parsing.cpp
+        adapters/valhalla/src/valhalla_edge_attributes.cpp
 )
 
 target_include_directories(
@@ -242,7 +243,7 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         tests/unit/routing_engine_contract_test.cpp
     )
 
-        add_executable(
+    add_executable(
         valhalla_parsing_test
         tests/unit/valhalla_parsing_test.cpp
     )
@@ -258,6 +259,24 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         COMMAND valhalla_parsing_test
     )
 
+
+    add_executable(
+        valhalla_edge_attributes_test
+        tests/unit/valhalla_edge_attributes_test.cpp
+    )
+
+    target_link_libraries(
+        valhalla_edge_attributes_test
+        PRIVATE
+            routing_valhalla_adapter
+    )
+
+    add_test(
+        NAME valhalla_edge_attributes_test
+        COMMAND valhalla_edge_attributes_test
+    )
+
+
     target_link_libraries(
         routing_engine_contract_test
         PRIVATE
@@ -268,7 +287,6 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         NAME routing_engine_contract_test
         COMMAND routing_engine_contract_test
     )
-
 
     if(NOT ROUTING_PLATFORM_WITH_VALHALLA)
         add_executable(
