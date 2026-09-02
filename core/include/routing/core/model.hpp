@@ -6,23 +6,37 @@
 
 namespace routing::core {
 
-enum class RoadClass : std::uint8_t {
+enum class FunctionalRoadClass : std::uint8_t {
   Unknown = 0,
   Motorway,
+  Trunk,
+  Primary,
+  Secondary,
+  Tertiary,
+  Unclassified,
+  Residential,
+  Service,
+  Track
+};
+
+enum class RoadNetworkClass : std::uint8_t {
+  Unknown = 0,
   FederalRoad,
   StateRoad,
   CountyRoad,
-  Primary,
-  Secondary,
-  Residential,
-  Service,
-  Track,
+  MunicipalRoad,
+  Other
 };
 
 struct StreetSegment {
   std::string id;
   double length_m = 0.0;
-  RoadClass road_class = RoadClass::Unknown;
+
+  FunctionalRoadClass functional_road_class =
+    FunctionalRoadClass::Unknown;
+
+  RoadNetworkClass road_network_class =
+    RoadNetworkClass::Unknown;
 
   std::optional<double> speed_limit_kmh;
   std::optional<double> practical_speed_kmh;

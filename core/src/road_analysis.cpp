@@ -2,12 +2,12 @@
 
 namespace routing::core {
 
-bool is_major_road(const RoadClass road_class) {
+bool is_major_road(
+    const FunctionalRoadClass road_class) {
   switch (road_class) {
-    case RoadClass::Motorway:
-    case RoadClass::FederalRoad:
-    case RoadClass::StateRoad:
-    case RoadClass::Primary:
+    case FunctionalRoadClass::Motorway:
+    case FunctionalRoadClass::Trunk:
+    case FunctionalRoadClass::Primary:
       return true;
 
     default:
@@ -15,11 +15,12 @@ bool is_major_road(const RoadClass road_class) {
   }
 }
 
-bool is_minor_road(const RoadClass road_class) {
+bool is_minor_road(
+    const FunctionalRoadClass road_class) {
   switch (road_class) {
-    case RoadClass::Residential:
-    case RoadClass::Service:
-    case RoadClass::Track:
+    case FunctionalRoadClass::Residential:
+    case FunctionalRoadClass::Service:
+    case FunctionalRoadClass::Track:
       return true;
 
     default:

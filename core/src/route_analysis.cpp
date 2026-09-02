@@ -13,11 +13,14 @@ RouteAnalysis analyze_route_segments(
     const double length_m = segment.length_m;
     analysis.analyzed_distance_m += length_m;
 
-    if (segment.road_class == RoadClass::Unknown) {
+    if (segment.functional_road_class ==
+        FunctionalRoadClass::Unknown) {
       analysis.unknown_road_class_distance_m += length_m;
-    } else if (is_major_road(segment.road_class)) {
+    } else if (is_major_road(
+                   segment.functional_road_class)) {
       analysis.major_road_distance_m += length_m;
-    } else if (is_minor_road(segment.road_class)) {
+    } else if (is_minor_road(
+                   segment.functional_road_class)) {
       analysis.minor_road_distance_m += length_m;
     }
 

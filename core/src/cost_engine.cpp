@@ -12,8 +12,11 @@ double clamp01(double value) { return std::clamp(value, 0.0, 1.0); }
 
 double segment_attribute_value(const StreetSegment& segment, Attribute attribute) {
   switch (attribute) {
-    case Attribute::RoadClass:
-      return static_cast<double>(segment.road_class);
+    case Attribute::FunctionalRoadClass:
+      return static_cast<double>(segment.functional_road_class);
+
+    case Attribute::RoadNetworkClass:
+      return static_cast<double>(segment.road_network_class);
     case Attribute::SpeedLimitKmh:
       return segment.speed_limit_kmh.value_or(std::numeric_limits<double>::quiet_NaN());
     case Attribute::CurvatureScore:

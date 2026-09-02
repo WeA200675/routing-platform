@@ -7,13 +7,14 @@
 namespace routing::core {
 
 enum class Attribute : std::uint8_t {
-  RoadClass = 0,
-  SpeedLimitKmh,
-  CurvatureScore,
-  SerpentineScore,
-  GradientAbsPct,
-  UrbanScore,
-  DataConfidence,
+  FunctionalRoadClass = 0,
+  SpeedLimitKmh = 1,
+  CurvatureScore = 2,
+  SerpentineScore = 3,
+  GradientAbsPct = 4,
+  UrbanScore = 5,
+  DataConfidence = 6,
+  RoadNetworkClass = 7,
 };
 
 enum class CompareOp : std::uint8_t {

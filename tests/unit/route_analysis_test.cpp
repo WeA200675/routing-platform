@@ -14,7 +14,8 @@ bool nearly_equal(const double a, const double b, const double epsilon = 1e-9) {
 }  // namespace
 
 int main() {
-  using routing::core::RoadClass;
+  using routing::core::FunctionalRoadClass;
+  using routing::core::RoadNetworkClass;
   using routing::core::StreetSegment;
   using routing::core::analyze_route_segments;
 
@@ -23,7 +24,8 @@ int main() {
   StreetSegment major;
   major.id = "major";
   major.length_m = 1000.0;
-  major.road_class = RoadClass::FederalRoad;
+  major.functional_road_class = FunctionalRoadClass::Primary;
+  major.road_network_class = RoadNetworkClass::FederalRoad;
   major.speed_limit_kmh = 100.0;
   major.curvature_score = 0.20;
   major.serpentine_score = 0.10;
@@ -34,7 +36,8 @@ int main() {
   StreetSegment urban_30;
   urban_30.id = "urban-30";
   urban_30.length_m = 500.0;
-  urban_30.road_class = RoadClass::Residential;
+  urban_30.functional_road_class = FunctionalRoadClass::Residential;
+  urban_30.road_network_class = RoadNetworkClass::MunicipalRoad;
   urban_30.speed_limit_kmh = 30.0;
   urban_30.curvature_score = 0.80;
   urban_30.serpentine_score = 0.70;
@@ -45,7 +48,7 @@ int main() {
   StreetSegment unknown;
   unknown.id = "unknown";
   unknown.length_m = 250.0;
-  unknown.road_class = RoadClass::Unknown;
+  unknown.functional_road_class = FunctionalRoadClass::Unknown;
   segments.push_back(unknown);
 
   const auto analysis = analyze_route_segments(segments);

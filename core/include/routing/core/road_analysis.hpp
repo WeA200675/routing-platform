@@ -12,9 +12,11 @@ enum class MatchState : std::uint8_t {
   Yes,
 };
 
-[[nodiscard]] bool is_major_road(RoadClass road_class);
+[[nodiscard]] bool is_major_road(
+    FunctionalRoadClass road_class);
 
-[[nodiscard]] bool is_minor_road(RoadClass road_class);
+[[nodiscard]] bool is_minor_road(
+    FunctionalRoadClass road_class);
 
 [[nodiscard]] MatchState classify_speed_30_or_lower(
     const StreetSegment& segment);

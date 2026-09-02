@@ -15,7 +15,8 @@ int main() {
   StreetSegment federal{
       .id = "federal-road",
       .length_m = 18000.0,
-      .road_class = RoadClass::FederalRoad,
+      .functional_road_class = FunctionalRoadClass::Primary,
+      .road_network_class = RoadNetworkClass::FederalRoad,
       .speed_limit_kmh = 80.0,
       .practical_speed_kmh = 78.0,
       .curvature_score = 0.10,
@@ -28,7 +29,8 @@ int main() {
   StreetSegment shortcut{
       .id = "mountain-shortcut",
       .length_m = 14000.0,
-      .road_class = RoadClass::Residential,
+      .functional_road_class = FunctionalRoadClass::Residential,
+      .road_network_class = RoadNetworkClass::MunicipalRoad,
       .speed_limit_kmh = 30.0,
       .practical_speed_kmh = 30.0,
       .curvature_score = 0.85,
@@ -41,8 +43,9 @@ int main() {
   RuleSet rules;
   rules.id = "long-distance";
   rules.rules = {
-      {.id = "prefer-federal", .name = "Bundesstraße bevorzugen", .attribute = Attribute::RoadClass,
-       .op = CompareOp::Equal, .value = static_cast<double>(RoadClass::FederalRoad),
+      {.id = "prefer-federal", .name = "Bundesstraße bevorzugen", .attribute = Attribute::RoadNetworkClass,
+       .op = CompareOp::Equal,
+       .value = static_cast<double>(RoadNetworkClass::FederalRoad),
        .action = RuleAction::StronglyPrefer, .strength = 70.0},
       {.id = "avoid-30", .name = "Tempo 30 vermeiden", .attribute = Attribute::SpeedLimitKmh,
        .op = CompareOp::LessOrEqual, .value = 30.0,

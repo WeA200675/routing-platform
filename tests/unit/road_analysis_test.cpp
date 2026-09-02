@@ -4,7 +4,7 @@
 #include "routing/core/road_analysis.hpp"
 
 int main() {
-  using routing::core::RoadClass;
+  using routing::core::FunctionalRoadClass;
   using routing::core::StreetSegment;
   using routing::core::is_major_road;
   using routing::core::is_minor_road;
@@ -18,22 +18,23 @@ int main() {
   using routing::core::classify_strongly_curvy;
   using routing::core::classify_urban;
 
-  // Road hierarchy.
-  assert(is_major_road(RoadClass::Motorway));
-  assert(is_major_road(RoadClass::FederalRoad));
-  assert(is_major_road(RoadClass::StateRoad));
-  assert(is_major_road(RoadClass::Primary));
+  // Functional road hierarchy.
+  assert(is_major_road(FunctionalRoadClass::Motorway));
+  assert(is_major_road(FunctionalRoadClass::Trunk));
+  assert(is_major_road(FunctionalRoadClass::Primary));
 
-  assert(!is_major_road(RoadClass::Residential));
-  assert(!is_major_road(RoadClass::Service));
-  assert(!is_major_road(RoadClass::Track));
+  assert(!is_major_road(FunctionalRoadClass::Secondary));
+  assert(!is_major_road(FunctionalRoadClass::Residential));
+  assert(!is_major_road(FunctionalRoadClass::Service));
+  assert(!is_major_road(FunctionalRoadClass::Track));
 
-  assert(is_minor_road(RoadClass::Residential));
-  assert(is_minor_road(RoadClass::Service));
-  assert(is_minor_road(RoadClass::Track));
+  assert(is_minor_road(FunctionalRoadClass::Residential));
+  assert(is_minor_road(FunctionalRoadClass::Service));
+  assert(is_minor_road(FunctionalRoadClass::Track));
 
-  assert(!is_minor_road(RoadClass::Motorway));
-  assert(!is_minor_road(RoadClass::FederalRoad));
+  assert(!is_minor_road(FunctionalRoadClass::Motorway));
+  assert(!is_minor_road(FunctionalRoadClass::Primary));
+  assert(!is_minor_road(FunctionalRoadClass::Unknown));
 
   StreetSegment segment;
 
