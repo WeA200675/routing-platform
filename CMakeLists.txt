@@ -119,8 +119,16 @@ add_library(
     STATIC
         adapters/valhalla/src/valhalla_routing_engine.cpp
         adapters/valhalla/src/valhalla_parsing.cpp
-        adapters/valhalla/src/valhalla_edge_attributes.cpp
+        adapters/valhalla/src/valhalla_street_segment_mapper.cpp
 )
+
+if(ROUTING_PLATFORM_WITH_VALHALLA)
+    target_sources(
+        routing_valhalla_adapter
+        PRIVATE
+            adapters/valhalla/src/valhalla_edge_attributes.cpp
+    )
+endif()
 
 target_include_directories(
     routing_valhalla_adapter
@@ -260,20 +268,38 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     )
 
 
+    if(ROUTING_PLATFORM_WITH_VALHALLA)
+        add_executable(
+            valhalla_edge_attributes_test
+            tests/unit/valhalla_edge_attributes_test.cpp
+        )
+
+        target_link_libraries(
+            valhalla_edge_attributes_test
+            PRIVATE
+                routing_valhalla_adapter
+        )
+
+        add_test(
+            NAME valhalla_edge_attributes_test
+            COMMAND valhalla_edge_attributes_test
+        )
+    endif()
+
     add_executable(
-        valhalla_edge_attributes_test
-        tests/unit/valhalla_edge_attributes_test.cpp
+        valhalla_street_segment_mapper_test
+        tests/unit/valhalla_street_segment_mapper_test.cpp
     )
 
     target_link_libraries(
-        valhalla_edge_attributes_test
+        valhalla_street_segment_mapper_test
         PRIVATE
             routing_valhalla_adapter
     )
 
     add_test(
-        NAME valhalla_edge_attributes_test
-        COMMAND valhalla_edge_attributes_test
+        NAME valhalla_street_segment_mapper_test
+        COMMAND valhalla_street_segment_mapper_test
     )
 
 
