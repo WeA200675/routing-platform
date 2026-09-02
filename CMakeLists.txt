@@ -390,3 +390,9 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         )
     endif()
 endif()
+
+# ---------------------------------------------------------------------------
+# Routing Intelligence
+# ---------------------------------------------------------------------------
+
+add_subdirectory(core/intelligence)
