@@ -65,9 +65,8 @@ map_valhalla_edge_to_street_segment(
       map_valhalla_functional_road_class(
           edge.road_class.value_or(""));
 
-  // Valhalla road_class is a functional hierarchy and does
-  // not tell us whether a road is a Bundes-, Landes- or
-  // Kreisstraße.
+  // Functional Valhalla road classes must never be mistaken for
+  // legal/network classes such as Bundesstraße or Landesstraße.
   segment.road_network_class =
       RoadNetworkClass::Unknown;
 
@@ -76,7 +75,10 @@ map_valhalla_edge_to_street_segment(
         *edge.speed_limit_kmh;
   }
 
-  // edge.speed is kept separate from the legal speed limit.
+  segment.speed_limit_unlimited =
+      edge.speed_limit_unlimited;
+
+  // edge.speed is Valhalla's routing speed, not the legal limit.
   if (edge.speed_kmh.has_value()) {
     segment.practical_speed_kmh =
         *edge.speed_kmh;
@@ -88,12 +90,10 @@ map_valhalla_edge_to_street_segment(
   }
 
   // Deliberately not mapped yet:
-  // - curvature: Valhalla's raw scale is not our 0..1 score
-  // - grades: normalization semantics are not defined yet
-  // - surface: StreetSegment has no neutral surface field yet
-  // - lane_count: StreetSegment has no lane model yet
-  // - unlimited speed: the current core speed-limit model
-  //   cannot represent it without conflating it with unknown
+  // - curvature: raw Valhalla scale is not our normalized score
+  // - grades: neutral normalization is not yet defined
+  // - surface: neutral Street Model field is not yet present
+  // - lane_count: neutral lane model is not yet present
 
   return segment;
 }

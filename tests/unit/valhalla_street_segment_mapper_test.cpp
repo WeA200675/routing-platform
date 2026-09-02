@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "routing/adapters/valhalla/valhalla_street_segment_mapper.hpp"
+#include "routing/core/route_analysis.hpp"
 
 namespace {
 
@@ -138,8 +139,21 @@ int main() {
       map_valhalla_edge_to_street_segment(unlimited);
 
   // Unlimited and unknown must not be converted to a fake
-  // numeric speed limit.
+  // numeric speed limit, but they must remain distinguishable.
   assert(!unlimited_segment.speed_limit_kmh.has_value());
+  assert(unlimited_segment.speed_limit_unlimited);
+
+  const auto unlimited_analysis =
+      routing::core::analyze_route_segments(
+          {unlimited_segment});
+
+  assert(nearly_equal(
+      unlimited_analysis.speed_30_or_lower_distance_m,
+      0.0));
+
+  assert(nearly_equal(
+      unlimited_analysis.unknown_speed_limit_distance_m,
+      0.0));
 
   bool missing_id_threw = false;
 

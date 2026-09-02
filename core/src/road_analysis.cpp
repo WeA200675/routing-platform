@@ -30,6 +30,10 @@ bool is_minor_road(
 
 MatchState classify_speed_30_or_lower(
     const StreetSegment& segment) {
+  if (segment.speed_limit_unlimited) {
+    return MatchState::No;
+  }
+
   if (!segment.speed_limit_kmh.has_value()) {
     return MatchState::Unknown;
   }

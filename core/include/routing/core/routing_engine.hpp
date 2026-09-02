@@ -88,7 +88,11 @@ struct RoutePath {
   // Turn-by-turn guidance independent of the routing backend.
   std::vector<RouteManeuver> maneuvers;
 
-  // Segment identifiers will later connect the route to our Street Model.
+  // Street Model segments in travel order. These represent the
+  // route occurrences, so the same underlying edge may occur more than once.
+  std::vector<StreetSegment> segments;
+
+  // Convenience IDs in exactly the same order as segments.
   std::vector<std::string> segment_ids;
 
   std::string engine_name;

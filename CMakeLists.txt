@@ -119,6 +119,7 @@ add_library(
     STATIC
         adapters/valhalla/src/valhalla_routing_engine.cpp
         adapters/valhalla/src/valhalla_parsing.cpp
+        adapters/valhalla/src/valhalla_trace_request.cpp
         adapters/valhalla/src/valhalla_street_segment_mapper.cpp
 )
 
@@ -284,6 +285,22 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
             NAME valhalla_edge_attributes_test
             COMMAND valhalla_edge_attributes_test
         )
+        add_executable(
+            valhalla_speed_limit_semantics_test
+            tests/unit/valhalla_speed_limit_semantics_test.cpp
+        )
+
+        target_link_libraries(
+            valhalla_speed_limit_semantics_test
+            PRIVATE
+                routing_valhalla_adapter
+        )
+
+        add_test(
+            NAME valhalla_speed_limit_semantics_test
+            COMMAND valhalla_speed_limit_semantics_test
+        )
+
     endif()
 
     add_executable(
@@ -312,6 +329,22 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_test(
         NAME routing_engine_contract_test
         COMMAND routing_engine_contract_test
+    )
+
+    add_executable(
+        valhalla_trace_request_test
+        tests/unit/valhalla_trace_request_test.cpp
+    )
+
+    target_link_libraries(
+        valhalla_trace_request_test
+        PRIVATE
+            routing_valhalla_adapter
+    )
+
+    add_test(
+        NAME valhalla_trace_request_test
+        COMMAND valhalla_trace_request_test
     )
 
     if(NOT ROUTING_PLATFORM_WITH_VALHALLA)

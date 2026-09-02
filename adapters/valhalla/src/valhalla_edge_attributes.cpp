@@ -42,7 +42,22 @@ void parse_speed_limit(
   }
 
   try {
-    edge.speed_limit_kmh = std::stod(*raw);
+    const double parsed = std::stod(*raw);
+
+    if (parsed < 0.0) {
+      throw std::runtime_error(
+          "Negative Valhalla edge.speed_limit value: " + *raw);
+    }
+
+    // Valhalla may expose 0 when no usable numeric speed limit
+    // is available. Zero is not a valid legal driving limit.
+    if (parsed == 0.0) {
+      return;
+    }
+
+    edge.speed_limit_kmh = parsed;
+  } catch (const std::runtime_error&) {
+    throw;
   } catch (const std::exception&) {
     throw std::runtime_error(
         "Invalid Valhalla edge.speed_limit value: " + *raw);

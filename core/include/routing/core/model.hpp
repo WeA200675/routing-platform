@@ -39,6 +39,11 @@ struct StreetSegment {
     RoadNetworkClass::Unknown;
 
   std::optional<double> speed_limit_kmh;
+
+  // Explicitly distinguishes "no numeric legal limit" from
+  // an unknown/missing speed limit.
+  bool speed_limit_unlimited = false;
+
   std::optional<double> practical_speed_kmh;
   std::optional<double> curvature_score;     // 0..1
   std::optional<double> serpentine_score;    // 0..1

@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "routing/adapters/valhalla/valhalla_routing_engine.hpp"
+#include "routing/core/route_analysis.hpp"
 
 namespace {
 
@@ -192,6 +193,69 @@ if (!has_engine_type) {
   return fail("Expected preserved Valhalla maneuver types.");
 }
 
+
+  if (route.segments.empty()) {
+    return fail(
+        "Expected Valhalla trace attributes to produce route segments.");
+  }
+
+  if (route.segment_ids.size() !=
+      route.segments.size()) {
+    return fail(
+        "Route segment_ids and segments have different sizes.");
+  }
+
+  for (std::size_t i = 0;
+       i < route.segments.size();
+       ++i) {
+    if (route.segment_ids[i] !=
+        route.segments[i].id) {
+      return fail(
+          "Route segment ID order does not match segment order.");
+    }
+
+    if (route.segments[i].length_m <= 0.0) {
+      return fail(
+          "Expected every mapped route segment to have positive length.");
+    }
+  }
+
+  const auto route_analysis =
+      routing::core::analyze_route_segments(
+          route.segments);
+
+  if (route_analysis.segment_count !=
+      route.segments.size()) {
+    return fail(
+        "RouteAnalysis segment count does not match route segments.");
+  }
+
+  if (route_analysis.analyzed_distance_m <= 0.0) {
+    return fail(
+        "RouteAnalysis produced no analyzed distance.");
+  }
+
+  // edge.length and the route summary are produced through different
+  // Valhalla representations. First/last partial edges can therefore
+  // differ somewhat. We only reject clearly implausible enrichment here.
+  if (route_analysis.analyzed_distance_m <
+          route.distance_m * 0.5 ||
+      route_analysis.analyzed_distance_m >
+          route.distance_m * 1.75) {
+    return fail(
+        "Trace edge distance is implausible relative to route distance: " +
+        std::to_string(route_analysis.analyzed_distance_m) +
+        " m vs " +
+        std::to_string(route.distance_m) +
+        " m");
+  }
+
+  if (route_analysis.unknown_road_class_distance_m >=
+      route_analysis.analyzed_distance_m) {
+    return fail(
+        "Expected at least one known functional road class.");
+  }
+
   // Multi-leg regression:
   // Maneuver shape indices from individual Valhalla legs must be
   // translated into indices of our combined RoutePath geometry.
@@ -228,6 +292,18 @@ if (!has_engine_type) {
   if (via_route.maneuvers.empty()) {
     return fail(
         "Expected multi-leg route maneuvers.");
+  }
+
+
+  if (via_route.segments.empty()) {
+    return fail(
+        "Expected multi-leg route segments.");
+  }
+
+  if (via_route.segment_ids.size() !=
+      via_route.segments.size()) {
+    return fail(
+        "Multi-leg segment IDs do not match segment count.");
   }
 
   std::size_t max_end_shape_index = 0;
@@ -275,7 +351,25 @@ if (!has_engine_type) {
       << " points\n"
       << "  maneuvers: "
       << route.maneuvers.size()
-      << '\n';
+      << '\n'
+      << "  segments:  "
+      << route.segments.size()
+      << '\n'
+      << "  analyzed:  "
+      << route_analysis.analyzed_distance_m
+      << " m\n"
+      << "  major:     "
+      << route_analysis.major_road_distance_m
+      << " m\n"
+      << "  minor:     "
+      << route_analysis.minor_road_distance_m
+      << " m\n"
+      << "  <=30 km/h: "
+      << route_analysis.speed_30_or_lower_distance_m
+      << " m\n"
+      << "  urban:     "
+      << route_analysis.urban_distance_m
+      << " m\n";
 
   return 0;
 }
