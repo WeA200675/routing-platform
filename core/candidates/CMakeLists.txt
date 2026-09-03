@@ -4,6 +4,9 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/core/src/candidates/candidate_family_plan.cpp
         ${PROJECT_SOURCE_DIR}/core/src/candidates/family_representative.cpp
         ${PROJECT_SOURCE_DIR}/core/src/candidates/candidate_portfolio.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/candidates/rule_candidate_profile.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/candidates/route_identity.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/candidates/candidate_orchestrator.cpp
 )
 
 if(ROUTING_PLATFORM_BUILD_TESTS)
@@ -38,6 +41,21 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_routing_candidate_test(
         routing_candidate_portfolio_test
         tests/unit/candidate_portfolio_test.cpp
+    )
+
+    add_routing_candidate_test(
+        routing_rule_candidate_profile_test
+        tests/unit/rule_candidate_profile_test.cpp
+    )
+
+    add_routing_candidate_test(
+        routing_route_identity_test
+        tests/unit/route_identity_test.cpp
+    )
+
+    add_routing_candidate_test(
+        routing_candidate_orchestrator_test
+        tests/unit/candidate_orchestrator_test.cpp
     )
 
     add_executable(
@@ -77,6 +95,29 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
 
         set_tests_properties(
             valhalla_candidate_family_generation_test
+            PROPERTIES
+                SKIP_RETURN_CODE 77
+        )
+
+        add_executable(
+            valhalla_rule_candidate_orchestrator_test
+            ${PROJECT_SOURCE_DIR}/tests/integration/valhalla_rule_candidate_orchestrator_test.cpp
+        )
+
+        target_link_libraries(
+            valhalla_rule_candidate_orchestrator_test
+            PRIVATE
+                routing_valhalla_adapter
+                routing_core
+        )
+
+        add_test(
+            NAME valhalla_rule_candidate_orchestrator_test
+            COMMAND valhalla_rule_candidate_orchestrator_test
+        )
+
+        set_tests_properties(
+            valhalla_rule_candidate_orchestrator_test
             PROPERTIES
                 SKIP_RETURN_CODE 77
         )
