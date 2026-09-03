@@ -471,3 +471,12 @@ endif()
 add_subdirectory(core/candidates)
 # END candidate-orchestration
 
+# ---------------------------------------------------------------------------
+# Routing Test Lab / Regression Harness
+# ---------------------------------------------------------------------------
+
+# BEGIN routing-test-lab
+add_subdirectory(core/testing)
+add_subdirectory(tools/route_lab)
+# END routing-test-lab
+
