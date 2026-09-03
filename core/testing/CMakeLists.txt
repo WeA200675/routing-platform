@@ -9,6 +9,8 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/core/src/testing/regression_suite.cpp
         ${PROJECT_SOURCE_DIR}/core/src/testing/regression_report.cpp
         ${PROJECT_SOURCE_DIR}/core/src/testing/regression_catalog.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/testing/regression_promotion.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/testing/regression_promotion_report.cpp
 )
 
 if(ROUTING_PLATFORM_BUILD_TESTS)
@@ -59,6 +61,22 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_routing_testing_test(
         routing_regression_catalog_test
         tests/unit/regression_catalog_test.cpp
+    )
+
+
+    add_routing_testing_test(
+        routing_regression_promotion_test
+        tests/unit/regression_promotion_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_regression_promotion_semantics_test
+        tests/unit/regression_promotion_semantics_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_regression_promotion_approval_test
+        tests/unit/regression_promotion_approval_test.cpp
     )
 
     if(ROUTING_PLATFORM_WITH_VALHALLA)
