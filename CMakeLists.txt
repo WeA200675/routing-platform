@@ -463,3 +463,11 @@ endif()
 
 # END valhalla-real-alternatives
 
+# ---------------------------------------------------------------------------
+# Candidate Orchestration
+# ---------------------------------------------------------------------------
+
+# BEGIN candidate-orchestration
+add_subdirectory(core/candidates)
+# END candidate-orchestration
+
