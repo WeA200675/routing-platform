@@ -402,3 +402,12 @@ add_subdirectory(core/intelligence)
 # ---------------------------------------------------------------------------
 
 add_subdirectory(core/drive)
+
+# ---------------------------------------------------------------------------
+# Route Evaluation and Candidate Comparison
+# ---------------------------------------------------------------------------
+
+# BEGIN route-evaluation
+add_subdirectory(core/evaluation)
+# END route-evaluation
+
