@@ -59,6 +59,11 @@ struct AiAttributePolicy {
 
   // 0.0 .. 1.0
   double minimum_confidence = 0.90;
+
+  // Mindest-Confidence fuer persoenliches Lernen.
+  // Absichtlich getrennt von minimum_confidence:
+  // Lernen und Anwenden sind zwei verschiedene Entscheidungen.
+  double minimum_learning_confidence = 0.60;
 };
 
 struct AiPolicy {

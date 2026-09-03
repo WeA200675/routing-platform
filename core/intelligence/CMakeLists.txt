@@ -46,3 +46,46 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         tests/unit/learning_memory_test.cpp
     )
 endif()
+
+# BEGIN evidence-learning-intelligence
+target_sources(
+    routing_core
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/preference_hypothesis.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/learning_gate.cpp
+)
+
+if(ROUTING_PLATFORM_BUILD_TESTS)
+    add_routing_intelligence_test(
+        routing_preference_hypothesis_test
+        tests/unit/preference_hypothesis_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_learning_gate_test
+        tests/unit/learning_gate_test.cpp
+    )
+endif()
+# END evidence-learning-intelligence
+
+# BEGIN post-drive-shadow-intelligence
+target_sources(
+    routing_core
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/question_candidate.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/shadow_evaluation.cpp
+)
+
+if(ROUTING_PLATFORM_BUILD_TESTS)
+    add_routing_intelligence_test(
+        routing_question_candidate_test
+        tests/unit/question_candidate_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_shadow_evaluation_test
+        tests/unit/shadow_evaluation_test.cpp
+    )
+endif()
+# END post-drive-shadow-intelligence
+
