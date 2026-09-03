@@ -478,5 +478,6 @@ add_subdirectory(core/candidates)
 # BEGIN routing-test-lab
 add_subdirectory(core/testing)
 add_subdirectory(tools/route_lab)
+add_subdirectory(tools/regression_suite)
 # END routing-test-lab
 

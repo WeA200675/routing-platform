@@ -5,6 +5,10 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/core/src/testing/routing_scenario.cpp
         ${PROJECT_SOURCE_DIR}/core/src/testing/scenario_runner.cpp
         ${PROJECT_SOURCE_DIR}/core/src/testing/route_decision_report.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/testing/regression_case.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/testing/regression_suite.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/testing/regression_report.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/testing/regression_catalog.cpp
 )
 
 if(ROUTING_PLATFORM_BUILD_TESTS)
@@ -41,6 +45,22 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         tests/unit/scenario_runner_test.cpp
     )
 
+
+    add_routing_testing_test(
+        routing_regression_case_model_test
+        tests/unit/regression_case_model_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_regression_suite_test
+        tests/unit/regression_suite_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_regression_catalog_test
+        tests/unit/regression_catalog_test.cpp
+    )
+
     if(ROUTING_PLATFORM_WITH_VALHALLA)
         add_executable(
             valhalla_routing_scenario_test
@@ -61,6 +81,30 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
 
         set_tests_properties(
             valhalla_routing_scenario_test
+            PROPERTIES
+                SKIP_RETURN_CODE 77
+        )
+
+
+        add_executable(
+            valhalla_regression_suite_test
+            ${PROJECT_SOURCE_DIR}/tests/integration/valhalla_regression_suite_test.cpp
+        )
+
+        target_link_libraries(
+            valhalla_regression_suite_test
+            PRIVATE
+                routing_valhalla_adapter
+                routing_core
+        )
+
+        add_test(
+            NAME valhalla_regression_suite_test
+            COMMAND valhalla_regression_suite_test
+        )
+
+        set_tests_properties(
+            valhalla_regression_suite_test
             PROPERTIES
                 SKIP_RETURN_CODE 77
         )
