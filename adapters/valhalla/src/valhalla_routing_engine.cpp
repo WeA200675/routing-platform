@@ -2,6 +2,7 @@
 
 #include "routing/adapters/valhalla/detail/valhalla_edge_attributes.hpp"
 #include "routing/adapters/valhalla/detail/valhalla_parsing.hpp"
+#include "routing/adapters/valhalla/detail/valhalla_route_request.hpp"
 #include "routing/adapters/valhalla/detail/valhalla_trace_request.hpp"
 #include "routing/adapters/valhalla/valhalla_street_segment_mapper.hpp"
 
@@ -25,98 +26,54 @@ namespace {
 
 #ifdef ROUTING_PLATFORM_WITH_VALHALLA
 
-void validate_point(const routing::core::GeoPoint& point) {
-  if (point.latitude < -90.0 || point.latitude > 90.0) {
-    throw std::invalid_argument("Latitude must be between -90 and 90 degrees.");
-  }
-
-  if (point.longitude < -180.0 || point.longitude > 180.0) {
-    throw std::invalid_argument("Longitude must be between -180 and 180 degrees.");
-  }
-}
-
-std::string costing_name(const routing::core::RouteRequest& request) {
-  const std::string costing = request.costing_profile.value_or("auto");
-
-  if (costing.empty() ||
-      costing.find_first_not_of(
-          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") !=
-          std::string::npos) {
-    throw std::invalid_argument("Invalid Valhalla costing profile.");
-  }
-
-  return costing;
-}
-
-void append_location(std::ostringstream& json,
-                     const routing::core::GeoPoint& point) {
-  validate_point(point);
-
-  json << "{\"lat\":" << std::setprecision(15) << point.latitude
-       << ",\"lon\":" << std::setprecision(15) << point.longitude << "}";
-}
-
-std::string build_route_request(const routing::core::RouteRequest& request) {
-  std::ostringstream json;
-
-  json << "{\"locations\":[";
-
-  append_location(json, request.origin);
-
-  for (const auto& via : request.via_points) {
-    json << ",";
-    append_location(json, via);
-  }
-
-  json << ",";
-  append_location(json, request.destination);
-
-  json << "],\"costing\":\"" << costing_name(request)
-       << "\",\"units\":\"kilometers\"}";
-
-  return json.str();
-}
-routing::core::RoutingResult parse_route_response(
-    const std::string& response_json,
-    const routing::core::RouteRequest& request) {
-  std::istringstream stream(response_json);
-
-  boost::property_tree::ptree root;
-  boost::property_tree::read_json(stream, root);
-
+routing::core::RoutePath parse_trip(
+    const boost::property_tree::ptree& trip,
+    const routing::core::RouteRequest& request,
+    const std::size_t route_index) {
   routing::core::RoutePath path;
-  path.route_id = "valhalla-0";
+
+  path.route_id =
+      "valhalla-" +
+      std::to_string(route_index);
+
   path.family = request.family;
 
   path.distance_m =
-      root.get<double>("trip.summary.length") * 1000.0;
+      trip.get<double>(
+          "summary.length") *
+      1000.0;
 
   path.duration_s =
-      root.get<double>("trip.summary.time");
+      trip.get<double>(
+          "summary.time");
 
   path.engine_name = "valhalla";
   path.engine_version = "3.8.3";
 
   const auto& legs =
-      root.get_child("trip.legs");
+      trip.get_child("legs");
 
-  for (const auto& leg_entry : legs) {
-    const auto& leg = leg_entry.second;
+  for (const auto& leg_entry :
+       legs) {
+    const auto& leg =
+        leg_entry.second;
 
     const std::string encoded_shape =
         leg.get<std::string>("shape");
 
     auto leg_geometry =
-        detail::decode_polyline6(encoded_shape);
+        detail::decode_polyline6(
+            encoded_shape);
 
     const std::size_t shape_index_offset =
-    path.geometry.empty()
-        ? 0
-        : path.geometry.size() - 1;
+        path.geometry.empty()
+            ? 0
+            : path.geometry.size() - 1;
 
     if (!path.geometry.empty() &&
         !leg_geometry.empty()) {
-      leg_geometry.erase(leg_geometry.begin());
+      leg_geometry.erase(
+          leg_geometry.begin());
     }
 
     path.geometry.insert(
@@ -125,19 +82,26 @@ routing::core::RoutingResult parse_route_response(
         leg_geometry.end());
 
     if (const auto maneuvers =
-            leg.get_child_optional("maneuvers")) {
-      for (const auto& maneuver_entry : *maneuvers) {
+            leg.get_child_optional(
+                "maneuvers")) {
+      for (const auto& maneuver_entry :
+           *maneuvers) {
         const auto& source =
             maneuver_entry.second;
 
         routing::core::RouteManeuver maneuver;
 
         const auto engine_type =
-            source.get<std::int32_t>("type", 0);
+            source.get<std::int32_t>(
+                "type",
+                0);
 
-        maneuver.engine_type = engine_type;
+        maneuver.engine_type =
+            engine_type;
+
         maneuver.type =
-            detail::map_maneuver_type(engine_type);
+            detail::map_maneuver_type(
+                engine_type);
 
         maneuver.instruction =
             source.get<std::string>(
@@ -204,9 +168,55 @@ routing::core::RoutingResult parse_route_response(
     }
   }
 
+  return path;
+}
+
+routing::core::RoutingResult parse_route_response(
+    const std::string& response_json,
+    const routing::core::RouteRequest& request) {
+  std::istringstream stream(
+      response_json);
+
+  boost::property_tree::ptree root;
+  boost::property_tree::read_json(
+      stream,
+      root);
+
   routing::core::RoutingResult result;
   result.success = true;
-  result.routes.push_back(std::move(path));
+
+  result.routes.push_back(
+      parse_trip(
+          root.get_child("trip"),
+          request,
+          0));
+
+  if (const auto alternates =
+          root.get_child_optional(
+              "alternates")) {
+    std::size_t route_index = 1;
+
+    for (const auto& alternate_entry :
+         *alternates) {
+      const auto trip =
+          alternate_entry.second
+              .get_child_optional(
+                  "trip");
+
+      if (!trip) {
+        throw std::runtime_error(
+            "Valhalla alternate response is missing trip.");
+      }
+
+      result.routes.push_back(
+          parse_trip(
+              *trip,
+              request,
+              route_index));
+
+      ++route_index;
+    }
+  }
 
   return result;
 }
@@ -245,6 +255,8 @@ class ValhallaRoutingEngine::Impl {
       const routing::core::RouteRequest& request) const {
 #ifndef ROUTING_PLATFORM_WITH_VALHALLA
 
+    (void)request;
+
     routing::core::RoutingResult result;
     result.success = false;
     result.error_code = "VALHALLA_NOT_LINKED";
@@ -267,7 +279,7 @@ class ValhallaRoutingEngine::Impl {
 
     try {
       const std::string request_json =
-          build_route_request(request);
+          detail::build_route_request(request);
 
       // actor_t wird bewusst serialisiert benutzt.
       // Ein gemeinsamer Actor ist nicht als paralleler Request-Worker gedacht.
@@ -287,43 +299,50 @@ class ValhallaRoutingEngine::Impl {
       }
 
       try {
-        auto& path =
-            result.routes.front();
+        for (auto& path :
+             result.routes) {
+          const std::string trace_request_json =
+              detail::build_trace_attributes_request(
+                  path.geometry,
+                  detail::costing_name(request));
 
-        const std::string trace_request_json =
-            detail::build_trace_attributes_request(
-                path.geometry,
-                costing_name(request));
+          const std::string trace_response =
+              actor_->trace_attributes(
+                  trace_request_json);
 
-        const std::string trace_response =
-            actor_->trace_attributes(
-                trace_request_json);
+          const auto edges =
+              detail::parse_trace_edge_attributes_json(
+                  trace_response);
 
-        const auto edges =
-            detail::parse_trace_edge_attributes_json(
-                trace_response);
+          if (edges.empty()) {
+            throw std::runtime_error(
+                "Valhalla trace_attributes returned no edges "
+                "for route " +
+                path.route_id +
+                ".");
+          }
 
-        if (edges.empty()) {
-          throw std::runtime_error(
-              "Valhalla trace_attributes returned no edges.");
-        }
+          path.segments.clear();
+          path.segment_ids.clear();
 
-        path.segments.clear();
-        path.segment_ids.clear();
+          path.segments.reserve(
+              edges.size());
 
-        path.segments.reserve(edges.size());
-        path.segment_ids.reserve(edges.size());
+          path.segment_ids.reserve(
+              edges.size());
 
-        for (const auto& edge : edges) {
-          auto segment =
-              map_valhalla_edge_to_street_segment(
-                  edge);
+          for (const auto& edge :
+               edges) {
+            auto segment =
+                map_valhalla_edge_to_street_segment(
+                    edge);
 
-          path.segment_ids.push_back(
-              segment.id);
+            path.segment_ids.push_back(
+                segment.id);
 
-          path.segments.push_back(
-              std::move(segment));
+            path.segments.push_back(
+                std::move(segment));
+          }
         }
 
       } catch (const std::exception& error) {

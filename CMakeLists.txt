@@ -120,6 +120,7 @@ add_library(
         adapters/valhalla/src/valhalla_routing_engine.cpp
         adapters/valhalla/src/valhalla_parsing.cpp
         adapters/valhalla/src/valhalla_trace_request.cpp
+        adapters/valhalla/src/valhalla_route_request.cpp
         adapters/valhalla/src/valhalla_street_segment_mapper.cpp
 )
 
@@ -410,4 +411,55 @@ add_subdirectory(core/drive)
 # BEGIN route-evaluation
 add_subdirectory(core/evaluation)
 # END route-evaluation
+
+# ---------------------------------------------------------------------------
+# Valhalla real alternatives
+# ---------------------------------------------------------------------------
+
+# BEGIN valhalla-real-alternatives
+
+if(ROUTING_PLATFORM_BUILD_TESTS)
+    add_executable(
+        valhalla_route_request_test
+        tests/unit/valhalla_route_request_test.cpp
+    )
+
+    target_link_libraries(
+        valhalla_route_request_test
+        PRIVATE
+            routing_valhalla_adapter
+    )
+
+    add_test(
+        NAME valhalla_route_request_test
+        COMMAND valhalla_route_request_test
+    )
+endif()
+
+if(ROUTING_PLATFORM_BUILD_TESTS AND ROUTING_PLATFORM_WITH_VALHALLA)
+    add_executable(
+        valhalla_real_alternatives_test
+        tests/integration/valhalla_real_alternatives_test.cpp
+    )
+
+    target_link_libraries(
+        valhalla_real_alternatives_test
+        PRIVATE
+            routing_valhalla_adapter
+            routing_core
+    )
+
+    add_test(
+        NAME valhalla_real_alternatives_test
+        COMMAND valhalla_real_alternatives_test
+    )
+
+    set_tests_properties(
+        valhalla_real_alternatives_test
+        PROPERTIES
+            SKIP_RETURN_CODE 77
+    )
+endif()
+
+# END valhalla-real-alternatives
 
