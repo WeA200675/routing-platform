@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "routing/core/diagnostics/routing_diagnostic.hpp"
 #include "routing/core/testing/routing_scenario.hpp"
 
 namespace routing::core::testing {
@@ -23,6 +24,12 @@ struct RoutingScenarioResult {
 
   candidates::CandidateOrchestrationResult
       orchestration;
+
+  // Observational only.
+  // Diagnostics never participate in result.passed.
+  std::vector<
+      routing::core::diagnostics::RoutingDiagnostic>
+      diagnostics;
 
   std::vector<ScenarioAssertionResult>
       assertions;

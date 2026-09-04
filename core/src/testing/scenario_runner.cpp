@@ -1,5 +1,7 @@
 #include "routing/core/testing/scenario_runner.hpp"
 
+#include "routing/core/diagnostics/route_diagnostics.hpp"
+
 #include <cmath>
 #include <iomanip>
 #include <sstream>
@@ -197,6 +199,13 @@ RoutingScenarioResult run_routing_scenario(
           scenario.rules,
           scenario.context,
           scenario.family_policy);
+
+  // Diagnostics are collected after routing/evaluation.
+  // They do not alter orchestration, assertions or pass/fail semantics.
+  result.diagnostics =
+      routing::core::diagnostics::
+          collect_candidate_orchestration_diagnostics(
+              result.orchestration);
 
   if (scenario.expectations
           .require_orchestration_success) {

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "routing/core/candidates/candidate_family_plan.hpp"
+#include "routing/core/diagnostics/route_diagnostics.hpp"
 #include "routing/core/testing/route_metric.hpp"
 
 namespace routing::core::testing {
@@ -77,6 +78,83 @@ void append_families(
   }
 }
 
+void append_diagnostics(
+    std::ostringstream& output,
+    const std::vector<
+        routing::core::diagnostics::RoutingDiagnostic>&
+        diagnostics) {
+  using routing::core::diagnostics::
+      diagnostic_category_key;
+  using routing::core::diagnostics::
+      diagnostic_scope_key;
+  using routing::core::diagnostics::
+      diagnostic_severity_key;
+
+  if (diagnostics.empty()) {
+    output
+        << "  none\n";
+
+    return;
+  }
+
+  for (const auto& diagnostic :
+       diagnostics) {
+    output
+        << "  ["
+        << diagnostic_severity_key(
+               diagnostic.severity)
+        << "] "
+        << diagnostic.code
+        << " category="
+        << diagnostic_category_key(
+               diagnostic.category)
+        << " scope="
+        << diagnostic_scope_key(
+               diagnostic.scope);
+
+    if (diagnostic.family.has_value()) {
+      output
+          << " family="
+          << candidates::candidate_family_key(
+                 *diagnostic.family);
+    }
+
+    if (!diagnostic.route_id.empty()) {
+      output
+          << " route="
+          << diagnostic.route_id;
+    }
+
+    output
+        << "\n"
+        << "      "
+        << diagnostic.detail
+        << "\n";
+
+    if (!diagnostic.evidence.empty()) {
+      output
+          << "      evidence:";
+
+      for (const auto& evidence :
+           diagnostic.evidence) {
+        output
+            << " "
+            << evidence.key
+            << "="
+            << evidence.value;
+
+        if (!evidence.unit.empty()) {
+          output
+              << " "
+              << evidence.unit;
+        }
+      }
+
+      output << "\n";
+    }
+  }
+}
+
 }  // namespace
 
 std::string format_candidate_orchestration_report(
@@ -101,6 +179,12 @@ std::string format_candidate_orchestration_report(
   output
       << "generated routes: "
       << result.generated_route_count
+      << "\n"
+      << "degraded routes: "
+      << result.degraded_route_count
+      << "\n"
+      << "usable routes: "
+      << result.usable_route_count
       << "\n"
       << "family representatives: "
       << result.portfolio.entries.size()
@@ -255,6 +339,18 @@ std::string format_candidate_orchestration_report(
         << percentage(steep)
         << "\n";
   }
+
+  const auto collected_diagnostics =
+      routing::core::diagnostics::
+          collect_candidate_orchestration_diagnostics(
+              result);
+
+  output
+      << "\ndiagnostics\n";
+
+  append_diagnostics(
+      output,
+      collected_diagnostics);
 
   return output.str();
 }

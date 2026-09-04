@@ -47,6 +47,21 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         tests/unit/scenario_runner_test.cpp
     )
 
+    add_routing_testing_test(
+        routing_route_diagnostics_test
+        tests/unit/route_diagnostics_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_orchestration_diagnostics_test
+        tests/unit/orchestration_diagnostics_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_scenario_diagnostics_test
+        tests/unit/scenario_diagnostics_test.cpp
+    )
+
 
     add_routing_testing_test(
         routing_regression_case_model_test

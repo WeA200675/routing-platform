@@ -4,6 +4,8 @@
 
 #include "routing/core/testing/route_decision_report.hpp"
 
+#include "routing/core/diagnostics/routing_diagnostic.hpp"
+
 namespace routing::core::testing {
 
 namespace {
@@ -23,6 +25,71 @@ const char* result_label(
   }
 
   return "OBSERVE-FAIL";
+}
+
+void append_diagnostic_summary(
+    std::ostringstream& output,
+    const std::vector<
+        routing::core::diagnostics::RoutingDiagnostic>&
+        diagnostics) {
+  using routing::core::diagnostics::
+      DiagnosticSeverity;
+  using routing::core::diagnostics::
+      diagnostic_severity_key;
+
+  if (diagnostics.empty()) {
+    return;
+  }
+
+  std::size_t warnings = 0;
+  std::size_t errors = 0;
+
+  for (const auto& diagnostic :
+       diagnostics) {
+    if (diagnostic.severity ==
+        DiagnosticSeverity::Warning) {
+      ++warnings;
+    }
+
+    if (diagnostic.severity ==
+        DiagnosticSeverity::Error) {
+      ++errors;
+    }
+  }
+
+  output
+      << "    diagnostics: total="
+      << diagnostics.size()
+      << " warning="
+      << warnings
+      << " error="
+      << errors
+      << "\n";
+
+  // Keep normal regression output compact:
+  // INFO observations remain available in verbose scenario reports.
+  for (const auto& diagnostic :
+       diagnostics) {
+    if (diagnostic.severity ==
+        DiagnosticSeverity::Info) {
+      continue;
+    }
+
+    output
+        << "    diagnostic: ["
+        << diagnostic_severity_key(
+               diagnostic.severity)
+        << "] "
+        << diagnostic.code;
+
+    if (!diagnostic.route_id.empty()) {
+      output
+          << " route="
+          << diagnostic.route_id;
+    }
+
+    output << "\n";
+  }
 }
 
 }  // namespace
@@ -100,6 +167,14 @@ std::string format_regression_suite_report(
         << "    "
         << regression_case.title
         << "\n";
+
+    if (case_result.scenario_result
+            .has_value()) {
+      append_diagnostic_summary(
+          output,
+          case_result.scenario_result
+              ->diagnostics);
+    }
 
     if (case_result.scenario_result
             .has_value() &&
