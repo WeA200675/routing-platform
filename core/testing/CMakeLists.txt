@@ -62,6 +62,26 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         tests/unit/scenario_diagnostics_test.cpp
     )
 
+    add_routing_testing_test(
+        routing_diagnostic_evidence_test
+        tests/unit/diagnostic_evidence_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_anomaly_tracker_test
+        tests/unit/anomaly_tracker_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_investigation_candidate_test
+        tests/unit/investigation_candidate_test.cpp
+    )
+
+    add_routing_testing_test(
+        routing_diagnostic_tracking_pipeline_test
+        tests/unit/diagnostic_tracking_pipeline_test.cpp
+    )
+
 
     add_routing_testing_test(
         routing_regression_case_model_test
