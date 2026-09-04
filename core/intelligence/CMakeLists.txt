@@ -4,6 +4,7 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/ai_policy.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/resource_governor.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/intelligence_job_queue.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/diagnostic_investigation_job.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/learning_memory.cpp
 )
 
@@ -39,6 +40,16 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_routing_intelligence_test(
         routing_intelligence_job_queue_test
         tests/unit/intelligence_job_queue_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_diagnostic_investigation_job_test
+        tests/unit/diagnostic_investigation_job_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_diagnostic_investigation_pipeline_test
+        tests/unit/diagnostic_investigation_pipeline_test.cpp
     )
 
     add_routing_intelligence_test(
