@@ -5,6 +5,7 @@
 #include "routing/adapters/valhalla/detail/valhalla_route_request.hpp"
 #include "routing/adapters/valhalla/detail/valhalla_trace_request.hpp"
 #include "routing/adapters/valhalla/valhalla_street_segment_mapper.hpp"
+#include "routing/core/route_enrichment.hpp"
 
 #include <iomanip>
 #include <memory>
@@ -298,69 +299,53 @@ class ValhallaRoutingEngine::Impl {
         return result;
       }
 
-      try {
-        for (auto& path :
-             result.routes) {
-          const std::string trace_request_json =
-              detail::build_trace_attributes_request(
-                  path.geometry,
-                  detail::costing_name(request));
+      // Routing succeeded. Street Model enrichment is optional
+      // downstream semantic data and is isolated per physical route.
+      //
+      // One broken alternate must never erase valid sibling routes.
+      const auto enrichment =
+          routing::core::
+              enrich_route_segments_independently(
+                  result.routes,
+                  [&](const routing::core::RoutePath& path) {
+                    const std::string trace_request_json =
+                        detail::build_trace_attributes_request(
+                            path.geometry,
+                            detail::costing_name(request));
 
-          const std::string trace_response =
-              actor_->trace_attributes(
-                  trace_request_json);
+                    const std::string trace_response =
+                        actor_->trace_attributes(
+                            trace_request_json);
 
-          const auto edges =
-              detail::parse_trace_edge_attributes_json(
-                  trace_response);
+                    const auto edges =
+                        detail::parse_trace_edge_attributes_json(
+                            trace_response);
 
-          if (edges.empty()) {
-            throw std::runtime_error(
-                "Valhalla trace_attributes returned no edges "
-                "for route " +
-                path.route_id +
-                ".");
-          }
+                    if (edges.empty()) {
+                      throw std::runtime_error(
+                          "Valhalla trace_attributes returned no edges "
+                          "for route " +
+                          path.route_id +
+                          ".");
+                    }
 
-          path.segments.clear();
-          path.segment_ids.clear();
+                    std::vector<routing::core::StreetSegment>
+                        segments;
 
-          path.segments.reserve(
-              edges.size());
+                    segments.reserve(
+                        edges.size());
 
-          path.segment_ids.reserve(
-              edges.size());
+                    for (const auto& edge :
+                         edges) {
+                      segments.push_back(
+                          map_valhalla_edge_to_street_segment(
+                              edge));
+                    }
 
-          for (const auto& edge :
-               edges) {
-            auto segment =
-                map_valhalla_edge_to_street_segment(
-                    edge);
+                    return segments;
+                  });
 
-            path.segment_ids.push_back(
-                segment.id);
-
-            path.segments.push_back(
-                std::move(segment));
-          }
-        }
-
-      } catch (const std::exception& error) {
-        result.success = false;
-        result.error_code =
-            "VALHALLA_TRACE_ATTRIBUTES_FAILED";
-        result.error_message =
-            error.what();
-        result.routes.clear();
-      } catch (...) {
-        result.success = false;
-        result.error_code =
-            "VALHALLA_TRACE_ATTRIBUTES_FAILED";
-        result.error_message =
-            "Unknown exception while reading "
-            "Valhalla trace attributes.";
-        result.routes.clear();
-      }
+      (void)enrichment;
 
       return result;
 

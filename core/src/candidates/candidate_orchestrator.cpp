@@ -191,12 +191,30 @@ CandidateOrchestrator::route(
 
     for (const auto& route :
          run.routes) {
-      run.evaluations.push_back(
+      auto route_evaluation =
           evaluation::evaluate_route(
               route,
               vehicle,
               rules,
-              context));
+              context);
+
+      if (route.segment_data_status ==
+          RouteSegmentDataStatus::Unavailable) {
+        ++run.degraded_route_count;
+        ++result.degraded_route_count;
+      }
+
+      if (route_evaluation.allowed &&
+          route_evaluation.score_available &&
+          std::isfinite(
+              route_evaluation
+                  .total_seconds_equivalent)) {
+        ++run.usable_route_count;
+        ++result.usable_route_count;
+      }
+
+      run.evaluations.push_back(
+          std::move(route_evaluation));
     }
 
     run.representative =
@@ -214,6 +232,16 @@ CandidateOrchestrator::route(
       run.status =
           FamilyRoutingStatus::
               RoutedNoRepresentative;
+
+      if (run.usable_route_count == 0 &&
+          run.degraded_route_count > 0) {
+        run.error_code =
+            "CANDIDATE_NO_USABLE_ENRICHED_ROUTE";
+
+        run.error_message =
+            "Routing backend returned route geometry, but no "
+            "candidate had usable semantic segment data.";
+      }
     }
 
     FamilyEvaluationPool pool;

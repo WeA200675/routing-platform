@@ -34,6 +34,13 @@ struct FamilyRoutingRun {
       evaluation::RouteEvaluation>
       evaluations;
 
+  // Routes returned by the backend but without usable semantic
+  // Street Model data are preserved and counted rather than discarded.
+  std::size_t degraded_route_count = 0;
+
+  // A usable route is allowed, has a semantic score and a finite total.
+  std::size_t usable_route_count = 0;
+
   FamilyRepresentativeDecision
       representative;
 };
@@ -80,6 +87,9 @@ struct CandidateOrchestrationResult {
   std::string reason_key;
 
   std::size_t generated_route_count = 0;
+
+  std::size_t degraded_route_count = 0;
+  std::size_t usable_route_count = 0;
 };
 
 class CandidateOrchestrator {

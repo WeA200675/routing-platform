@@ -182,6 +182,40 @@ routing_platform_warnings(routing_valhalla_adapter)
 if(ROUTING_PLATFORM_BUILD_TESTS)
     enable_testing()
 
+    # BEGIN candidate-reliability-tests
+    add_executable(
+        routing_route_enrichment_test
+        tests/unit/route_enrichment_test.cpp
+    )
+
+    target_link_libraries(
+        routing_route_enrichment_test
+        PRIVATE
+            routing_core
+    )
+
+    add_test(
+        NAME routing_route_enrichment_test
+        COMMAND routing_route_enrichment_test
+    )
+
+    add_executable(
+        routing_candidate_degraded_route_test
+        tests/unit/candidate_degraded_route_test.cpp
+    )
+
+    target_link_libraries(
+        routing_candidate_degraded_route_test
+        PRIVATE
+            routing_core
+    )
+
+    add_test(
+        NAME routing_candidate_degraded_route_test
+        COMMAND routing_candidate_degraded_route_test
+    )
+    # END candidate-reliability-tests
+
     add_executable(
         routing_core_smoke_test
         tests/smoke_test.cpp

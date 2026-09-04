@@ -74,6 +74,24 @@ struct RouteRequest {
   std::optional<std::string> costing_profile;
 };
 
+enum class RouteSegmentDataStatus : std::uint8_t {
+  // Generic routing engines are not required to use segment enrichment.
+  // Actual segment availability is still determined from RoutePath::segments.
+  Unspecified = 0,
+
+  // Street Model segment enrichment completed successfully.
+  Complete,
+
+  // Routing itself succeeded, but semantic Street Model enrichment failed.
+  // Unknown/unavailable data must never be interpreted as zero or "good".
+  Unavailable,
+};
+
+struct RouteDiagnostic {
+  std::string code;
+  std::string message;
+};
+
 struct RoutePath {
   std::string route_id;
 
@@ -97,6 +115,14 @@ struct RoutePath {
 
   std::string engine_name;
   std::string engine_version;
+
+  // Kept at the end to preserve existing positional aggregate field order.
+  RouteSegmentDataStatus segment_data_status =
+      RouteSegmentDataStatus::Unspecified;
+
+  // Non-fatal route-level diagnostics.
+  // A diagnostic never fabricates missing Street Model data.
+  std::vector<RouteDiagnostic> diagnostics;
 };
 
 struct RoutingResult {
