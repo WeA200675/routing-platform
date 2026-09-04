@@ -8,6 +8,7 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/cluster_problem_analysis.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/cluster_problem_review.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/reviewed_analysis_outcome.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/proposal_approval.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/learning_memory.cpp
 )
 
@@ -98,6 +99,21 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_routing_intelligence_test(
         routing_reviewed_analysis_outcome_pipeline_test
         tests/unit/reviewed_analysis_outcome_pipeline_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_proposal_approval_test
+        tests/unit/proposal_approval_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_proposal_approval_boundary_test
+        tests/unit/proposal_approval_boundary_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_proposal_approval_pipeline_test
+        tests/unit/proposal_approval_pipeline_test.cpp
     )
 
     add_routing_intelligence_test(
