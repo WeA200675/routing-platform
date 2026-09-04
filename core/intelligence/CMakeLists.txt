@@ -11,6 +11,7 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/proposal_approval.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/semantic_hypothesis_mapping.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/system_hypothesis_evaluation.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/remediation_proposal.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/learning_memory.cpp
 )
 
@@ -146,6 +147,21 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_routing_intelligence_test(
         routing_system_hypothesis_evaluation_pipeline_test
         tests/unit/system_hypothesis_evaluation_pipeline_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_remediation_proposal_test
+        tests/unit/remediation_proposal_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_remediation_proposal_boundary_test
+        tests/unit/remediation_proposal_boundary_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_remediation_proposal_pipeline_test
+        tests/unit/remediation_proposal_pipeline_test.cpp
     )
 
     add_routing_intelligence_test(
