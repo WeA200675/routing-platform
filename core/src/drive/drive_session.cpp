@@ -163,10 +163,24 @@ DriveSessionRecorder::DriveSessionRecorder(
     DriveSessionHeader header,
     RouteRequestSnapshot request,
     RouteSnapshot selected_route,
-    std::vector<RouteSnapshot> alternatives) {
+    std::vector<RouteSnapshot> alternatives,
+    std::optional<ReplaySemanticsSnapshot>
+        replay_semantics) {
   validate_header(header);
   validate_request(request);
   validate_route(selected_route);
+
+  if (replay_semantics.has_value()) {
+    if (header.schema_version <
+        kDriveSessionReplaySemanticsVersion) {
+      throw std::invalid_argument(
+          "DriveSession schema v1 cannot contain "
+          "ReplaySemanticsSnapshot.");
+    }
+
+    validate_replay_semantics_snapshot(
+        *replay_semantics);
+  }
 
   std::unordered_set<std::string> route_ids;
   route_ids.insert(selected_route.route_id);
@@ -182,6 +196,10 @@ DriveSessionRecorder::DriveSessionRecorder(
   }
 
   session_.header = std::move(header);
+
+  session_.replay_semantics =
+      std::move(replay_semantics);
+
   session_.request = std::move(request);
 
   session_.selected_route =

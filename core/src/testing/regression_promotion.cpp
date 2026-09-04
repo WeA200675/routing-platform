@@ -1,4 +1,5 @@
 #include "routing/core/testing/regression_promotion.hpp"
+#include "routing/core/drive/routing_snapshot.hpp"
 
 #include <algorithm>
 #include <sstream>
@@ -49,17 +50,34 @@ RoutingScenario make_scenario_seed(
     });
   }
 
-  // The persisted textual candidate-family value describes the original
-  // request but is deliberately not interpreted here as an enum.
-  // CandidateOrchestrator will select families from the reviewed scenario.
-  scenario.request.family =
-      CandidateFamily::ProfileOptimal;
+  // Restore the persisted stable family identifier when this build
+  // understands it. Unknown future identifiers remain explicitly
+  // incomplete in the proposal rather than being claimed as exact replay.
+  if (const auto family =
+          drive::candidate_family_from_id(
+              session.request.candidate_family)) {
+    scenario.request.family = *family;
+  } else {
+    scenario.request.family =
+        CandidateFamily::ProfileOptimal;
+  }
 
   scenario.request.alternatives =
       session.request.alternatives_requested;
 
   scenario.request.costing_profile =
       session.request.costing_profile;
+
+  if (session.replay_semantics.has_value()) {
+    scenario.vehicle =
+        session.replay_semantics->vehicle;
+
+    scenario.rules =
+        session.replay_semantics->rules;
+
+    scenario.context =
+        session.replay_semantics->context;
+  }
 
   return scenario;
 }
@@ -339,17 +357,65 @@ RegressionPromotionProposal base_proposal(
           proposal.proposal_id,
           title);
 
-  // Current DriveSession records version references but does not contain
-  // executable copies of all runtime semantics needed for exact replay.
-  // Never replace those silently with defaults.
   proposal.runtime_semantics_complete =
-      false;
+      true;
 
-  proposal.missing_runtime_inputs = {
-      "vehicle_profile_snapshot",
-      "rule_set_snapshot",
-      "routing_context_snapshot",
-  };
+  if (!session.replay_semantics.has_value()) {
+    // Legacy/imported sessions remain usable as evidence, but the
+    // default objects inside RoutingScenario must never be presented
+    // as though they were the historical runtime semantics.
+    proposal.runtime_semantics_complete =
+        false;
+
+    proposal.missing_runtime_inputs = {
+        "vehicle_profile_snapshot",
+        "rule_set_snapshot",
+        "routing_context_snapshot",
+    };
+  } else {
+    try {
+      drive::validate_replay_semantics_snapshot(
+          *session.replay_semantics);
+    } catch (const std::exception&) {
+      proposal.runtime_semantics_complete =
+          false;
+
+      proposal.missing_runtime_inputs.push_back(
+          "invalid_replay_semantics_snapshot");
+    }
+
+    // Version references are provenance. When they contradict the
+    // value snapshot, exact replay must not be claimed silently.
+    if (!session.header.versions.profile_id.empty() &&
+        session.header.versions.profile_id !=
+            session.replay_semantics->vehicle.id) {
+      proposal.runtime_semantics_complete =
+          false;
+
+      proposal.missing_runtime_inputs.push_back(
+          "vehicle_profile_id_mismatch");
+    }
+
+    if (!session.header.versions.rules_version.empty() &&
+        session.header.versions.rules_version !=
+            session.replay_semantics->rules.version) {
+      proposal.runtime_semantics_complete =
+          false;
+
+      proposal.missing_runtime_inputs.push_back(
+          "rule_set_version_mismatch");
+    }
+  }
+
+  if (!drive::candidate_family_from_id(
+           session.request.candidate_family)
+           .has_value()) {
+    proposal.runtime_semantics_complete =
+        false;
+
+    proposal.missing_runtime_inputs.push_back(
+        "candidate_family_semantics");
+  }
 
   proposal.human_approval_required =
       true;

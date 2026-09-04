@@ -55,6 +55,66 @@ std::string candidate_family_id(
       "Unknown routing candidate family.");
 }
 
+std::optional<CandidateFamily>
+candidate_family_from_id(
+    const std::string_view id) {
+  if (id == "fastest") {
+    return CandidateFamily::Fastest;
+  }
+
+  if (id == "shortest") {
+    return CandidateFamily::Shortest;
+  }
+
+  if (id == "profile_optimal" ||
+      id == "profile-optimal") {
+    return CandidateFamily::ProfileOptimal;
+  }
+
+  if (id == "major_roads" ||
+      id == "major-roads") {
+    return CandidateFamily::MajorRoads;
+  }
+
+  if (id == "comfort") {
+    return CandidateFamily::Comfort;
+  }
+
+  if (id == "low_urban" ||
+      id == "low-urban") {
+    return CandidateFamily::LowUrban;
+  }
+
+  if (id == "low_curvature" ||
+      id == "low-curvature") {
+    return CandidateFamily::LowCurvature;
+  }
+
+  if (id == "low_gradient" ||
+      id == "low-gradient") {
+    return CandidateFamily::LowGradient;
+  }
+
+  if (id == "low_traffic" ||
+      id == "low-traffic") {
+    return CandidateFamily::LowTraffic;
+  }
+
+  if (id == "energy") {
+    return CandidateFamily::Energy;
+  }
+
+  if (id == "scenic") {
+    return CandidateFamily::Scenic;
+  }
+
+  if (id == "stable") {
+    return CandidateFamily::Stable;
+  }
+
+  return std::nullopt;
+}
+
 RouteRequestSnapshot make_route_request_snapshot(
     const RouteRequest& request) {
   validate_point(request.origin);

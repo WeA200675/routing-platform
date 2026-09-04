@@ -65,9 +65,10 @@ struct RegressionPromotionProposal {
 
   std::vector<std::string> context_tags;
 
-  // Reconstructable location/request portion of the future scenario.
-  // VehicleProfile, RuleSet and RoutingContext are intentionally NOT
-  // claimed to be reconstructed from version identifiers.
+  // Replay seed for the future scenario.
+  // With ReplaySemanticsSnapshot it contains the exact persisted
+  // VehicleProfile, RuleSet and RoutingContext value objects.
+  // Without one, runtime_semantics_complete remains false.
   RoutingScenario scenario_seed;
 
   bool runtime_semantics_complete = false;

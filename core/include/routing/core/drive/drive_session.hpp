@@ -7,10 +7,19 @@
 #include <string>
 #include <vector>
 
+#include "routing/core/drive/replay_semantics.hpp"
+
 namespace routing::core::drive {
 
 inline constexpr std::uint32_t
-kDriveSessionSchemaVersion = 1;
+kDriveSessionLegacySchemaVersion = 1;
+
+inline constexpr std::uint32_t
+kDriveSessionReplaySemanticsVersion = 2;
+
+inline constexpr std::uint32_t
+kDriveSessionSchemaVersion =
+    kDriveSessionReplaySemanticsVersion;
 
 enum class DriveSessionPurpose : std::uint8_t {
   Normal = 0,
@@ -178,6 +187,11 @@ struct DriveEvent {
 struct DriveSession {
   DriveSessionHeader header;
 
+  // Optional for legacy/imported sessions.
+  // Presence means the executable route semantics were captured.
+  std::optional<ReplaySemanticsSnapshot>
+      replay_semantics;
+
   RouteRequestSnapshot request;
 
   RouteSnapshot selected_route;
@@ -196,7 +210,9 @@ class DriveSessionRecorder {
       DriveSessionHeader header,
       RouteRequestSnapshot request,
       RouteSnapshot selected_route,
-      std::vector<RouteSnapshot> alternatives = {});
+      std::vector<RouteSnapshot> alternatives = {},
+      std::optional<ReplaySemanticsSnapshot>
+          replay_semantics = std::nullopt);
 
   [[nodiscard]] std::string record(
       DriveEvent event);

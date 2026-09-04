@@ -2,6 +2,7 @@ target_sources(
     routing_core
     PRIVATE
         ${PROJECT_SOURCE_DIR}/core/src/drive/drive_session.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/drive/replay_semantics.cpp
         ${PROJECT_SOURCE_DIR}/core/src/drive/routing_snapshot.cpp
         ${PROJECT_SOURCE_DIR}/core/src/drive/drive_evidence.cpp
         ${PROJECT_SOURCE_DIR}/core/src/drive/regression_candidate.cpp
@@ -49,6 +50,16 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_routing_drive_test(
         routing_snapshot_test
         tests/unit/routing_snapshot_test.cpp
+    )
+
+    add_routing_drive_test(
+        routing_replay_semantics_test
+        tests/unit/replay_semantics_test.cpp
+    )
+
+    add_routing_drive_test(
+        routing_drive_replay_snapshot_test
+        tests/unit/drive_replay_snapshot_test.cpp
     )
 
     if(ROUTING_PLATFORM_WITH_VALHALLA)

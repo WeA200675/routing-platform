@@ -79,6 +79,11 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         tests/unit/regression_promotion_approval_test.cpp
     )
 
+    add_routing_testing_test(
+        routing_regression_promotion_replay_test
+        tests/unit/regression_promotion_replay_test.cpp
+    )
+
     if(ROUTING_PLATFORM_WITH_VALHALLA)
         add_executable(
             valhalla_routing_scenario_test
