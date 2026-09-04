@@ -195,6 +195,74 @@ IntelligenceJobQueue::enqueue_or_coalesce(
 }
 
 
+IntelligenceJobRefreshResult
+IntelligenceJobQueue::reopen_terminal_for_new_evidence(
+    IntelligenceJob job) {
+  validate_job(
+      job);
+
+  auto* existing =
+      find_mutable(
+          job.id);
+
+  if (existing == nullptr) {
+    throw std::invalid_argument(
+        "Cannot refresh unknown intelligence job.");
+  }
+
+  if (!same_coalescing_identity(
+          existing->job,
+          job)) {
+    throw std::invalid_argument(
+        "Cannot refresh intelligence job with different identity.");
+  }
+
+  if (!is_terminal(
+          existing->job.state)) {
+    throw std::logic_error(
+        "Only a terminal intelligence job may be explicitly refreshed.");
+  }
+
+  if (job.evidence_revision <=
+      existing->job.evidence_revision) {
+    throw std::invalid_argument(
+        "Refreshed intelligence job requires newer evidence revision.");
+  }
+
+  const std::uint64_t previous_revision =
+      existing->job.evidence_revision;
+
+  existing->job.priority =
+      std::max(
+          existing->job.priority,
+          job.priority);
+
+  existing->job.evidence_revision =
+      job.evidence_revision;
+
+  if (!job.reason_key.empty()) {
+    existing->job.reason_key =
+        std::move(job.reason_key);
+  }
+
+  // Preserve attempts for auditability.
+  //
+  // This is a new reviewed evidence revision of the same stable
+  // problem identity, not a brand-new unrelated job.
+  existing->job.state =
+      IntelligenceJobState::Pending;
+
+  existing->sequence =
+      next_sequence_++;
+
+  return {
+      existing->job.id,
+      previous_revision,
+      existing->job.evidence_revision,
+  };
+}
+
+
 std::optional<IntelligenceJob>
 IntelligenceJobQueue::claim_next(
     const ResourceSnapshot& resources) {

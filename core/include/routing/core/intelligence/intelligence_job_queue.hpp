@@ -98,6 +98,18 @@ struct IntelligenceJobEnqueueResult {
 };
 
 
+// Result of an explicit evidence-revision refresh.
+//
+// This is deliberately separate from enqueue_or_coalesce():
+// terminal jobs are still never reopened automatically.
+struct IntelligenceJobRefreshResult {
+  std::string id;
+
+  std::uint64_t previous_evidence_revision = 0;
+  std::uint64_t evidence_revision = 0;
+};
+
+
 class IntelligenceJobQueue {
  public:
   // Existing strict API.
@@ -112,6 +124,19 @@ class IntelligenceJobQueue {
   [[nodiscard]]
   IntelligenceJobEnqueueResult
   enqueue_or_coalesce(
+      IntelligenceJob job);
+
+  // Explicit reviewed reopen for newer evidence.
+  //
+  // Preconditions:
+  //   - same stable job identity,
+  //   - existing job is Completed or Failed,
+  //   - incoming evidence_revision is strictly newer.
+  //
+  // This method is never called by normal automatic producer ingestion.
+  [[nodiscard]]
+  IntelligenceJobRefreshResult
+  reopen_terminal_for_new_evidence(
       IntelligenceJob job);
 
   [[nodiscard]] std::optional<IntelligenceJob>

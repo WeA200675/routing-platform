@@ -6,6 +6,7 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/intelligence_job_queue.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/diagnostic_investigation_job.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/cluster_problem_analysis.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/cluster_problem_review.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/learning_memory.cpp
 )
 
@@ -66,6 +67,21 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     add_routing_intelligence_test(
         routing_cluster_problem_analysis_pipeline_test
         tests/unit/cluster_problem_analysis_pipeline_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_cluster_problem_review_test
+        tests/unit/cluster_problem_review_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_cluster_problem_refresh_workflow_test
+        tests/unit/cluster_problem_refresh_workflow_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_cluster_problem_review_boundary_test
+        tests/unit/cluster_problem_review_boundary_test.cpp
     )
 
     add_routing_intelligence_test(
