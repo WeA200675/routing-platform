@@ -439,6 +439,12 @@ add_subdirectory(core/intelligence)
 add_subdirectory(core/drive)
 
 # ---------------------------------------------------------------------------
+# Navigation Runtime and Route Preview
+# ---------------------------------------------------------------------------
+
+add_subdirectory(core/navigation)
+
+# ---------------------------------------------------------------------------
 # Route Evaluation and Candidate Comparison
 # ---------------------------------------------------------------------------
 
