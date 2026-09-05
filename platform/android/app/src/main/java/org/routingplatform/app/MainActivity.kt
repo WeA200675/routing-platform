@@ -21,8 +21,13 @@ import org.maplibre.android.MapLibre
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.JniNavigationCoreBridge
 import org.routingplatform.app.navigation.NavigationExitLookaheadEngine
+import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
+import org.routingplatform.app.navigation.NavigationRouteAcquisitionTelemetry
 import org.routingplatform.app.navigation.NavigationRouteBootstrap
+import org.routingplatform.app.navigation.NavigationRouteIntentRequest
+import org.routingplatform.app.navigation.NavigationRouteLifecycleController
 import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
+import org.routingplatform.app.navigation.NavigationRouteSourceFactory
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
@@ -97,6 +102,40 @@ class MainActivity :
                         )
                 }
 
+            val liveRouteSource =
+                remember {
+                    NavigationRouteSourceFactory
+                        .fromManifest(
+                            applicationContext
+                        )
+                }
+
+            val routeLifecycleController =
+                remember(
+                    liveRouteSource
+                ) {
+                    liveRouteSource
+                        ?.let {
+                                source ->
+
+                            NavigationRouteLifecycleController(
+                                bridge =
+                                    bridge,
+
+                                source =
+                                    source,
+                            )
+                        }
+                }
+
+            val initialRouteRequest =
+                remember {
+                    NavigationRouteIntentRequest
+                        .fromIntent(
+                            intent
+                        )
+                }
+
             var snapshot by
                 remember {
                     mutableStateOf(
@@ -104,6 +143,67 @@ class MainActivity :
                             .snapshot
                     )
                 }
+
+            var routeAcquisitionTelemetry by
+                remember {
+                    mutableStateOf(
+                        NavigationRouteAcquisitionTelemetry(
+                            state =
+                                NavigationRouteAcquisitionState.FallbackReady,
+
+                            message =
+                                if (
+                                    routeLifecycleController ==
+                                        null
+                                ) {
+                                    "Live-Endpunkt nicht konfiguriert – Fallback-Route aktiv"
+                                } else {
+                                    "Fallback-Route bereit"
+                                },
+                        )
+                    )
+                }
+
+            DisposableEffect(
+                routeLifecycleController,
+                initialRouteRequest,
+            ) {
+                val controller =
+                    routeLifecycleController
+
+                if (
+                    controller !=
+                        null
+                ) {
+                    controller.loadInitial(
+                        request =
+                            initialRouteRequest,
+
+                        snapshotProvider = {
+                            snapshot
+                        },
+
+                        onSnapshot = {
+                                updatedSnapshot ->
+
+                            snapshot =
+                                updatedSnapshot
+                        },
+
+                        onTelemetry = {
+                                updatedAcquisition ->
+
+                            routeAcquisitionTelemetry =
+                                updatedAcquisition
+                        },
+                    )
+                }
+
+                onDispose {
+                    controller
+                        ?.close()
+                }
+            }
 
             var telemetry by
                 remember {
@@ -170,6 +270,7 @@ class MainActivity :
              */
             val progressUpdates =
                 remember(
+                    snapshot.sessionId,
                     snapshot.routeId,
                     snapshot.geometry.size,
                 ) {
@@ -214,6 +315,7 @@ class MainActivity :
              */
             DisposableEffect(
                 snapshot.state,
+                snapshot.sessionId,
                 locationPermissionGranted,
                 preciseLocationGranted,
                 runtimeController,
@@ -251,6 +353,51 @@ class MainActivity :
 
                             telemetry =
                                 updatedTelemetry
+
+                            routeLifecycleController
+                                ?.observeTelemetry(
+                                    telemetry =
+                                        updatedTelemetry,
+
+                                    snapshotProvider = {
+                                        snapshot
+                                    },
+
+                                    onSnapshot = {
+                                            replacementSnapshot ->
+
+                                        /*
+                                         * Native session changed.
+                                         *
+                                         * Stop the old sensor/matcher
+                                         * lifecycle before Compose starts
+                                         * it again for the new session id.
+                                         */
+                                        runtimeController
+                                            .reset()
+
+                                        progressStep =
+                                            0
+
+                                        navigationStartedAtNanos =
+                                            SystemClock
+                                                .elapsedRealtimeNanos()
+
+                                        telemetry =
+                                            NavigationRuntimeTelemetry
+                                                .stopped()
+
+                                        snapshot =
+                                            replacementSnapshot
+                                    },
+
+                                    onTelemetry = {
+                                            updatedAcquisition ->
+
+                                        routeAcquisitionTelemetry =
+                                            updatedAcquisition
+                                    },
+                                )
                         },
                     )
                 } else {
@@ -264,8 +411,10 @@ class MainActivity :
 
             val startOrientation =
                 remember(
+                    snapshot.sessionId,
                     snapshot.routeId,
                     snapshot.geometry,
+                    snapshot.routeManeuvers,
                 ) {
                     startOrientationEngine.calculate(
                         route =
@@ -294,6 +443,7 @@ class MainActivity :
 
             val routeEvents =
                 remember(
+                    snapshot.sessionId,
                     snapshot.routeId,
                     snapshot.geometry.size,
                     snapshot.routeManeuvers,
@@ -397,11 +547,29 @@ class MainActivity :
 
                         navigationStartEnabled =
                             routeBootstrap
-                                .productionRouteReady,
+                                .productionRouteReady &&
+                                routeAcquisitionTelemetry
+                                    .state !=
+                                    NavigationRouteAcquisitionState
+                                        .LoadingInitial,
 
                         navigationUnavailableMessage =
-                            routeBootstrap
-                                .errorMessage,
+                            if (
+                                routeAcquisitionTelemetry
+                                    .state ==
+                                    NavigationRouteAcquisitionState
+                                        .LoadingInitial
+                            ) {
+                                routeAcquisitionTelemetry
+                                    .message
+                            } else {
+                                routeBootstrap
+                                    .errorMessage
+                            },
+
+                        routeAcquisitionMessage =
+                            routeAcquisitionTelemetry
+                                .message,
 
                         manualProgressEnabled =
                             !automaticPreciseProgressActive,

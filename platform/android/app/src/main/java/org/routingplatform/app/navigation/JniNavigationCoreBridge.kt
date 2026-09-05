@@ -97,6 +97,67 @@ class JniNavigationCoreBridge :
         )
     }
 
+    fun replaceNavigatingRoute(
+        route:
+            NavigationRouteContract,
+    ): NavigationUiSnapshot {
+
+        val previous =
+            currentSnapshot()
+
+        check(
+            previous.state ==
+                NavigationSessionState.Navigating
+        ) {
+            "Active route replacement requires Navigating state."
+        }
+
+        val payload =
+            NavigationRouteNativeCodec
+                .encode(
+                    route
+                )
+
+        val nativeSnapshot =
+            enforceBoundary(
+                nativeReplaceNavigatingRoute(
+                    payload
+                ).toUiSnapshot()
+            )
+
+        check(
+            nativeSnapshot.state ==
+                NavigationSessionState.Navigating
+        ) {
+            "Replacement route did not start a new navigation session."
+        }
+
+        check(
+            nativeSnapshot.sessionId !=
+                previous.sessionId
+        ) {
+            "Replacement route did not create a new native session."
+        }
+
+        check(
+            nativeSnapshot.geometry.size ==
+                route.geometry.size
+        ) {
+            "Replacement route changed geometry size."
+        }
+
+        installedRoute =
+            route
+
+        return decorateInstalledRoute(
+            snapshot =
+                nativeSnapshot,
+
+            route =
+                route,
+        )
+    }
+
     private external fun nativeCurrentSnapshot():
         NativeNavigationSnapshot
 
@@ -109,6 +170,10 @@ class JniNavigationCoreBridge :
     ): NativeNavigationSnapshot
 
     private external fun nativeInstallRoute(
+        routePayload: ByteArray,
+    ): NativeNavigationSnapshot
+
+    private external fun nativeReplaceNavigatingRoute(
         routePayload: ByteArray,
     ): NativeNavigationSnapshot
 

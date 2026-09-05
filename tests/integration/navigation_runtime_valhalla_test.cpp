@@ -7,6 +7,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "routing/adapters/valhalla/valhalla_routing_engine.hpp"
 #include "routing/core/navigation/navigation_runtime.hpp"
@@ -422,6 +423,209 @@ export_navigation_route_contract(
 }
 
 
+double
+environment_double_or(
+    const char* name,
+    const double fallback) {
+
+  const char* raw =
+      std::getenv(
+          name);
+
+  if (raw == nullptr ||
+      std::string(raw).empty()) {
+    return fallback;
+  }
+
+  std::size_t consumed =
+      0U;
+
+  const std::string value =
+      raw;
+
+  const double parsed =
+      std::stod(
+          value,
+          &consumed);
+
+  if (consumed !=
+          value.size() ||
+      !std::isfinite(
+          parsed)) {
+    throw std::runtime_error(
+        std::string(
+            "Invalid environment double: ") +
+        name);
+  }
+
+  return parsed;
+}
+
+
+routing::core::CandidateFamily
+environment_candidate_family() {
+  using routing::core::CandidateFamily;
+
+  const char* raw =
+      std::getenv(
+          "ROUTING_PLATFORM_ROUTE_FAMILY");
+
+  const std::string value =
+      (
+          raw == nullptr ||
+          std::string(raw).empty()
+      )
+          ? "profile_optimal"
+          : std::string(raw);
+
+  if (value == "fastest") {
+    return CandidateFamily::Fastest;
+  }
+
+  if (value == "shortest") {
+    return CandidateFamily::Shortest;
+  }
+
+  if (value == "profile_optimal") {
+    return CandidateFamily::ProfileOptimal;
+  }
+
+  if (value == "major_roads") {
+    return CandidateFamily::MajorRoads;
+  }
+
+  if (value == "comfort") {
+    return CandidateFamily::Comfort;
+  }
+
+  if (value == "low_urban") {
+    return CandidateFamily::LowUrban;
+  }
+
+  if (value == "low_curvature") {
+    return CandidateFamily::LowCurvature;
+  }
+
+  if (value == "low_gradient") {
+    return CandidateFamily::LowGradient;
+  }
+
+  if (value == "low_traffic") {
+    return CandidateFamily::LowTraffic;
+  }
+
+  if (value == "energy") {
+    return CandidateFamily::Energy;
+  }
+
+  if (value == "scenic") {
+    return CandidateFamily::Scenic;
+  }
+
+  if (value == "stable") {
+    return CandidateFamily::Stable;
+  }
+
+  throw std::runtime_error(
+      "Unsupported ROUTING_PLATFORM_ROUTE_FAMILY: " +
+      value);
+}
+
+
+std::vector<routing::core::GeoPoint>
+environment_via_points() {
+  std::vector<routing::core::GeoPoint>
+      result;
+
+  const char* raw =
+      std::getenv(
+          "ROUTING_PLATFORM_ROUTE_VIA");
+
+  if (raw == nullptr ||
+      std::string(raw).empty()) {
+    return result;
+  }
+
+  std::istringstream items(
+      raw);
+
+  std::string item;
+
+  while (
+      std::getline(
+          items,
+          item,
+          ';')
+  ) {
+    if (item.empty()) {
+      continue;
+    }
+
+    const auto comma =
+        item.find(',');
+
+    if (comma ==
+        std::string::npos) {
+      throw std::runtime_error(
+          "Invalid ROUTING_PLATFORM_ROUTE_VIA item.");
+    }
+
+    const std::string latitude =
+        item.substr(
+            0U,
+            comma);
+
+    const std::string longitude =
+        item.substr(
+            comma + 1U);
+
+    std::size_t latitude_consumed =
+        0U;
+
+    std::size_t longitude_consumed =
+        0U;
+
+    const double lat =
+        std::stod(
+            latitude,
+            &latitude_consumed);
+
+    const double lon =
+        std::stod(
+            longitude,
+            &longitude_consumed);
+
+    if (latitude_consumed !=
+            latitude.size() ||
+        longitude_consumed !=
+            longitude.size() ||
+        !std::isfinite(lat) ||
+        !std::isfinite(lon) ||
+        lat < -90.0 ||
+        lat > 90.0 ||
+        lon < -180.0 ||
+        lon > 180.0) {
+      throw std::runtime_error(
+          "Invalid ROUTING_PLATFORM_ROUTE_VIA coordinate.");
+    }
+
+    result.push_back(
+        {
+            lat,
+            lon,
+        });
+
+    if (result.size() >
+        16U) {
+      throw std::runtime_error(
+          "Too many ROUTING_PLATFORM_ROUTE_VIA points.");
+    }
+  }
+
+  return result;
+}
+
+
 int fail(
     const std::string& message) {
   std::cerr
@@ -483,17 +687,30 @@ int main() {
   RouteRequest request;
 
   request.origin = {
-      47.1410,
-      9.5209,
+      environment_double_or(
+          "ROUTING_PLATFORM_ROUTE_ORIGIN_LAT",
+          47.1410),
+
+      environment_double_or(
+          "ROUTING_PLATFORM_ROUTE_ORIGIN_LON",
+          9.5209),
   };
 
   request.destination = {
-      47.1660,
-      9.5100,
+      environment_double_or(
+          "ROUTING_PLATFORM_ROUTE_DESTINATION_LAT",
+          47.1660),
+
+      environment_double_or(
+          "ROUTING_PLATFORM_ROUTE_DESTINATION_LON",
+          9.5100),
   };
 
+  request.via_points =
+      environment_via_points();
+
   request.family =
-      CandidateFamily::ProfileOptimal;
+      environment_candidate_family();
 
   request.costing_profile =
       "auto";

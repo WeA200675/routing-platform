@@ -46,6 +46,21 @@ data class NavigationRuntimeTelemetry(
 
     val lastLocationAccuracyM:
         Double?,
+
+    /*
+     * Observation only.
+     *
+     * It is not accepted route progress and may only participate
+     * in the separate reroute decision after confidence + off-route
+     * gates have passed.
+     */
+    val lastObservedPosition:
+        RoutePoint? =
+        null,
+
+    val lastLocationElapsedRealtimeNanos:
+        Long? =
+        null,
 ) {
     companion object {
         fun stopped(
@@ -563,6 +578,14 @@ class AndroidNavigationRuntimeController(
                     lastLocationAccuracyM =
                         sample
                             .horizontalAccuracyM,
+
+                    lastObservedPosition =
+                        sample
+                            .position,
+
+                    lastLocationElapsedRealtimeNanos =
+                        sample
+                            .elapsedRealtimeNanos,
                 )
             )
     }

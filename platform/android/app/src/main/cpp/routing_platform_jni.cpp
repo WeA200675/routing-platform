@@ -1084,6 +1084,93 @@ install_route(
 }
 
 
+
+
+jobject
+replace_navigating_route(
+    JNIEnv* env,
+    jbyteArray payload) {
+  try {
+    if (payload == nullptr) {
+      throw std::invalid_argument(
+          "Replacement route payload must not be null.");
+    }
+
+
+    const jsize payload_length =
+        env->GetArrayLength(
+            payload);
+
+    if (payload_length <= 0 ||
+        static_cast<std::size_t>(
+            payload_length) >
+            kMaximumNativeRoutePayloadBytes) {
+      throw std::invalid_argument(
+          "Replacement route payload has invalid size.");
+    }
+
+
+    std::vector<jbyte> bytes(
+        static_cast<std::size_t>(
+            payload_length));
+
+    env->GetByteArrayRegion(
+        payload,
+        0,
+        payload_length,
+        bytes.data());
+
+    if (env->ExceptionCheck()) {
+      return nullptr;
+    }
+
+
+    auto route =
+        decode_native_route_payload(
+            bytes);
+
+
+    std::lock_guard<std::mutex> lock(
+        native_session_mutex());
+
+
+    /*
+     * This is NOT ordinary route installation.
+     *
+     * It is the explicit rerouting session boundary:
+     * the current immutable session is discarded and a new
+     * NavigationSession is constructed from an externally
+     * selected route.
+     *
+     * No routing engine is invoked here.
+     */
+    if (native_session().state() !=
+        NavigationSessionState::Navigating) {
+      throw std::logic_error(
+          "Navigating route replacement requires an active navigation session.");
+    }
+
+
+    native_session_state()
+        .install(
+            std::move(
+                route));
+
+
+    return to_java_snapshot(
+        env,
+        native_session()
+            .start());
+
+  } catch (const std::exception& error) {
+    throw_illegal_state(
+        env,
+        error.what());
+
+    return nullptr;
+  }
+}
+
 }  // namespace
 
 
@@ -1131,6 +1218,18 @@ JniNavigationCoreBridge_nativeInstallRoute(
     jobject,
     jbyteArray payload) {
   return install_route(
+      env,
+      payload);
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_org_routingplatform_app_navigation_\
+JniNavigationCoreBridge_nativeReplaceNavigatingRoute(
+    JNIEnv* env,
+    jobject,
+    jbyteArray payload) {
+  return replace_navigating_route(
       env,
       payload);
 }

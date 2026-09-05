@@ -39,6 +39,10 @@ fun NavigationScreen(
         String? =
         null,
 
+    routeAcquisitionMessage:
+        String? =
+        null,
+
     manualProgressEnabled:
         Boolean =
         true,
@@ -157,6 +161,32 @@ fun NavigationScreen(
                         .navigationBarsPadding()
                         .padding(18.dp),
             ) {
+                if (
+                    !routeAcquisitionMessage
+                        .isNullOrBlank()
+                ) {
+                    Text(
+                        text =
+                            "Routing: " +
+                                routeAcquisitionMessage,
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+
+                        fontWeight =
+                            FontWeight.Medium,
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                8.dp
+                            )
+                    )
+                }
+
                 Text(
                     text =
                         snapshot
