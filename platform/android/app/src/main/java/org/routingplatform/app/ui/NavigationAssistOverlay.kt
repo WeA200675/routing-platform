@@ -12,12 +12,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationPositionConfidence
+import org.routingplatform.app.navigation.NavigationRouteEventAhead
 import org.routingplatform.app.navigation.NavigationRuntimePipelineStatus
 import org.routingplatform.app.navigation.NavigationStartOrientationInfo
 
 @Composable
 fun NavigationAssistOverlay(
+    criticalEventAhead:
+        NavigationRouteEventAhead? =
+        null,
+
     startOrientation:
         NavigationStartOrientationInfo?,
 
@@ -35,6 +41,8 @@ fun NavigationAssistOverlay(
         Modifier,
 ) {
     if (
+        criticalEventAhead ==
+            null &&
         startOrientation ==
             null &&
         !showRuntimeStatus
@@ -179,9 +187,81 @@ fun NavigationAssistOverlay(
                             .bodySmall,
                 )
             }
+
+            if (
+                criticalEventAhead !=
+                    null
+            ) {
+                if (
+                    startOrientation !=
+                        null ||
+                    showRuntimeStatus
+                ) {
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                6.dp
+                            )
+                    )
+                }
+
+                Text(
+                    text =
+                        "Vorausschau",
+
+                    fontWeight =
+                        FontWeight.SemiBold,
+                )
+
+                Text(
+                    text =
+                        criticalEventText(
+                            criticalEventAhead
+                        ),
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall,
+                )
+            }
         }
     }
 }
+
+private fun criticalEventText(
+    eventAhead:
+        NavigationRouteEventAhead,
+): String {
+
+    val event =
+        eventAhead.event
+
+    val instruction =
+        event.instruction
+            ?.takeIf {
+                it.isNotBlank()
+            }
+            ?: "Manöver voraus"
+
+    val road =
+        event.roadName
+            ?.takeIf {
+                it.isNotBlank()
+            }
+            ?.let {
+                "  $it"
+            }
+            ?: ""
+
+    return instruction +
+        road +
+        "  " +
+        NavigationFormatter.distance(
+            eventAhead.distanceAheadM
+        )
+}
+
 
 private fun routeDirectionText(
     roadRef:

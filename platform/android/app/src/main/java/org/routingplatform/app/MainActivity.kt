@@ -20,12 +20,18 @@ import androidx.compose.ui.Modifier
 import org.maplibre.android.MapLibre
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.JniNavigationCoreBridge
+import org.routingplatform.app.navigation.NavigationExitLookaheadEngine
+import org.routingplatform.app.navigation.NavigationRouteBootstrap
+import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
 import org.routingplatform.app.navigation.NavigationStartOrientationVisibilityController
 import org.routingplatform.app.navigation.RouteProgressAnchor
 import org.routingplatform.app.navigation.alongRouteDistanceMeters
+import org.routingplatform.app.navigation.buildDiagnosticProgressAnchors
+import org.routingplatform.app.navigation.buildNavigationRouteEvents
+import org.routingplatform.app.navigation.buildNavigationStartRoadContext
 import org.routingplatform.app.navigation.hasNavigationLocationPermission
 import org.routingplatform.app.navigation.hasPreciseNavigationLocationPermission
 import org.routingplatform.app.navigation.navigationRuntimePermissionsToRequest
@@ -69,15 +75,33 @@ class MainActivity :
                     NavigationStartOrientationEngine()
                 }
 
+            val exitLookaheadEngine =
+                remember {
+                    NavigationExitLookaheadEngine()
+                }
+
             val startOrientationVisibility =
                 remember {
                     NavigationStartOrientationVisibilityController()
                 }
 
+            val routeBootstrap =
+                remember {
+                    NavigationRouteBootstrap
+                        .load(
+                            context =
+                                applicationContext,
+
+                            bridge =
+                                bridge,
+                        )
+                }
+
             var snapshot by
                 remember {
                     mutableStateOf(
-                        bridge.currentSnapshot()
+                        routeBootstrap
+                            .snapshot
                     )
                 }
 
@@ -145,14 +169,13 @@ class MainActivity :
              * precise-position pipeline is NOT active.
              */
             val progressUpdates =
-                remember {
-                    listOf(
-                        0 to 0.50,
-                        1 to 0.00,
-                        1 to 0.50,
-                        2 to 0.00,
-                        2 to 0.50,
-                        2 to 1.00,
+                remember(
+                    snapshot.routeId,
+                    snapshot.geometry.size,
+                ) {
+                    buildDiagnosticProgressAnchors(
+                        routePointCount =
+                            snapshot.geometry.size
                     )
                 }
 
@@ -192,12 +215,14 @@ class MainActivity :
             DisposableEffect(
                 snapshot.state,
                 locationPermissionGranted,
+                preciseLocationGranted,
                 runtimeController,
             ) {
                 if (
                     snapshot.state ==
                         NavigationSessionState.Navigating &&
-                    locationPermissionGranted
+                    locationPermissionGranted &&
+                    preciseLocationGranted
                 ) {
                     runtimeController.start(
                         route =
@@ -244,7 +269,13 @@ class MainActivity :
                 ) {
                     startOrientationEngine.calculate(
                         route =
-                            snapshot.geometry
+                            snapshot.geometry,
+
+                        roadContext =
+                            buildNavigationStartRoadContext(
+                                snapshot
+                                    .routeManeuvers
+                            ),
                     )
                 }
 
@@ -260,6 +291,43 @@ class MainActivity :
                             snapshot
                                 .segmentFraction,
                     )
+
+            val routeEvents =
+                remember(
+                    snapshot.routeId,
+                    snapshot.geometry.size,
+                    snapshot.routeManeuvers,
+                ) {
+                    buildNavigationRouteEvents(
+                        routePointCount =
+                            snapshot.geometry.size,
+
+                        maneuvers =
+                            snapshot.routeManeuvers,
+                    )
+                }
+
+            val criticalEventAhead =
+                if (
+                    snapshot.state ==
+                        NavigationSessionState.Navigating &&
+                    telemetry.safetyStatus ==
+                        NavigationRouteProgressSafetyStatus.Accepted
+                ) {
+                    exitLookaheadEngine
+                        .criticalEventAhead(
+                            route =
+                                snapshot.geometry,
+
+                            currentProgress =
+                                orientationProgress,
+
+                            events =
+                                routeEvents,
+                        )
+                } else {
+                    null
+                }
 
             val distanceFromStartM =
                 runCatching {
@@ -327,6 +395,14 @@ class MainActivity :
                         snapshot =
                             snapshot,
 
+                        navigationStartEnabled =
+                            routeBootstrap
+                                .productionRouteReady,
+
+                        navigationUnavailableMessage =
+                            routeBootstrap
+                                .errorMessage,
+
                         manualProgressEnabled =
                             !automaticPreciseProgressActive,
 
@@ -387,10 +463,12 @@ class MainActivity :
                                     bridge
                                         .updateProgress(
                                             shapeSegmentIndex =
-                                                update.first,
+                                                update
+                                                    .shapeSegmentIndex,
 
                                             segmentFraction =
-                                                update.second,
+                                                update
+                                                    .segmentFraction,
                                         )
 
                                 progressStep +=
@@ -400,6 +478,9 @@ class MainActivity :
                     )
 
                     NavigationAssistOverlay(
+                        criticalEventAhead =
+                            criticalEventAhead,
+
                         startOrientation =
                             if (
                                 showStartOrientation

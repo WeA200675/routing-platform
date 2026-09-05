@@ -30,7 +30,18 @@ fun NavigationScreen(
     snapshot: NavigationUiSnapshot,
     onStartNavigation: () -> Unit,
     onAdvanceProgress: () -> Unit,
-    manualProgressEnabled: Boolean = true,
+
+    navigationStartEnabled:
+        Boolean =
+        true,
+
+    navigationUnavailableMessage:
+        String? =
+        null,
+
+    manualProgressEnabled:
+        Boolean =
+        true,
 ) {
     Column(
         modifier =
@@ -101,6 +112,36 @@ fun NavigationScreen(
                                 .typography
                                 .bodySmall,
                     )
+
+                    snapshot
+                        .engineName
+                        ?.takeIf {
+                            it.isNotBlank()
+                        }
+                        ?.let {
+                                engine ->
+
+                            val version =
+                                snapshot
+                                    .engineVersion
+                                    ?.takeIf {
+                                        it.isNotBlank()
+                                    }
+                                    ?.let {
+                                            " $it"
+                                        }
+                                    ?: ""
+
+                            Text(
+                                text =
+                                    "Quelle $engine$version",
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodySmall,
+                            )
+                        }
                 }
             }
         }
@@ -195,11 +236,48 @@ fun NavigationScreen(
                             modifier =
                                 Modifier.fillMaxWidth(),
 
+                            enabled =
+                                navigationStartEnabled,
+
                             onClick =
                                 onStartNavigation,
                         ) {
                             Text(
-                                "Navigation starten"
+                                if (
+                                    navigationStartEnabled
+                                ) {
+                                    "Navigation starten"
+                                } else {
+                                    "Produktionsroute nicht verfügbar"
+                                }
+                            )
+                        }
+
+                        if (
+                            !navigationStartEnabled &&
+                            !navigationUnavailableMessage
+                                .isNullOrBlank()
+                        ) {
+                            Spacer(
+                                modifier =
+                                    Modifier.height(
+                                        8.dp
+                                    )
+                            )
+
+                            Text(
+                                text =
+                                    navigationUnavailableMessage,
+
+                                color =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .error,
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodySmall,
                             )
                         }
                     }

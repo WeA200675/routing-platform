@@ -3,6 +3,11 @@ package org.routingplatform.app.navigation
 class JniNavigationCoreBridge :
     NavigationCoreBridge {
 
+    @Volatile
+    private var installedRoute:
+        NavigationRouteContract? =
+        null
+
     init {
         System.loadLibrary(
             LIBRARY_NAME
@@ -11,14 +16,14 @@ class JniNavigationCoreBridge :
 
     override fun currentSnapshot():
         NavigationUiSnapshot =
-        enforceBoundary(
+        finalizeNativeSnapshot(
             nativeCurrentSnapshot()
                 .toUiSnapshot()
         )
 
     override fun startNavigation():
         NavigationUiSnapshot =
-        enforceBoundary(
+        finalizeNativeSnapshot(
             nativeStartNavigation()
                 .toUiSnapshot()
         )
@@ -27,6 +32,7 @@ class JniNavigationCoreBridge :
         shapeSegmentIndex: Int,
         segmentFraction: Double,
     ): NavigationUiSnapshot {
+
         require(shapeSegmentIndex >= 0) {
             "shapeSegmentIndex must not be negative."
         }
@@ -35,11 +41,59 @@ class JniNavigationCoreBridge :
             "segmentFraction must be in [0, 1]."
         }
 
-        return enforceBoundary(
+        return finalizeNativeSnapshot(
             nativeUpdateProgress(
                 shapeSegmentIndex,
                 segmentFraction,
             ).toUiSnapshot()
+        )
+    }
+
+    fun installRoute(
+        route:
+            NavigationRouteContract,
+    ): NavigationUiSnapshot {
+
+        val payload =
+            NavigationRouteNativeCodec
+                .encode(
+                    route
+                )
+
+        val nativeSnapshot =
+            enforceBoundary(
+                nativeInstallRoute(
+                    payload
+                ).toUiSnapshot()
+            )
+
+        check(
+            nativeSnapshot.routeId ==
+                route.routeId
+        ) {
+            "Native route installation returned another route id."
+        }
+
+        check(
+            nativeSnapshot.geometry.size ==
+                route.geometry.size
+        ) {
+            "Native route installation changed route geometry size."
+        }
+
+        /*
+         * Only publish Kotlin-side route metadata after native
+         * installation has completed successfully.
+         */
+        installedRoute =
+            route
+
+        return decorateInstalledRoute(
+            snapshot =
+                nativeSnapshot,
+
+            route =
+                route,
         )
     }
 
@@ -53,6 +107,153 @@ class JniNavigationCoreBridge :
         shapeSegmentIndex: Int,
         segmentFraction: Double,
     ): NativeNavigationSnapshot
+
+    private external fun nativeInstallRoute(
+        routePayload: ByteArray,
+    ): NativeNavigationSnapshot
+
+    private fun finalizeNativeSnapshot(
+        snapshot: NavigationUiSnapshot,
+    ): NavigationUiSnapshot {
+
+        val safeSnapshot =
+            enforceBoundary(
+                snapshot
+            )
+
+        val route =
+            installedRoute
+                ?: return safeSnapshot
+
+        return decorateInstalledRoute(
+            snapshot =
+                safeSnapshot,
+
+            route =
+                route,
+        )
+    }
+
+    private fun decorateInstalledRoute(
+        snapshot:
+            NavigationUiSnapshot,
+
+        route:
+            NavigationRouteContract,
+    ): NavigationUiSnapshot {
+
+        if (
+            snapshot.routeId !=
+                route.routeId
+        ) {
+            return snapshot
+        }
+
+        val uiManeuvers =
+            route.maneuvers.map {
+                it.toNavigationManeuver()
+            }
+
+        val maneuverIndex =
+            currentManeuverIndex(
+                snapshot =
+                    snapshot,
+
+                route =
+                    route,
+            )
+
+        val current =
+            maneuverIndex
+                ?.let {
+                    uiManeuvers[
+                        it
+                    ]
+                }
+                ?: snapshot.currentManeuver
+
+        val next =
+            maneuverIndex
+                ?.let {
+                    index ->
+
+                    uiManeuvers
+                        .getOrNull(
+                            index +
+                                1
+                        )
+                }
+                ?: snapshot.nextManeuver
+
+        return snapshot.copy(
+            currentManeuver =
+                current,
+
+            nextManeuver =
+                next,
+
+            routeManeuvers =
+                uiManeuvers,
+
+            engineName =
+                route.engineName,
+
+            engineVersion =
+                route.engineVersion,
+
+            segmentDataStatus =
+                route.segmentDataStatus,
+
+            routeDiagnostics =
+                route.diagnostics,
+        )
+    }
+
+    private fun currentManeuverIndex(
+        snapshot:
+            NavigationUiSnapshot,
+
+        route:
+            NavigationRouteContract,
+    ): Int? {
+
+        if (
+            route.maneuvers.isEmpty()
+        ) {
+            return null
+        }
+
+        if (
+            snapshot.state ==
+                NavigationSessionState.Arrived
+        ) {
+            return route.maneuvers.lastIndex
+        }
+
+        val shapePosition =
+            snapshot
+                .shapeSegmentIndex
+                .toDouble() +
+                snapshot
+                    .segmentFraction
+
+        val index =
+            route.maneuvers
+                .indexOfFirst {
+                    shapePosition <=
+                        it.endShapeIndex
+                            .toDouble()
+                }
+
+        return if (
+            index >=
+                0
+        ) {
+            index
+        } else {
+            route.maneuvers.lastIndex
+        }
+    }
 
     private fun enforceBoundary(
         snapshot: NavigationUiSnapshot,

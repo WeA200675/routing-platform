@@ -30,6 +30,30 @@ data class NavigationManeuver(
     val instruction: String,
     val distanceM: Double,
     val durationS: Double,
+
+    val streetNames:
+        List<String> =
+        emptyList(),
+
+    val beginShapeIndex:
+        Int? =
+        null,
+
+    val endShapeIndex:
+        Int? =
+        null,
+
+    val bearingBeforeDeg:
+        Int? =
+        null,
+
+    val bearingAfterDeg:
+        Int? =
+        null,
+
+    val engineType:
+        Int? =
+        null,
 )
 
 data class NavigationUiSnapshot(
@@ -63,6 +87,27 @@ data class NavigationUiSnapshot(
     val candidateSelectionInvoked: Boolean = false,
     val costEngineInvoked: Boolean = false,
     val productionRouteMutationAllowed: Boolean = false,
+
+    // Route-preview metadata supplied by the installed route contract.
+    val routeManeuvers:
+        List<NavigationManeuver> =
+        emptyList(),
+
+    val engineName:
+        String? =
+        null,
+
+    val engineVersion:
+        String? =
+        null,
+
+    val segmentDataStatus:
+        NavigationRouteSegmentDataStatus =
+        NavigationRouteSegmentDataStatus.Unspecified,
+
+    val routeDiagnostics:
+        List<NavigationRouteDiagnostic> =
+        emptyList(),
 ) {
     init {
         require(schemaVersion == 1) {

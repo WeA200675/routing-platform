@@ -1,7 +1,10 @@
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -9,6 +12,415 @@
 #include "routing/core/navigation/navigation_runtime.hpp"
 
 namespace {
+
+const char*
+candidate_family_key(
+    const routing::core::CandidateFamily family) {
+  using routing::core::CandidateFamily;
+
+  switch (family) {
+    case CandidateFamily::Fastest:
+      return "fastest";
+    case CandidateFamily::Shortest:
+      return "shortest";
+    case CandidateFamily::ProfileOptimal:
+      return "profile_optimal";
+    case CandidateFamily::MajorRoads:
+      return "major_roads";
+    case CandidateFamily::Comfort:
+      return "comfort";
+    case CandidateFamily::LowUrban:
+      return "low_urban";
+    case CandidateFamily::LowCurvature:
+      return "low_curvature";
+    case CandidateFamily::LowGradient:
+      return "low_gradient";
+    case CandidateFamily::LowTraffic:
+      return "low_traffic";
+    case CandidateFamily::Energy:
+      return "energy";
+    case CandidateFamily::Scenic:
+      return "scenic";
+    case CandidateFamily::Stable:
+      return "stable";
+  }
+
+  return "profile_optimal";
+}
+
+
+const char*
+maneuver_type_key(
+    const routing::core::ManeuverType type) {
+  using routing::core::ManeuverType;
+
+  switch (type) {
+    case ManeuverType::Unknown:
+      return "unknown";
+    case ManeuverType::Start:
+      return "start";
+    case ManeuverType::Continue:
+      return "continue";
+    case ManeuverType::TurnLeft:
+      return "turn_left";
+    case ManeuverType::TurnRight:
+      return "turn_right";
+    case ManeuverType::UTurn:
+      return "u_turn";
+    case ManeuverType::Merge:
+      return "merge";
+    case ManeuverType::Exit:
+      return "exit";
+    case ManeuverType::RoundaboutEnter:
+      return "roundabout_enter";
+    case ManeuverType::RoundaboutExit:
+      return "roundabout_exit";
+    case ManeuverType::Arrive:
+      return "arrive";
+  }
+
+  return "unknown";
+}
+
+
+const char*
+segment_data_status_key(
+    const routing::core::RouteSegmentDataStatus status) {
+  using routing::core::RouteSegmentDataStatus;
+
+  switch (status) {
+    case RouteSegmentDataStatus::Unspecified:
+      return "unspecified";
+    case RouteSegmentDataStatus::Complete:
+      return "complete";
+    case RouteSegmentDataStatus::Unavailable:
+      return "unavailable";
+  }
+
+  return "unspecified";
+}
+
+
+void
+write_json_string(
+    std::ostream& output,
+    const std::string& value) {
+
+  static constexpr char hex[] =
+      "0123456789abcdef";
+
+  output << '"';
+
+  for (const char raw : value) {
+    const auto byte =
+        static_cast<unsigned char>(
+            raw);
+
+    switch (raw) {
+      case '"':
+        output << "\\\"";
+        break;
+
+      case '\\':
+        output << "\\\\";
+        break;
+
+      case '\b':
+        output << "\\b";
+        break;
+
+      case '\f':
+        output << "\\f";
+        break;
+
+      case '\n':
+        output << "\\n";
+        break;
+
+      case '\r':
+        output << "\\r";
+        break;
+
+      case '\t':
+        output << "\\t";
+        break;
+
+      default:
+        if (byte < 0x20U) {
+          output
+              << "\\u00"
+              << hex[
+                     (byte >> 4U) &
+                     0x0FU]
+              << hex[
+                     byte &
+                     0x0FU];
+        } else {
+          output << raw;
+        }
+        break;
+    }
+  }
+
+  output << '"';
+}
+
+
+template <typename T>
+void
+write_optional_integer(
+    std::ostream& output,
+    const std::optional<T>& value) {
+
+  if (value.has_value()) {
+    output
+        << static_cast<long long>(
+               *value);
+  } else {
+    output
+        << "null";
+  }
+}
+
+
+bool
+export_navigation_route_contract(
+    const routing::core::RoutePath& route,
+    const std::string& path,
+    std::string& error) {
+
+  std::ofstream output(
+      path,
+      std::ios::binary |
+          std::ios::trunc);
+
+  if (!output) {
+    error =
+        "Could not open route export file: " +
+        path;
+
+    return false;
+  }
+
+  output
+      << std::setprecision(17);
+
+  output << "{\n";
+  output << "  \"schemaVersion\": 1,\n";
+
+  output << "  \"routeId\": ";
+  write_json_string(
+      output,
+      route.route_id);
+  output << ",\n";
+
+  output << "  \"family\": ";
+  write_json_string(
+      output,
+      candidate_family_key(
+          route.family));
+  output << ",\n";
+
+  output
+      << "  \"distanceM\": "
+      << route.distance_m
+      << ",\n";
+
+  output
+      << "  \"durationS\": "
+      << route.duration_s
+      << ",\n";
+
+  output << "  \"engineName\": ";
+  write_json_string(
+      output,
+      route.engine_name);
+  output << ",\n";
+
+  output << "  \"engineVersion\": ";
+  write_json_string(
+      output,
+      route.engine_version);
+  output << ",\n";
+
+  output << "  \"segmentDataStatus\": ";
+  write_json_string(
+      output,
+      segment_data_status_key(
+          route.segment_data_status));
+  output << ",\n";
+
+  output << "  \"geometry\": [\n";
+
+  for (std::size_t i = 0U;
+       i < route.geometry.size();
+       ++i) {
+    const auto& point =
+        route.geometry[i];
+
+    output
+        << "    ["
+        << point.latitude
+        << ", "
+        << point.longitude
+        << "]";
+
+    if (i + 1U <
+        route.geometry.size()) {
+      output << ',';
+    }
+
+    output << '\n';
+  }
+
+  output << "  ],\n";
+
+  output << "  \"maneuvers\": [\n";
+
+  for (std::size_t i = 0U;
+       i < route.maneuvers.size();
+       ++i) {
+    const auto& maneuver =
+        route.maneuvers[i];
+
+    output << "    {\n";
+
+    output << "      \"type\": ";
+    write_json_string(
+        output,
+        maneuver_type_key(
+            maneuver.type));
+    output << ",\n";
+
+    output << "      \"instruction\": ";
+    write_json_string(
+        output,
+        maneuver.instruction);
+    output << ",\n";
+
+    output
+        << "      \"distanceM\": "
+        << maneuver.distance_m
+        << ",\n";
+
+    output
+        << "      \"durationS\": "
+        << maneuver.duration_s
+        << ",\n";
+
+    output
+        << "      \"beginShapeIndex\": "
+        << maneuver.begin_shape_index
+        << ",\n";
+
+    output
+        << "      \"endShapeIndex\": "
+        << maneuver.end_shape_index
+        << ",\n";
+
+    output
+        << "      \"bearingBeforeDeg\": ";
+
+    write_optional_integer(
+        output,
+        maneuver.bearing_before_deg);
+
+    output << ",\n";
+
+    output
+        << "      \"bearingAfterDeg\": ";
+
+    write_optional_integer(
+        output,
+        maneuver.bearing_after_deg);
+
+    output << ",\n";
+
+    output
+        << "      \"engineType\": ";
+
+    write_optional_integer(
+        output,
+        maneuver.engine_type);
+
+    output << ",\n";
+
+    output
+        << "      \"streetNames\": [";
+
+    for (std::size_t street_index = 0U;
+         street_index <
+             maneuver.street_names.size();
+         ++street_index) {
+      if (street_index > 0U) {
+        output << ", ";
+      }
+
+      write_json_string(
+          output,
+          maneuver.street_names[
+              street_index]);
+    }
+
+    output << "]\n";
+    output << "    }";
+
+    if (i + 1U <
+        route.maneuvers.size()) {
+      output << ',';
+    }
+
+    output << '\n';
+  }
+
+  output << "  ],\n";
+
+  output << "  \"diagnostics\": [\n";
+
+  for (std::size_t i = 0U;
+       i < route.diagnostics.size();
+       ++i) {
+    const auto& diagnostic =
+        route.diagnostics[i];
+
+    output << "    {\"code\": ";
+
+    write_json_string(
+        output,
+        diagnostic.code);
+
+    output << ", \"message\": ";
+
+    write_json_string(
+        output,
+        diagnostic.message);
+
+    output << '}';
+
+    if (i + 1U <
+        route.diagnostics.size()) {
+      output << ',';
+    }
+
+    output << '\n';
+  }
+
+  output << "  ]\n";
+  output << "}\n";
+
+  output.flush();
+
+  if (!output) {
+    error =
+        "Failed while writing route export file: " +
+        path;
+
+    return false;
+  }
+
+  return true;
+}
+
 
 int fail(
     const std::string& message) {
@@ -117,6 +529,31 @@ int main() {
   if (route.maneuvers.empty()) {
     return fail(
         "Expected Valhalla route maneuvers.");
+  }
+
+
+  const char* export_path =
+      std::getenv(
+          "ROUTING_PLATFORM_NAVIGATION_ROUTE_EXPORT");
+
+  if (export_path != nullptr &&
+      !std::string(
+           export_path).empty()) {
+
+    std::string export_error;
+
+    if (!export_navigation_route_contract(
+            route,
+            export_path,
+            export_error)) {
+      return fail(
+          export_error);
+    }
+
+    std::cout
+        << "EXPORT: "
+        << export_path
+        << '\n';
   }
 
 
