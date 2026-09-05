@@ -29,7 +29,7 @@ import kotlin.math.roundToInt
 fun NavigationScreen(
     snapshot: NavigationUiSnapshot,
     onStartNavigation: () -> Unit,
-    onAdvanceDemo: () -> Unit,
+    onAdvanceProgress: () -> Unit,
 ) {
     Column(
         modifier =
@@ -44,6 +44,16 @@ fun NavigationScreen(
             RouteMap(
                 points =
                     snapshot.geometry,
+
+                shapeSegmentIndex =
+                    snapshot.shapeSegmentIndex,
+
+                segmentFraction =
+                    snapshot.segmentFraction,
+
+                showProgress =
+                    snapshot.state !=
+                        NavigationSessionState.Preview,
 
                 modifier =
                     Modifier.fillMaxSize(),
@@ -198,14 +208,11 @@ fun NavigationScreen(
                             modifier =
                                 Modifier.fillMaxWidth(),
 
-                            enabled =
-                                false,
-
                             onClick =
-                                onAdvanceDemo,
+                                onAdvanceProgress,
                         ) {
                             Text(
-                                "Fortschritt folgt"
+                                "Fortschritt weiter"
                             )
                         }
                     }

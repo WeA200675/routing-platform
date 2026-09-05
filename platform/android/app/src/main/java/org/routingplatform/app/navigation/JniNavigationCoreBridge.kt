@@ -23,11 +23,36 @@ class JniNavigationCoreBridge :
                 .toUiSnapshot()
         )
 
+    override fun updateProgress(
+        shapeSegmentIndex: Int,
+        segmentFraction: Double,
+    ): NavigationUiSnapshot {
+        require(shapeSegmentIndex >= 0) {
+            "shapeSegmentIndex must not be negative."
+        }
+
+        require(segmentFraction in 0.0..1.0) {
+            "segmentFraction must be in [0, 1]."
+        }
+
+        return enforceBoundary(
+            nativeUpdateProgress(
+                shapeSegmentIndex,
+                segmentFraction,
+            ).toUiSnapshot()
+        )
+    }
+
     private external fun nativeCurrentSnapshot():
         NativeNavigationSnapshot
 
     private external fun nativeStartNavigation():
         NativeNavigationSnapshot
+
+    private external fun nativeUpdateProgress(
+        shapeSegmentIndex: Int,
+        segmentFraction: Double,
+    ): NativeNavigationSnapshot
 
     private fun enforceBoundary(
         snapshot: NavigationUiSnapshot,

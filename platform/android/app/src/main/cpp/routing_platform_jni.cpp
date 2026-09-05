@@ -16,6 +16,7 @@ using routing::core::ManeuverType;
 using routing::core::RouteManeuver;
 using routing::core::RoutePath;
 using routing::core::RouteSegmentDataStatus;
+using routing::core::navigation::NavigationProgressUpdate;
 using routing::core::navigation::NavigationSession;
 using routing::core::navigation::NavigationSnapshot;
 
@@ -202,7 +203,7 @@ to_java_snapshot(
           "<init>",
           "(ILjava/lang/String;"
           "ILjava/lang/String;"
-          "DD[DDDD"
+          "DD[DIDDDD"
           "Ljava/lang/String;"
           "DZZZZZZZ)V");
 
@@ -295,6 +296,12 @@ to_java_snapshot(
               route.duration_s),
 
           geometry_array,
+
+          static_cast<jint>(
+              snapshot.shape_segment_index),
+
+          static_cast<jdouble>(
+              snapshot.segment_fraction),
 
           static_cast<jdouble>(
               snapshot.progress_fraction),
@@ -399,6 +406,44 @@ start_navigation(
   }
 }
 
+
+jobject
+update_progress(
+    JNIEnv* env,
+    const jint shape_segment_index,
+    const jdouble segment_fraction) {
+  try {
+    if (shape_segment_index < 0) {
+      throw std::invalid_argument(
+          "Navigation shape_segment_index must not be negative.");
+    }
+
+    NavigationProgressUpdate update;
+
+    update.shape_segment_index =
+        static_cast<std::size_t>(
+            shape_segment_index);
+
+    update.segment_fraction =
+        static_cast<double>(
+            segment_fraction);
+
+    std::lock_guard<std::mutex> lock(
+        native_session_mutex());
+
+    return to_java_snapshot(
+        env,
+        native_session().update_progress(
+            update));
+  } catch (const std::exception& error) {
+    throw_illegal_state(
+        env,
+        error.what());
+
+    return nullptr;
+  }
+}
+
 }  // namespace
 
 
@@ -421,4 +466,19 @@ JniNavigationCoreBridge_nativeStartNavigation(
     jobject) {
   return start_navigation(
       env);
+}
+
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_org_routingplatform_app_navigation_\
+JniNavigationCoreBridge_nativeUpdateProgress(
+    JNIEnv* env,
+    jobject,
+    const jint shape_segment_index,
+    const jdouble segment_fraction) {
+  return update_progress(
+      env,
+      shape_segment_index,
+      segment_fraction);
 }

@@ -40,6 +40,23 @@ class MainActivity :
                     )
                 }
 
+            var progressStep by
+                remember {
+                    mutableStateOf(0)
+                }
+
+            val progressUpdates =
+                remember {
+                    listOf(
+                        0 to 0.50,
+                        1 to 0.00,
+                        1 to 0.50,
+                        2 to 0.00,
+                        2 to 0.50,
+                        2 to 1.00,
+                    )
+                }
+
             DisposableEffect(
                 snapshot.state
             ) {
@@ -69,15 +86,37 @@ class MainActivity :
                         snapshot,
 
                     onStartNavigation = {
+                        progressStep =
+                            0
+
                         snapshot =
                             bridge
                                 .startNavigation()
                     },
 
-                    onAdvanceDemo = {
-                        snapshot =
-                            bridge
-                                .currentSnapshot()
+                    onAdvanceProgress = {
+                        if (
+                            progressStep <
+                                progressUpdates.size
+                        ) {
+                            val update =
+                                progressUpdates[
+                                    progressStep
+                                ]
+
+                            snapshot =
+                                bridge
+                                    .updateProgress(
+                                        shapeSegmentIndex =
+                                            update.first,
+
+                                        segmentFraction =
+                                            update.second,
+                                    )
+
+                            progressStep +=
+                                1
+                        }
                     },
                 )
             }

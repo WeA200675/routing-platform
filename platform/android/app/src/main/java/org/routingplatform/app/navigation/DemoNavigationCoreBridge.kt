@@ -81,20 +81,11 @@ class DemoNavigationCoreBridge :
             ),
         )
 
-    private val progressSteps =
-        listOf(
-            0.0,
-            0.25,
-            0.50,
-            0.75,
-            1.0,
-        )
-
     private var started =
         false
 
-    private var demoStep =
-        0
+    private var progressFraction =
+        0.0
 
     override fun currentSnapshot():
         NavigationUiSnapshot =
@@ -108,6 +99,32 @@ class DemoNavigationCoreBridge :
         return makeSnapshot()
     }
 
+    override fun updateProgress(
+        shapeSegmentIndex: Int,
+        segmentFraction: Double,
+    ): NavigationUiSnapshot {
+        require(
+            shapeSegmentIndex in
+                0 until geometry.lastIndex
+        )
+
+        require(
+            segmentFraction in 0.0..1.0
+        )
+
+        started =
+            true
+
+        progressFraction =
+            (
+                shapeSegmentIndex.toDouble() +
+                    segmentFraction
+            ) /
+            geometry.lastIndex.toDouble()
+
+        return makeSnapshot()
+    }
+
     fun advanceDemo():
         NavigationUiSnapshot {
         if (!started) {
@@ -115,11 +132,13 @@ class DemoNavigationCoreBridge :
                 true
         }
 
-        if (demoStep <
-            progressSteps.lastIndex) {
-            demoStep +=
-                1
-        }
+        progressFraction =
+            (
+                progressFraction +
+                    0.25
+            ).coerceAtMost(
+                1.0
+            )
 
         return makeSnapshot()
     }
@@ -128,7 +147,33 @@ class DemoNavigationCoreBridge :
         NavigationUiSnapshot {
 
         val progress =
-            progressSteps[demoStep]
+            progressFraction
+
+        val segmentCount =
+            geometry.lastIndex
+
+        val scaledShapePosition =
+            progress *
+                segmentCount.toDouble()
+
+        val shapeSegmentIndex =
+            if (progress >= 1.0) {
+                segmentCount - 1
+            } else {
+                scaledShapePosition
+                    .toInt()
+                    .coerceAtMost(
+                        segmentCount - 1
+                    )
+            }
+
+        val segmentFraction =
+            if (progress >= 1.0) {
+                1.0
+            } else {
+                scaledShapePosition -
+                    shapeSegmentIndex.toDouble()
+            }
 
         val arrived =
             progress >= 1.0
@@ -201,6 +246,12 @@ class DemoNavigationCoreBridge :
 
             geometry =
                 geometry,
+
+            shapeSegmentIndex =
+                shapeSegmentIndex,
+
+            segmentFraction =
+                segmentFraction,
 
             progressFraction =
                 progress,

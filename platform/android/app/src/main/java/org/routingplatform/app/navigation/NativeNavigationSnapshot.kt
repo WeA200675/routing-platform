@@ -17,6 +17,9 @@ data class NativeNavigationSnapshot(
     // Flattened latitude/longitude pairs.
     val geometryLatLon: DoubleArray,
 
+    val shapeSegmentIndex: Int,
+    val segmentFraction: Double,
+
     val progressFraction: Double,
     val remainingDistanceM: Double,
     val remainingDurationS: Double,
@@ -132,6 +135,12 @@ data class NativeNavigationSnapshot(
 
             geometry =
                 geometry,
+
+            shapeSegmentIndex =
+                shapeSegmentIndex,
+
+            segmentFraction =
+                segmentFraction,
 
             progressFraction =
                 progressFraction,

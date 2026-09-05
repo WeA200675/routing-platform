@@ -43,6 +43,9 @@ data class NavigationUiSnapshot(
 
     val geometry: List<RoutePoint>,
 
+    val shapeSegmentIndex: Int = 0,
+    val segmentFraction: Double = 0.0,
+
     val progressFraction: Double,
     val remainingDistanceM: Double,
     val remainingDurationS: Double,
@@ -84,6 +87,17 @@ data class NavigationUiSnapshot(
 
         require(geometry.size >= 2) {
             "Route geometry needs at least two points."
+        }
+
+        require(
+            shapeSegmentIndex in
+                0 until geometry.lastIndex
+        ) {
+            "shapeSegmentIndex must reference a route segment."
+        }
+
+        require(segmentFraction in 0.0..1.0) {
+            "segmentFraction must be in [0, 1]."
         }
 
         require(progressFraction in 0.0..1.0) {
