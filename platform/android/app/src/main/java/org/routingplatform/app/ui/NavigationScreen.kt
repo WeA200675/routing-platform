@@ -30,6 +30,7 @@ fun NavigationScreen(
     snapshot: NavigationUiSnapshot,
     onStartNavigation: () -> Unit,
     onAdvanceProgress: () -> Unit,
+    manualProgressEnabled: Boolean = true,
 ) {
     Column(
         modifier =
@@ -208,11 +209,20 @@ fun NavigationScreen(
                             modifier =
                                 Modifier.fillMaxWidth(),
 
+                            enabled =
+                                manualProgressEnabled,
+
                             onClick =
                                 onAdvanceProgress,
                         ) {
                             Text(
-                                "Fortschritt weiter"
+                                if (
+                                    manualProgressEnabled
+                                ) {
+                                    "Diagnose: Fortschritt weiter"
+                                } else {
+                                    "Automatische Position aktiv"
+                                }
                             )
                         }
                     }
