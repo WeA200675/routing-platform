@@ -9,6 +9,8 @@ android {
     compileSdk = 36
     buildToolsVersion = "36.0.0"
 
+    ndkVersion = "28.2.13676358"
+
     defaultConfig {
         applicationId = "org.routingplatform.app"
 
@@ -32,6 +34,16 @@ android {
 
         targetCompatibility =
             JavaVersion.VERSION_17
+    }
+
+    externalNativeBuild {
+        cmake {
+            path =
+                file("src/main/cpp/CMakeLists.txt")
+
+            version =
+                "3.22.1"
+        }
     }
 
     packaging {
