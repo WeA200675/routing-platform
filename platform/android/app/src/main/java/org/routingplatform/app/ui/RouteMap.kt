@@ -1,5 +1,11 @@
 package org.routingplatform.app.ui
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -7,14 +13,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
@@ -25,7 +35,20 @@ import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.navigation.splitRouteProgressGeometry
+import org.routingplatform.app.profile.DisplayPreferences
 
+/*
+ * Presentation boundary only.
+ *
+ * This component draws:
+ *  - an external street-map style,
+ *  - the immutable installed route,
+ *  - accepted route-progress geometry.
+ *
+ * The progress marker is deliberately NOT presented as an observed
+ * GNSS position. A separate observed-position layer is added only
+ * when the positioning/safety contract is wired in G3.
+ */
 @Composable
 fun RouteMap(
     points: List<RoutePoint>,
@@ -33,12 +56,23 @@ fun RouteMap(
     segmentFraction: Double,
     showProgress: Boolean,
     modifier: Modifier = Modifier,
+
+    displayPreferences:
+        DisplayPreferences =
+        DisplayPreferences(),
 ) {
     val context =
         LocalContext.current
 
     val lifecycleOwner =
         LocalLifecycleOwner.current
+
+    val styleDescriptor =
+        NavigationMapPresentation
+            .styleDescriptor(
+                displayPreferences
+                    .mapStyle
+            )
 
     val mapView =
         remember {
@@ -61,12 +95,22 @@ fun RouteMap(
             )
         }
 
+    var mapLoadState by
+        remember {
+            mutableStateOf(
+                NavigationMapLoadState.Loading
+            )
+        }
+
     DisposableEffect(
         lifecycleOwner,
         mapView,
     ) {
-        val observer =
-            LifecycleEventObserver { _, event ->
+        val lifecycleObserver =
+            LifecycleEventObserver {
+                    _,
+                    event ->
+
                 when (event) {
                     Lifecycle.Event.ON_START ->
                         mapView.onStart()
@@ -85,14 +129,67 @@ fun RouteMap(
                 }
             }
 
-        lifecycleOwner.lifecycle.addObserver(
-            observer
-        )
+        val failureListener =
+            MapView.OnDidFailLoadingMapListener {
+                    _ ->
+
+                if (
+                    loadedStyle ==
+                        null
+                ) {
+                    mapLoadState =
+                        NavigationMapLoadState
+                            .Failed
+                }
+            }
+
+        val renderListener =
+            MapView.OnDidFinishRenderingMapListener {
+                    fully ->
+
+                if (
+                    fully &&
+                    loadedStyle !=
+                        null
+                ) {
+                    mapLoadState =
+                        NavigationMapLoadState
+                            .Ready
+                }
+            }
+
+        lifecycleOwner
+            .lifecycle
+            .addObserver(
+                lifecycleObserver
+            )
+
+        mapView
+            .addOnDidFailLoadingMapListener(
+                failureListener
+            )
+
+        mapView
+            .addOnDidFinishRenderingMapListener(
+                renderListener
+            )
 
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(
-                observer
-            )
+            lifecycleOwner
+                .lifecycle
+                .removeObserver(
+                    lifecycleObserver
+                )
+
+            mapView
+                .removeOnDidFailLoadingMapListener(
+                    failureListener
+                )
+
+            mapView
+                .removeOnDidFinishRenderingMapListener(
+                    renderListener
+                )
 
             loadedStyle =
                 null
@@ -104,157 +201,87 @@ fun RouteMap(
         }
     }
 
+    /*
+     * Style changes are presentation changes only.
+     *
+     * A future profile switch can therefore replace the street
+     * appearance without replacing the native navigation session.
+     */
     LaunchedEffect(
-        mapView
+        mapView,
+        styleDescriptor.styleUri,
     ) {
         if (points.size < 2) {
             return@LaunchedEffect
         }
 
-        val progressGeometry =
-            splitRouteProgressGeometry(
-                points =
-                    points,
+        loadedStyle =
+            null
 
-                shapeSegmentIndex =
-                    shapeSegmentIndex,
+        mapLoadState =
+            NavigationMapLoadState
+                .Loading
 
-                segmentFraction =
-                    segmentFraction,
-            )
+        mapView.getMapAsync {
+                map ->
 
-        mapView.getMapAsync { map ->
             mapLibreMap =
                 map
 
             map.setStyle(
-                STYLE_URL
-            ) { style ->
-                style.addSource(
-                    GeoJsonSource(
-                        PREVIEW_ROUTE_SOURCE_ID,
-                        routeGeoJson(
-                            points
-                        ),
+                styleDescriptor
+                    .styleUri
+            ) {
+                    style ->
+
+                val progressGeometry =
+                    splitRouteProgressGeometry(
+                        points =
+                            points,
+
+                        shapeSegmentIndex =
+                            shapeSegmentIndex,
+
+                        segmentFraction =
+                            segmentFraction,
                     )
-                )
 
-                style.addLayer(
-                    LineLayer(
-                        PREVIEW_ROUTE_LAYER_ID,
-                        PREVIEW_ROUTE_SOURCE_ID,
-                    ).withProperties(
-                        PropertyFactory.lineColor(
-                            "#0067A3"
-                        ),
+                installNavigationLayers(
+                    style =
+                        style,
 
-                        PropertyFactory.lineWidth(
-                            6.0f
-                        ),
-                    )
-                )
+                    fullRoute =
+                        points,
 
-                style.addSource(
-                    GeoJsonSource(
-                        REMAINING_ROUTE_SOURCE_ID,
-                        routeGeoJson(
-                            progressGeometry
-                                .remainingPoints
-                        ),
-                    )
-                )
+                    traveledRoute =
+                        progressGeometry
+                            .traveledPoints,
 
-                style.addLayer(
-                    LineLayer(
-                        REMAINING_ROUTE_LAYER_ID,
-                        REMAINING_ROUTE_SOURCE_ID,
-                    ).withProperties(
-                        PropertyFactory.lineColor(
-                            "#0067A3"
-                        ),
+                    remainingRoute =
+                        progressGeometry
+                            .remainingPoints,
 
-                        PropertyFactory.lineWidth(
-                            7.0f
-                        ),
+                    progressPosition =
+                        progressGeometry
+                            .currentPosition,
 
-                        PropertyFactory.visibility(
-                            Property.NONE
-                        ),
-                    )
-                )
-
-                style.addSource(
-                    GeoJsonSource(
-                        TRAVELED_ROUTE_SOURCE_ID,
-                        routeGeoJson(
-                            progressGeometry
-                                .traveledPoints
-                        ),
-                    )
-                )
-
-                style.addLayer(
-                    LineLayer(
-                        TRAVELED_ROUTE_LAYER_ID,
-                        TRAVELED_ROUTE_SOURCE_ID,
-                    ).withProperties(
-                        PropertyFactory.lineColor(
-                            "#6B7280"
-                        ),
-
-                        PropertyFactory.lineWidth(
-                            7.0f
-                        ),
-
-                        PropertyFactory.visibility(
-                            Property.NONE
-                        ),
-                    )
-                )
-
-                style.addSource(
-                    GeoJsonSource(
-                        CURRENT_POSITION_SOURCE_ID,
-                        pointGeoJson(
-                            progressGeometry
-                                .currentPosition
-                        ),
-                    )
-                )
-
-                style.addLayer(
-                    CircleLayer(
-                        CURRENT_POSITION_LAYER_ID,
-                        CURRENT_POSITION_SOURCE_ID,
-                    ).withProperties(
-                        PropertyFactory.circleColor(
-                            "#FFFFFF"
-                        ),
-
-                        PropertyFactory.circleRadius(
-                            7.0f
-                        ),
-
-                        PropertyFactory.circleStrokeColor(
-                            "#0067A3"
-                        ),
-
-                        PropertyFactory.circleStrokeWidth(
-                            3.0f
-                        ),
-
-                        PropertyFactory.visibility(
-                            Property.NONE
-                        ),
-                    )
+                    displayPreferences =
+                        displayPreferences,
                 )
 
                 loadedStyle =
                     style
+
+                mapLoadState =
+                    NavigationMapLoadState
+                        .Rendering
             }
         }
     }
 
+    /*
+     * Route/progress updates never reload the base street style.
+     */
     LaunchedEffect(
         loadedStyle,
         mapLibreMap,
@@ -262,6 +289,7 @@ fun RouteMap(
         shapeSegmentIndex,
         segmentFraction,
         showProgress,
+        displayPreferences,
     ) {
         val style =
             loadedStyle
@@ -321,7 +349,7 @@ fun RouteMap(
 
         style
             .getSourceAs<GeoJsonSource>(
-                CURRENT_POSITION_SOURCE_ID
+                ROUTE_PROGRESS_SOURCE_ID
             )
             ?.setGeoJson(
                 pointGeoJson(
@@ -351,7 +379,14 @@ fun RouteMap(
             ?.setProperties(
                 PropertyFactory.visibility(
                     previewVisibility
-                )
+                ),
+
+                PropertyFactory.lineWidth(
+                    NavigationMapPresentation
+                        .previewRouteLineWidth(
+                            displayPreferences
+                        )
+                ),
             )
 
         style
@@ -361,7 +396,14 @@ fun RouteMap(
             ?.setProperties(
                 PropertyFactory.visibility(
                     progressVisibility
-                )
+                ),
+
+                PropertyFactory.lineWidth(
+                    NavigationMapPresentation
+                        .activeRouteLineWidth(
+                            displayPreferences
+                        )
+                ),
             )
 
         style
@@ -371,12 +413,19 @@ fun RouteMap(
             ?.setProperties(
                 PropertyFactory.visibility(
                     progressVisibility
-                )
+                ),
+
+                PropertyFactory.lineWidth(
+                    NavigationMapPresentation
+                        .activeRouteLineWidth(
+                            displayPreferences
+                        )
+                ),
             )
 
         style
             .getLayer(
-                CURRENT_POSITION_LAYER_ID
+                ROUTE_PROGRESS_LAYER_ID
             )
             ?.setProperties(
                 PropertyFactory.visibility(
@@ -384,55 +433,301 @@ fun RouteMap(
                 )
             )
 
-        val target =
-            if (showProgress) {
-                LatLng(
-                    progressGeometry
-                        .currentPosition
-                        .latitude,
+        if (showProgress) {
+            /*
+             * Until G3 supplies a trusted heading, we deliberately
+             * keep bearing at north-up instead of inventing one.
+             */
+            map.cameraPosition =
+                CameraPosition
+                    .Builder()
+                    .target(
+                        LatLng(
+                            progressGeometry
+                                .currentPosition
+                                .latitude,
 
-                    progressGeometry
-                        .currentPosition
-                        .longitude,
-                )
-            } else {
-                LatLng(
-                    points
-                        .map {
-                            it.latitude
-                        }
-                        .average(),
+                            progressGeometry
+                                .currentPosition
+                                .longitude,
+                        )
+                    )
+                    .zoom(
+                        displayPreferences
+                            .defaultZoom
+                    )
+                    .tilt(
+                        displayPreferences
+                            .mapTiltDegrees
+                    )
+                    .bearing(
+                        0.0
+                    )
+                    .build()
+        } else {
+            fitPreviewRoute(
+                map =
+                    map,
 
-                    points
-                        .map {
-                            it.longitude
-                        }
-                        .average(),
-                )
-            }
+                points =
+                    points,
+            )
+        }
+    }
 
+    Box(
+        modifier =
+            modifier,
+    ) {
+        AndroidView(
+            factory = {
+                mapView
+            },
+
+            modifier =
+                Modifier.fillMaxSize(),
+        )
+
+        Surface(
+            modifier =
+                Modifier
+                    .align(
+                        Alignment.BottomStart
+                    )
+                    .padding(8.dp),
+
+            tonalElevation =
+                4.dp,
+
+            shape =
+                MaterialTheme
+                    .shapes
+                    .small,
+        ) {
+            Text(
+                text =
+                    NavigationMapPresentation
+                        .mapStatusText(
+                            mapLoadState
+                        ),
+
+                modifier =
+                    Modifier.padding(
+                        horizontal =
+                            10.dp,
+
+                        vertical =
+                            6.dp,
+                    ),
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+            )
+        }
+    }
+}
+
+private fun installNavigationLayers(
+    style: Style,
+    fullRoute: List<RoutePoint>,
+    traveledRoute: List<RoutePoint>,
+    remainingRoute: List<RoutePoint>,
+    progressPosition: RoutePoint,
+    displayPreferences: DisplayPreferences,
+) {
+    style.addSource(
+        GeoJsonSource(
+            PREVIEW_ROUTE_SOURCE_ID,
+            routeGeoJson(
+                fullRoute
+            ),
+        )
+    )
+
+    style.addLayer(
+        LineLayer(
+            PREVIEW_ROUTE_LAYER_ID,
+            PREVIEW_ROUTE_SOURCE_ID,
+        ).withProperties(
+            PropertyFactory.lineColor(
+                "#0067A3"
+            ),
+
+            PropertyFactory.lineWidth(
+                NavigationMapPresentation
+                    .previewRouteLineWidth(
+                        displayPreferences
+                    )
+            ),
+        )
+    )
+
+    style.addSource(
+        GeoJsonSource(
+            REMAINING_ROUTE_SOURCE_ID,
+            routeGeoJson(
+                remainingRoute
+            ),
+        )
+    )
+
+    style.addLayer(
+        LineLayer(
+            REMAINING_ROUTE_LAYER_ID,
+            REMAINING_ROUTE_SOURCE_ID,
+        ).withProperties(
+            PropertyFactory.lineColor(
+                "#0067A3"
+            ),
+
+            PropertyFactory.lineWidth(
+                NavigationMapPresentation
+                    .activeRouteLineWidth(
+                        displayPreferences
+                    )
+            ),
+
+            PropertyFactory.visibility(
+                Property.NONE
+            ),
+        )
+    )
+
+    style.addSource(
+        GeoJsonSource(
+            TRAVELED_ROUTE_SOURCE_ID,
+            routeGeoJson(
+                traveledRoute
+            ),
+        )
+    )
+
+    style.addLayer(
+        LineLayer(
+            TRAVELED_ROUTE_LAYER_ID,
+            TRAVELED_ROUTE_SOURCE_ID,
+        ).withProperties(
+            PropertyFactory.lineColor(
+                "#6B7280"
+            ),
+
+            PropertyFactory.lineWidth(
+                NavigationMapPresentation
+                    .activeRouteLineWidth(
+                        displayPreferences
+                    )
+            ),
+
+            PropertyFactory.visibility(
+                Property.NONE
+            ),
+        )
+    )
+
+    style.addSource(
+        GeoJsonSource(
+            ROUTE_PROGRESS_SOURCE_ID,
+            pointGeoJson(
+                progressPosition
+            ),
+        )
+    )
+
+    style.addLayer(
+        CircleLayer(
+            ROUTE_PROGRESS_LAYER_ID,
+            ROUTE_PROGRESS_SOURCE_ID,
+        ).withProperties(
+            PropertyFactory.circleColor(
+                "#FFFFFF"
+            ),
+
+            PropertyFactory.circleRadius(
+                7.0f
+            ),
+
+            PropertyFactory.circleStrokeColor(
+                "#0067A3"
+            ),
+
+            PropertyFactory.circleStrokeWidth(
+                3.0f
+            ),
+
+            PropertyFactory.visibility(
+                Property.NONE
+            ),
+        )
+    )
+}
+
+private fun fitPreviewRoute(
+    map: MapLibreMap,
+    points: List<RoutePoint>,
+) {
+    if (points.size < 2) {
+        return
+    }
+
+    val coordinates =
+        points.map {
+            LatLng(
+                it.latitude,
+                it.longitude,
+            )
+        }
+
+    val bounds =
+        LatLngBounds
+            .Builder()
+            .includes(
+                coordinates
+            )
+            .build()
+
+    val fitted =
+        runCatching {
+            map.moveCamera(
+                CameraUpdateFactory
+                    .newLatLngBounds(
+                        bounds,
+                        72,
+                    )
+            )
+        }.isSuccess
+
+    if (!fitted) {
         map.cameraPosition =
             CameraPosition
                 .Builder()
                 .target(
-                    target
+                    LatLng(
+                        points
+                            .map {
+                                it.latitude
+                            }
+                            .average(),
+
+                        points
+                            .map {
+                                it.longitude
+                            }
+                            .average(),
+                    )
                 )
                 .zoom(
-                    if (showProgress) {
-                        14.5
-                    } else {
-                        13.2
-                    }
+                    13.0
+                )
+                .bearing(
+                    0.0
+                )
+                .tilt(
+                    0.0
                 )
                 .build()
     }
-
-    AndroidView(
-        factory = {
-            mapView
-        },
-        modifier = modifier,
-    )
 }
 
 private fun routeGeoJson(
@@ -458,9 +753,6 @@ private fun pointGeoJson(
         {"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"Point","coordinates":[${point.longitude},${point.latitude}]}}]}
     """.trimIndent()
 
-private const val STYLE_URL =
-    "https://demotiles.maplibre.org/style.json"
-
 private const val PREVIEW_ROUTE_SOURCE_ID =
     "routing-platform-preview-route-source"
 
@@ -479,8 +771,8 @@ private const val TRAVELED_ROUTE_SOURCE_ID =
 private const val TRAVELED_ROUTE_LAYER_ID =
     "routing-platform-traveled-route-layer"
 
-private const val CURRENT_POSITION_SOURCE_ID =
-    "routing-platform-current-position-source"
+private const val ROUTE_PROGRESS_SOURCE_ID =
+    "routing-platform-route-progress-source"
 
-private const val CURRENT_POSITION_LAYER_ID =
-    "routing-platform-current-position-layer"
+private const val ROUTE_PROGRESS_LAYER_ID =
+    "routing-platform-route-progress-layer"
