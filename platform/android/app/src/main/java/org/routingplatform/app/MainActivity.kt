@@ -41,6 +41,7 @@ import org.routingplatform.app.navigation.hasNavigationLocationPermission
 import org.routingplatform.app.navigation.hasPreciseNavigationLocationPermission
 import org.routingplatform.app.navigation.navigationRuntimePermissionsToRequest
 import org.routingplatform.app.ui.NavigationAssistOverlay
+import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NavigationScreen
 import org.routingplatform.app.ui.RoutingPlatformTheme
 
@@ -536,6 +537,44 @@ class MainActivity :
                     .automaticProgressActive &&
                     preciseLocationGranted
 
+            /*
+             * Observation is presentation-only here.
+             *
+             * It never replaces accepted route progress. The
+             * presentation object itself decides conservatively
+             * whether camera following is permitted.
+             */
+            val observedPositionPresentation =
+                if (
+                    snapshot.state ==
+                        NavigationSessionState.Navigating
+                ) {
+                    NavigationObservedPositionPresentation
+                        .create(
+                            position =
+                                telemetry
+                                    .lastObservedPosition,
+
+                            accuracyM =
+                                telemetry
+                                    .lastLocationAccuracyM,
+
+                            confidence =
+                                telemetry
+                                    .confidence,
+
+                            safetyStatus =
+                                telemetry
+                                    .safetyStatus,
+
+                            fusionMode =
+                                telemetry
+                                    .fusionMode,
+                        )
+                } else {
+                    null
+                }
+
             RoutingPlatformTheme {
                 Box(
                     modifier =
@@ -573,6 +612,9 @@ class MainActivity :
 
                         manualProgressEnabled =
                             !automaticPreciseProgressActive,
+
+                        observedPosition =
+                            observedPositionPresentation,
 
                         onStartNavigation = {
                             progressStep =

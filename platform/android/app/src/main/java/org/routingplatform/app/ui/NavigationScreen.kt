@@ -46,6 +46,10 @@ fun NavigationScreen(
     manualProgressEnabled:
         Boolean =
         true,
+
+    observedPosition:
+        NavigationObservedPositionPresentation? =
+        null,
 ) {
     Column(
         modifier =
@@ -70,6 +74,9 @@ fun NavigationScreen(
                 showProgress =
                     snapshot.state !=
                         NavigationSessionState.Preview,
+
+                observedPosition =
+                    observedPosition,
 
                 modifier =
                     Modifier.fillMaxSize(),

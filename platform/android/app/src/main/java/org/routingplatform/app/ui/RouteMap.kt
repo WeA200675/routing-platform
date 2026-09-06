@@ -29,6 +29,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
@@ -60,6 +61,10 @@ fun RouteMap(
     displayPreferences:
         DisplayPreferences =
         DisplayPreferences(),
+
+    observedPosition:
+        NavigationObservedPositionPresentation? =
+        null,
 ) {
     val context =
         LocalContext.current
@@ -267,6 +272,9 @@ fun RouteMap(
 
                     displayPreferences =
                         displayPreferences,
+
+                    observedPosition =
+                        observedPosition,
                 )
 
                 loadedStyle =
@@ -290,6 +298,7 @@ fun RouteMap(
         segmentFraction,
         showProgress,
         displayPreferences,
+        observedPosition,
     ) {
         val style =
             loadedStyle
@@ -356,6 +365,34 @@ fun RouteMap(
                     progressGeometry
                         .currentPosition
                 )
+            )
+
+        style
+            .getSourceAs<GeoJsonSource>(
+                OBSERVED_POSITION_SOURCE_ID
+            )
+            ?.setGeoJson(
+                observedPosition
+                    ?.let {
+                        pointGeoJson(
+                            it.position
+                        )
+                    }
+                    ?: emptyFeatureCollectionGeoJson()
+            )
+
+        style
+            .getSourceAs<GeoJsonSource>(
+                OBSERVED_ACCURACY_SOURCE_ID
+            )
+            ?.setGeoJson(
+                observedPosition
+                    ?.let {
+                        observedAccuracyGeoJson(
+                            it
+                        )
+                    }
+                    ?: emptyFeatureCollectionGeoJson()
             )
 
         val previewVisibility =
@@ -433,22 +470,90 @@ fun RouteMap(
                 )
             )
 
+        val observedVisibility =
+            if (
+                showProgress &&
+                observedPosition !=
+                    null
+            ) {
+                Property.VISIBLE
+            } else {
+                Property.NONE
+            }
+
+        val accuracyVisibility =
+            if (
+                showProgress &&
+                observedPosition
+                    ?.accuracyRadiusM !=
+                    null
+            ) {
+                Property.VISIBLE
+            } else {
+                Property.NONE
+            }
+
+        style
+            .getLayer(
+                OBSERVED_POSITION_LAYER_ID
+            )
+            ?.setProperties(
+                PropertyFactory.visibility(
+                    observedVisibility
+                ),
+
+                PropertyFactory.circleColor(
+                    observedPosition
+                        ?.markerColor
+                        ?: "#6B7280"
+                )
+            )
+
+        style
+            .getLayer(
+                OBSERVED_ACCURACY_LAYER_ID
+            )
+            ?.setProperties(
+                PropertyFactory.visibility(
+                    accuracyVisibility
+                ),
+
+                PropertyFactory.fillColor(
+                    observedPosition
+                        ?.markerColor
+                        ?: "#6B7280"
+                )
+            )
+
         if (showProgress) {
             /*
-             * Until G3 supplies a trusted heading, we deliberately
-             * keep bearing at north-up instead of inventing one.
+             * A raw/held observation may remain visible, but it is
+             * never allowed to drag the camera.
+             *
+             * Only Accepted + High/Medium + DirectObservation
+             * presentation state may become the camera target.
+             *
+             * We still have no trusted heading in this UI contract,
+             * so bearing remains north-up instead of inventing one.
              */
+            val cameraTarget =
+                observedPosition
+                    ?.takeIf {
+                        it.cameraFollowAllowed
+                    }
+                    ?.position
+                    ?: progressGeometry
+                        .currentPosition
+
             map.cameraPosition =
                 CameraPosition
                     .Builder()
                     .target(
                         LatLng(
-                            progressGeometry
-                                .currentPosition
+                            cameraTarget
                                 .latitude,
 
-                            progressGeometry
-                                .currentPosition
+                            cameraTarget
                                 .longitude,
                         )
                     )
@@ -487,6 +592,48 @@ fun RouteMap(
             modifier =
                 Modifier.fillMaxSize(),
         )
+
+        observedPosition
+            ?.let {
+                    observed ->
+
+                Surface(
+                    modifier =
+                        Modifier
+                            .align(
+                                Alignment.BottomEnd
+                            )
+                            .padding(8.dp),
+
+                    tonalElevation =
+                        4.dp,
+
+                    shape =
+                        MaterialTheme
+                            .shapes
+                            .small,
+                ) {
+                    Text(
+                        text =
+                            observed
+                                .statusText,
+
+                        modifier =
+                            Modifier.padding(
+                                horizontal =
+                                    10.dp,
+
+                                vertical =
+                                    6.dp,
+                            ),
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .labelSmall,
+                    )
+                }
+            }
 
         Surface(
             modifier =
@@ -536,6 +683,7 @@ private fun installNavigationLayers(
     remainingRoute: List<RoutePoint>,
     progressPosition: RoutePoint,
     displayPreferences: DisplayPreferences,
+    observedPosition: NavigationObservedPositionPresentation?,
 ) {
     style.addSource(
         GeoJsonSource(
@@ -661,6 +809,97 @@ private fun installNavigationLayers(
             ),
         )
     )
+
+    style.addSource(
+        GeoJsonSource(
+            OBSERVED_ACCURACY_SOURCE_ID,
+            observedPosition
+                ?.let {
+                    observedAccuracyGeoJson(
+                        it
+                    )
+                }
+                ?: emptyFeatureCollectionGeoJson(),
+        )
+    )
+
+    style.addLayer(
+        FillLayer(
+            OBSERVED_ACCURACY_LAYER_ID,
+            OBSERVED_ACCURACY_SOURCE_ID,
+        ).withProperties(
+            PropertyFactory.fillColor(
+                observedPosition
+                    ?.markerColor
+                    ?: "#6B7280"
+            ),
+
+            PropertyFactory.fillOpacity(
+                0.18f
+            ),
+
+            PropertyFactory.visibility(
+                if (
+                    observedPosition
+                        ?.accuracyRadiusM !=
+                        null
+                ) {
+                    Property.VISIBLE
+                } else {
+                    Property.NONE
+                }
+            ),
+        )
+    )
+
+    style.addSource(
+        GeoJsonSource(
+            OBSERVED_POSITION_SOURCE_ID,
+            observedPosition
+                ?.let {
+                    pointGeoJson(
+                        it.position
+                    )
+                }
+                ?: emptyFeatureCollectionGeoJson(),
+        )
+    )
+
+    style.addLayer(
+        CircleLayer(
+            OBSERVED_POSITION_LAYER_ID,
+            OBSERVED_POSITION_SOURCE_ID,
+        ).withProperties(
+            PropertyFactory.circleColor(
+                observedPosition
+                    ?.markerColor
+                    ?: "#6B7280"
+            ),
+
+            PropertyFactory.circleRadius(
+                9.0f
+            ),
+
+            PropertyFactory.circleStrokeColor(
+                "#FFFFFF"
+            ),
+
+            PropertyFactory.circleStrokeWidth(
+                3.0f
+            ),
+
+            PropertyFactory.visibility(
+                if (
+                    observedPosition !=
+                        null
+                ) {
+                    Property.VISIBLE
+                } else {
+                    Property.NONE
+                }
+            ),
+        )
+    )
 }
 
 private fun fitPreviewRoute(
@@ -753,6 +992,42 @@ private fun pointGeoJson(
         {"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"Point","coordinates":[${point.longitude},${point.latitude}]}}]}
     """.trimIndent()
 
+private fun observedAccuracyGeoJson(
+    presentation:
+        NavigationObservedPositionPresentation,
+): String {
+
+    val radius =
+        presentation
+            .accuracyRadiusM
+            ?: return emptyFeatureCollectionGeoJson()
+
+    val boundary =
+        NavigationObservedPositionPresentation
+            .accuracyBoundary(
+                center =
+                    presentation.position,
+
+                radiusM =
+                    radius,
+            )
+
+    val coordinates =
+        boundary.joinToString(
+            separator = ",",
+        ) {
+            "[${it.longitude},${it.latitude}]"
+        }
+
+    return """
+        {"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[$coordinates]]}}]}
+    """.trimIndent()
+}
+
+private fun emptyFeatureCollectionGeoJson():
+    String =
+    """{"type":"FeatureCollection","features":[]}"""
+
 private const val PREVIEW_ROUTE_SOURCE_ID =
     "routing-platform-preview-route-source"
 
@@ -776,3 +1051,15 @@ private const val ROUTE_PROGRESS_SOURCE_ID =
 
 private const val ROUTE_PROGRESS_LAYER_ID =
     "routing-platform-route-progress-layer"
+
+private const val OBSERVED_ACCURACY_SOURCE_ID =
+    "routing-platform-observed-accuracy-source"
+
+private const val OBSERVED_ACCURACY_LAYER_ID =
+    "routing-platform-observed-accuracy-layer"
+
+private const val OBSERVED_POSITION_SOURCE_ID =
+    "routing-platform-observed-position-source"
+
+private const val OBSERVED_POSITION_LAYER_ID =
+    "routing-platform-observed-position-layer"
