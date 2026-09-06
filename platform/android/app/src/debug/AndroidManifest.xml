@@ -16,6 +16,15 @@
             android:name="org.routingplatform.navigation.ROUTE_ENDPOINT"
             android:value="http://127.0.0.1:8787/v1/navigation/route" />
 
+        <!--
+            G5R5 device fault probe.
+            Debug build only; never merged into release/production manifest.
+        -->
+        <activity
+            android:name=".navigation.G5R5FaultProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true" />
+
     </application>
 
 </manifest>

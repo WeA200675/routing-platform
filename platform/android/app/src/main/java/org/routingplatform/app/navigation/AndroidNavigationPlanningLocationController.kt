@@ -5,14 +5,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 
-data class NavigationPlanningLocation(
-    val position:
-        RoutePoint,
-
-    val horizontalAccuracyM:
-        Double,
-)
-
 interface NavigationPlanningLocationHandle {
     fun cancel()
 }
@@ -38,8 +30,11 @@ class AndroidNavigationPlanningLocationController(
             Looper.getMainLooper()
         )
 
-    private var requestGeneration =
-        0L
+    private val planningLocationGate =
+        NavigationPlanningLocationGate()
+
+    private val generationGate =
+        NavigationAsyncGenerationGate()
 
     private var activeSource:
         AndroidLocationSource? =
@@ -67,11 +62,8 @@ class AndroidNavigationPlanningLocationController(
         cancelActive()
 
         val generation =
-            requestGeneration +
-                1L
-
-        requestGeneration =
-            generation
+            generationGate
+                .begin()
 
         if (
             !hasPreciseNavigationLocationPermission(
@@ -80,12 +72,11 @@ class AndroidNavigationPlanningLocationController(
         ) {
             mainHandler.post {
                 if (
-                    requestGeneration ==
-                        generation
+                    generationGate
+                        .consume(
+                            generation
+                        )
                 ) {
-                    requestGeneration +=
-                        1L
-
                     onResult(
                         Result.failure(
                             NavigationReliabilityException(
@@ -141,34 +132,17 @@ class AndroidNavigationPlanningLocationController(
             source.start {
                     sample ->
 
-                val accuracy =
-                    sample
-                        .horizontalAccuracyM
+                val planningLocation =
+                    planningLocationGate
+                        .accept(
+                            sample =
+                                sample,
 
-                if (
-                    accuracy ==
-                        null ||
-                    !accuracy.isFinite() ||
-                    accuracy >
-                        MAX_PLANNING_ACCURACY_M
-                ) {
-                    return@start
-                }
-
-                val ageNanos =
-                    SystemClock
-                        .elapsedRealtimeNanos() -
-                        sample
-                            .elapsedRealtimeNanos
-
-                if (
-                    ageNanos <
-                        0L ||
-                    ageNanos >
-                        MAX_PLANNING_SAMPLE_AGE_NANOS
-                ) {
-                    return@start
-                }
+                            nowElapsedRealtimeNanos =
+                                SystemClock
+                                    .elapsedRealtimeNanos(),
+                        )
+                        ?: return@start
 
                 complete(
                     generation =
@@ -176,13 +150,7 @@ class AndroidNavigationPlanningLocationController(
 
                     result =
                         Result.success(
-                            NavigationPlanningLocation(
-                                position =
-                                    sample.position,
-
-                                horizontalAccuracyM =
-                                    accuracy,
-                            )
+                            planningLocation
                         ),
                 )
             }
@@ -222,8 +190,10 @@ class AndroidNavigationPlanningLocationController(
 
             override fun cancel() {
                 if (
-                    requestGeneration ==
-                        generation
+                    generationGate
+                        .isCurrent(
+                            generation
+                        )
                 ) {
                     cancelActive()
                 }
@@ -238,8 +208,10 @@ class AndroidNavigationPlanningLocationController(
             Result<NavigationPlanningLocation>,
     ) {
         if (
-            requestGeneration !=
-                generation
+            !generationGate
+                .consume(
+                    generation
+                )
         ) {
             return
         }
@@ -265,9 +237,6 @@ class AndroidNavigationPlanningLocationController(
 
         activeCallback =
             null
-
-        requestGeneration +=
-            1L
 
         callback
             ?.invoke(
@@ -295,16 +264,10 @@ class AndroidNavigationPlanningLocationController(
         activeCallback =
             null
 
-        requestGeneration +=
-            1L
+        generationGate
+            .cancel()
     }
 }
 
-private const val MAX_PLANNING_ACCURACY_M =
-    100.0
-
 private const val PLANNING_LOCATION_TIMEOUT_MS =
     15_000L
-
-private const val MAX_PLANNING_SAMPLE_AGE_NANOS =
-    20_000_000_000L

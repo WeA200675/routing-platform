@@ -16,6 +16,7 @@ enum class NavigationFaultDomain {
     Transport,
     RoutingBackend,
     RouteContract,
+    DestinationSearch,
     PlanningLocation,
     Permission,
     Persistence,
@@ -38,6 +39,7 @@ enum class NavigationFaultCode {
     NoSuitableEdges,
     InvalidRequest,
     InvalidResponse,
+    DestinationSearchUnavailable,
     PermissionMissing,
     PlanningLocationUnavailable,
     PlanningLocationSourceUnavailable,
@@ -435,6 +437,33 @@ internal object NavigationReliabilityClassifier {
                 detail.take(
                     MAX_TECHNICAL_DETAIL_CHARS
                 ),
+        )
+
+    fun destinationSearchUnavailable(
+        detail:
+            String,
+    ): NavigationFault =
+        NavigationFault(
+            code =
+                NavigationFaultCode.DestinationSearchUnavailable,
+
+            domain =
+                NavigationFaultDomain.DestinationSearch,
+
+            disposition =
+                NavigationFaultDisposition.RetryableInfrastructure,
+
+            userMessage =
+                "Die Zielsuche ist vorübergehend nicht verfügbar.",
+
+            technicalMessage =
+                detail
+                    .take(
+                        MAX_TECHNICAL_DETAIL_CHARS
+                    )
+                    .ifBlank {
+                        "Destination search unavailable."
+                    },
         )
 
     fun precisePermissionMissing():
@@ -1136,6 +1165,20 @@ internal fun requireNativeBoundary(
                 )
         )
     }
+}
+
+internal fun requireNavigatingRouteReplacementState(
+    state:
+        NavigationSessionState,
+) {
+    requireNativeBoundary(
+        condition =
+            state ==
+                NavigationSessionState.Navigating,
+
+        detail =
+            "Active route replacement requires Navigating state.",
+    )
 }
 
 private data class NavigationServiceErrorPayload(

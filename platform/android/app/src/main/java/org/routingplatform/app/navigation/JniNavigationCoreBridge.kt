@@ -116,13 +116,8 @@ class JniNavigationCoreBridge :
         val previous =
             currentSnapshot()
 
-        requireNativeBoundary(
-            condition =
-                previous.state ==
-                    NavigationSessionState.Navigating,
-
-            detail =
-                "Active route replacement requires Navigating state.",
+        requireNavigatingRouteReplacementState(
+            previous.state
         )
 
         val payload =

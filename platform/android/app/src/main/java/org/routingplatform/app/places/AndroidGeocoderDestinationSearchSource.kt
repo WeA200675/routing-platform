@@ -9,6 +9,8 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
+import org.routingplatform.app.navigation.NavigationReliabilityClassifier
+import org.routingplatform.app.navigation.NavigationReliabilityException
 import org.routingplatform.app.navigation.RoutePoint
 
 class AndroidGeocoderDestinationSearchSource(
@@ -78,8 +80,11 @@ class AndroidGeocoderDestinationSearchSource(
                 ) {
                     onResult(
                         Result.failure(
-                            IllegalStateException(
-                                "Android Geocoder ist auf diesem Gerät nicht verfügbar."
+                            NavigationReliabilityException(
+                                NavigationReliabilityClassifier
+                                    .destinationSearchUnavailable(
+                                        "Android Geocoder.isPresent() returned false."
+                                    )
                             )
                         )
                     )
@@ -103,9 +108,20 @@ class AndroidGeocoderDestinationSearchSource(
             Future<*> =
             executor.submit {
                 val result =
-                    runCatching {
-                        lookup(
-                            normalized
+                    try {
+                        Result.success(
+                            lookup(
+                                normalized
+                            )
+                        )
+                    } catch (
+                        error:
+                            Exception
+                    ) {
+                        Result.failure(
+                            destinationSearchFailure(
+                                error
+                            )
                         )
                     }
 
@@ -146,6 +162,29 @@ class AndroidGeocoderDestinationSearchSource(
             executor.shutdownNow()
         }
     }
+
+    private fun destinationSearchFailure(
+        error:
+            Exception,
+    ): NavigationReliabilityException =
+        if (
+            error is
+                NavigationReliabilityException
+        ) {
+            error
+        } else {
+            NavigationReliabilityException(
+                fault =
+                    NavigationReliabilityClassifier
+                        .destinationSearchUnavailable(
+                            error.message
+                                ?: error.javaClass.name
+                        ),
+
+                cause =
+                    error,
+            )
+        }
 
     @Suppress("DEPRECATION")
     private fun lookup(
