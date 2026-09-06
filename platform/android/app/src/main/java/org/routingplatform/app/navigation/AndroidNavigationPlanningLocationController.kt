@@ -88,8 +88,9 @@ class AndroidNavigationPlanningLocationController(
 
                     onResult(
                         Result.failure(
-                            IllegalStateException(
-                                "Präzise Position ist für den Routenstart erforderlich."
+                            NavigationReliabilityException(
+                                NavigationReliabilityClassifier
+                                    .precisePermissionMissing()
                             )
                         )
                     )
@@ -120,8 +121,9 @@ class AndroidNavigationPlanningLocationController(
 
                     result =
                         Result.failure(
-                            IllegalStateException(
-                                "Keine ausreichend genaue aktuelle Position erhalten."
+                            NavigationReliabilityException(
+                                NavigationReliabilityClassifier
+                                    .planningLocationUnavailable()
                             )
                         ),
                 )
@@ -194,8 +196,9 @@ class AndroidNavigationPlanningLocationController(
 
                 result =
                     Result.failure(
-                        IllegalStateException(
-                            "Positionsquelle konnte für die Routenplanung nicht gestartet werden."
+                        NavigationReliabilityException(
+                            NavigationReliabilityClassifier
+                                .planningLocationSourceUnavailable()
                         )
                     ),
             )

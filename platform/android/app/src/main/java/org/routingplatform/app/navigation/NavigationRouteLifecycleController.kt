@@ -15,6 +15,10 @@ data class NavigationRouteAcquisitionTelemetry(
 
     val message:
         String,
+
+    val fault:
+        NavigationFault? =
+        null,
 )
 
 class NavigationRouteLifecycleController(
@@ -139,6 +143,12 @@ class NavigationRouteLifecycleController(
                     onFailure = {
                             error ->
 
+                        val fault =
+                            NavigationReliabilityClassifier
+                                .fromThrowable(
+                                    error
+                                )
+
                         onTelemetry(
                             NavigationRouteAcquisitionTelemetry(
                                 state =
@@ -146,10 +156,10 @@ class NavigationRouteLifecycleController(
 
                                 message =
                                     "Live-Route fehlgeschlagen – Fallback-Route aktiv: " +
-                                        (
-                                            error.message
-                                                ?: "unbekannter Fehler"
-                                        ),
+                                        fault.userMessage,
+
+                                fault =
+                                    fault,
                             )
                         )
                     },
@@ -346,6 +356,12 @@ class NavigationRouteLifecycleController(
                         rerouteInFlight =
                             false
 
+                        val fault =
+                            NavigationReliabilityClassifier
+                                .fromThrowable(
+                                    error
+                                )
+
                         /*
                          * Fail safely: acquisition failure never
                          * removes or mutates the active old route.
@@ -357,10 +373,10 @@ class NavigationRouteLifecycleController(
 
                                 message =
                                     "Rerouting fehlgeschlagen – alte Route bleibt aktiv: " +
-                                        (
-                                            error.message
-                                                ?: "unbekannter Fehler"
-                                        ),
+                                        fault.userMessage,
+
+                                fault =
+                                    fault,
                             )
                         )
                     },

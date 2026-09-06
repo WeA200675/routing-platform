@@ -88,6 +88,14 @@ interface NavigationRouteSource :
 class AndroidHttpNavigationRouteSource(
     context: Context,
     private val endpoint: URI,
+
+    private val recoveryPolicy:
+        NavigationRecoveryPolicy =
+        NavigationRecoveryPolicy(),
+
+    private val onReliabilityEvent:
+        (NavigationReliabilityEvent) -> Unit =
+        {},
 ) : NavigationRouteSource {
 
     private val appContext =
@@ -147,7 +155,7 @@ class AndroidHttpNavigationRouteSource(
             executor.submit {
                 val result =
                     runCatching {
-                        fetch(
+                        fetchWithRecovery(
                             request
                         )
                     }
@@ -187,6 +195,143 @@ class AndroidHttpNavigationRouteSource(
             )
         ) {
             executor.shutdownNow()
+        }
+    }
+
+    private fun fetchWithRecovery(
+        request:
+            NavigationRouteRequest,
+    ): NavigationRouteContract {
+
+        var retriesAlreadyAttempted =
+            0
+
+        while (true) {
+            try {
+                return fetch(
+                    request
+                )
+            } catch (
+                interrupted:
+                    InterruptedException
+            ) {
+                Thread
+                    .currentThread()
+                    .interrupt()
+
+                throw interrupted
+            } catch (
+                error:
+                    Throwable
+            ) {
+                val fault =
+                    NavigationReliabilityClassifier
+                        .fromThrowable(
+                            error
+                        )
+
+                onReliabilityEvent(
+                    NavigationReliabilityEvent(
+                        kind =
+                            NavigationReliabilityEventKind.FaultObserved,
+
+                        fault =
+                            fault,
+
+                        retryNumber =
+                            retriesAlreadyAttempted,
+
+                        delayMs =
+                            0L,
+                    )
+                )
+
+                when (
+                    val decision =
+                        recoveryPolicy
+                            .decide(
+                                fault =
+                                    fault,
+
+                                retriesAlreadyAttempted =
+                                    retriesAlreadyAttempted,
+                            )
+                ) {
+                    is NavigationRecoveryDecision.Retry -> {
+                        onReliabilityEvent(
+                            NavigationReliabilityEvent(
+                                kind =
+                                    NavigationReliabilityEventKind.RecoveryScheduled,
+
+                                fault =
+                                    fault,
+
+                                retryNumber =
+                                    decision.retryNumber,
+
+                                delayMs =
+                                    decision.delayMs,
+                            )
+                        )
+
+                        if (
+                            decision.delayMs >
+                                0L
+                        ) {
+                            try {
+                                Thread.sleep(
+                                    decision.delayMs
+                                )
+                            } catch (
+                                interrupted:
+                                    InterruptedException
+                            ) {
+                                Thread
+                                    .currentThread()
+                                    .interrupt()
+
+                                throw interrupted
+                            }
+                        }
+
+                        retriesAlreadyAttempted =
+                            decision.retryNumber
+                    }
+
+                    NavigationRecoveryDecision.FailClosed -> {
+                        onReliabilityEvent(
+                            NavigationReliabilityEvent(
+                                kind =
+                                    NavigationReliabilityEventKind.RecoveryExhausted,
+
+                                fault =
+                                    fault,
+
+                                retryNumber =
+                                    retriesAlreadyAttempted,
+
+                                delayMs =
+                                    0L,
+                            )
+                        )
+
+                        if (
+                            error is
+                                NavigationReliabilityException
+                        ) {
+                            throw error
+                        }
+
+                        throw NavigationReliabilityException(
+                            fault =
+                                fault,
+
+                            cause =
+                                error,
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -282,32 +427,66 @@ class AndroidHttpNavigationRouteSource(
                 responseCode !in
                     200..299
             ) {
-                throw IllegalStateException(
-                    "Navigation route service returned HTTP " +
-                        responseCode +
-                        ": " +
-                        responseBody.take(
-                            500
+                throw NavigationReliabilityException(
+                    NavigationReliabilityClassifier
+                        .fromHttp(
+                            responseCode =
+                                responseCode,
+
+                            responseBody =
+                                responseBody,
                         )
                 )
             }
 
             val route =
-                AndroidNavigationRouteContractJson
-                    .parse(
-                        responseBody
-                    )
+                try {
+                    AndroidNavigationRouteContractJson
+                        .parse(
+                            responseBody
+                        )
+                } catch (
+                    error:
+                        Throwable
+                ) {
+                    throw NavigationReliabilityException(
+                        fault =
+                            NavigationReliabilityClassifier
+                                .invalidRouteResponse(
+                                    "Route contract parse failed: " +
+                                        (
+                                            error.message
+                                                ?: error.javaClass.name
+                                        )
+                                ),
 
-            check(
-                route.engineName.isNotBlank()
+                        cause =
+                            error,
+                    )
+                }
+
+            if (
+                route.engineName.isBlank()
             ) {
-                "Live route response has no routing engine identity."
+                throw NavigationReliabilityException(
+                    NavigationReliabilityClassifier
+                        .invalidRouteResponse(
+                            "Live route response has no routing engine identity."
+                        )
+                )
             }
 
-            check(
-                route.geometry.size >=
+            if (
+                route.geometry.size <
                     2
-            )
+            ) {
+                throw NavigationReliabilityException(
+                    NavigationReliabilityClassifier
+                        .invalidRouteResponse(
+                            "Live route response geometry has fewer than two points."
+                        )
+                )
+            }
 
             return route
         } finally {
