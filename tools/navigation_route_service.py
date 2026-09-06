@@ -11,6 +11,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_RESPONSE_BYTES = 16 * 1024 * 1024
+ERROR_SCHEMA_VERSION = 1
+SERVICE_VERSION = 2
 
 ALLOWED_FAMILIES = {
     "fastest",
@@ -26,6 +28,82 @@ ALLOWED_FAMILIES = {
     "scenic",
     "stable",
 }
+
+
+class RouteServiceError(RuntimeError):
+    def __init__(
+        self,
+        *,
+        status,
+        code,
+        message,
+        retryable,
+    ):
+        super().__init__(message)
+        self.status = int(status)
+        self.code = str(code)
+        self.message = str(message)
+        self.retryable = bool(retryable)
+
+
+def error_payload(error):
+    return {
+        "schemaVersion": ERROR_SCHEMA_VERSION,
+        "error": {
+            "code": error.code,
+            "message": error.message,
+            "retryable": error.retryable,
+        },
+    }
+
+
+def classify_exporter_failure(returncode, output):
+    text = str(output or "")
+
+    if "No suitable edges near location" in text:
+        return RouteServiceError(
+            status=422,
+            code="no_suitable_edges",
+            message=(
+                "No suitable routable edges were found "
+                "near one or more requested route points."
+            ),
+            retryable=False,
+        )
+
+    return RouteServiceError(
+        status=502,
+        code="route_export_failed",
+        message=(
+            "The routing backend could not produce a route."
+        ),
+        retryable=True,
+    )
+
+
+def readiness_snapshot(executable, config):
+    checks = {
+        "exporterFile": os.path.isfile(executable),
+        "exporterExecutable": (
+            os.path.isfile(executable)
+            and os.access(executable, os.X_OK)
+        ),
+        "configFile": os.path.isfile(config),
+        "configReadable": (
+            os.path.isfile(config)
+            and os.access(config, os.R_OK)
+        ),
+    }
+
+    ready = all(checks.values())
+
+    return {
+        "schemaVersion": ERROR_SCHEMA_VERSION,
+        "status": "ready" if ready else "not_ready",
+        "service": "routing-platform-navigation-route",
+        "version": SERVICE_VERSION,
+        "checks": checks,
+    }
 
 
 def parse_point(value, name):
@@ -107,29 +185,57 @@ class NavigationRouteHandler(BaseHTTPRequestHandler):
             self.respond_json(
                 200,
                 {
+                    "schemaVersion": ERROR_SCHEMA_VERSION,
                     "status": "ok",
                     "service": "routing-platform-navigation-route",
+                    "version": SERVICE_VERSION,
                 },
             )
             return
 
-        self.respond_json(
-            404,
-            {"error": "not_found"},
+        if self.path == "/ready":
+            payload = self.server.readiness()
+            status = (
+                200
+                if payload["status"] == "ready"
+                else 503
+            )
+
+            self.respond_json(
+                status,
+                payload,
+            )
+            return
+
+        self.respond_error(
+            RouteServiceError(
+                status=404,
+                code="not_found",
+                message="The requested service endpoint does not exist.",
+                retryable=False,
+            )
         )
 
     def do_POST(self):
         if self.path != "/v1/navigation/route":
-            self.respond_json(
-                404,
-                {"error": "not_found"},
+            self.respond_error(
+                RouteServiceError(
+                    status=404,
+                    code="not_found",
+                    message="The requested service endpoint does not exist.",
+                    retryable=False,
+                )
             )
             return
 
         if self.headers.get("X-Routing-Platform-Dev") != "1":
-            self.respond_json(
-                403,
-                {"error": "development_header_required"},
+            self.respond_error(
+                RouteServiceError(
+                    status=403,
+                    code="development_header_required",
+                    message="The development routing header is required.",
+                    retryable=False,
+                )
             )
             return
 
@@ -172,8 +278,11 @@ class NavigationRouteHandler(BaseHTTPRequestHandler):
             ).encode("utf-8")
 
             if len(encoded) > MAX_RESPONSE_BYTES:
-                raise RuntimeError(
-                    "route response exceeds size limit"
+                raise RouteServiceError(
+                    status=502,
+                    code="response_too_large",
+                    message="The routing backend response exceeded the size limit.",
+                    retryable=False,
                 )
 
             self.send_response(200)
@@ -193,30 +302,52 @@ class NavigationRouteHandler(BaseHTTPRequestHandler):
             self.wfile.write(encoded)
 
         except ValueError as error:
-            self.respond_json(
-                400,
-                {
-                    "error": "invalid_request",
-                    "message": str(error),
-                },
+            self.respond_error(
+                RouteServiceError(
+                    status=400,
+                    code="invalid_request",
+                    message=str(error),
+                    retryable=False,
+                )
             )
 
         except subprocess.TimeoutExpired:
-            self.respond_json(
-                504,
-                {
-                    "error": "routing_timeout",
-                },
+            self.respond_error(
+                RouteServiceError(
+                    status=504,
+                    code="routing_timeout",
+                    message="The routing backend timed out.",
+                    retryable=True,
+                )
+            )
+
+        except RouteServiceError as error:
+            self.respond_error(
+                error
             )
 
         except Exception as error:
-            self.respond_json(
-                502,
-                {
-                    "error": "routing_failed",
-                    "message": str(error),
-                },
+            self.log_message(
+                "unclassified backend failure: %s",
+                str(error),
             )
+
+            self.respond_error(
+                RouteServiceError(
+                    status=502,
+                    code="backend_failure",
+                    message="The routing backend failed unexpectedly.",
+                    retryable=True,
+                )
+            )
+
+    def respond_error(self, error):
+        self.respond_json(
+            error.status,
+            error_payload(
+                error
+            ),
+        )
 
     def respond_json(self, status, payload):
         encoded = json.dumps(
@@ -233,6 +364,10 @@ class NavigationRouteHandler(BaseHTTPRequestHandler):
         self.send_header(
             "Content-Length",
             str(len(encoded)),
+        )
+        self.send_header(
+            "Cache-Control",
+            "no-store",
         )
         self.end_headers()
         self.wfile.write(encoded)
@@ -258,6 +393,12 @@ class NavigationRouteServer(ThreadingHTTPServer):
         # Keep development routing deterministic and avoid loading
         # multiple Valhalla engines concurrently.
         self.route_lock = threading.Lock()
+
+    def readiness(self):
+        return readiness_snapshot(
+            self.executable,
+            self.config,
+        )
 
     def route(
         self,
@@ -325,10 +466,17 @@ class NavigationRouteServer(ThreadingHTTPServer):
                 if process.returncode != 0:
                     output = process.stdout[-4000:]
 
-                    raise RuntimeError(
-                        "Valhalla route exporter failed "
-                        f"with exit {process.returncode}: "
-                        + output
+                    print(
+                        "[navigation-route-service] "
+                        "route exporter failure "
+                        f"(exit {process.returncode}): "
+                        + output,
+                        flush=True,
+                    )
+
+                    raise classify_exporter_failure(
+                        process.returncode,
+                        output,
                     )
 
                 size = os.path.getsize(
@@ -336,22 +484,39 @@ class NavigationRouteServer(ThreadingHTTPServer):
                 )
 
                 if size <= 0 or size > MAX_RESPONSE_BYTES:
-                    raise RuntimeError(
-                        "invalid exported route size"
+                    raise RouteServiceError(
+                        status=502,
+                        code="invalid_exported_route",
+                        message="The routing backend exported an invalid route size.",
+                        retryable=False,
                     )
 
-                with open(
-                    export_path,
-                    "r",
-                    encoding="utf-8",
-                ) as route_file:
-                    route = json.load(
-                        route_file
-                    )
+                try:
+                    with open(
+                        export_path,
+                        "r",
+                        encoding="utf-8",
+                    ) as route_file:
+                        route = json.load(
+                            route_file
+                        )
+                except (
+                    json.JSONDecodeError,
+                    UnicodeDecodeError,
+                ) as error:
+                    raise RouteServiceError(
+                        status=502,
+                        code="invalid_exported_route",
+                        message="The routing backend exported invalid route JSON.",
+                        retryable=False,
+                    ) from error
 
                 if route.get("engineName") != "valhalla":
-                    raise RuntimeError(
-                        "exported route lost Valhalla identity"
+                    raise RouteServiceError(
+                        status=502,
+                        code="invalid_exported_route",
+                        message="The exported route lost routing-engine identity.",
+                        retryable=False,
                     )
 
                 return route

@@ -190,16 +190,59 @@ internal object NavigationReliabilityClassifier {
             String,
     ): NavigationFault {
 
-        val technical =
-            (
-                "HTTP $responseCode: " +
-                    responseBody
-                        .take(
-                            MAX_TECHNICAL_DETAIL_CHARS
-                        )
+        val serviceError =
+            parseServiceError(
+                responseBody
             )
-                .trim()
 
+        val technical =
+            if (
+                serviceError !=
+                    null
+            ) {
+                (
+                    "HTTP $responseCode " +
+                        "serviceCode=" +
+                        serviceError.code +
+                        " message=" +
+                        serviceError.message
+                )
+                    .take(
+                        MAX_TECHNICAL_DETAIL_CHARS
+                    )
+            } else {
+                (
+                    "HTTP $responseCode " +
+                        "unstructured=" +
+                        responseBody.take(
+                            MAX_UNSTRUCTURED_DETAIL_CHARS
+                        )
+                )
+            }
+
+        val structuredFault =
+            serviceError
+                ?.let {
+                    structuredServiceFault(
+                        error =
+                            it,
+
+                        technical =
+                            technical,
+                    )
+                }
+
+        if (
+            structuredFault !=
+                null
+        ) {
+            return structuredFault
+        }
+
+        /*
+         * Compatibility fallback for an older development service.
+         * Structured service codes above are authoritative.
+         */
         if (
             responseBody.contains(
                 "No suitable edges near location",
@@ -451,6 +494,366 @@ internal object NavigationReliabilityClassifier {
                 "AndroidLocationSource.start() returned false for route planning.",
         )
 
+    private fun structuredServiceFault(
+        error:
+            NavigationServiceErrorPayload,
+
+        technical:
+            String,
+    ): NavigationFault? =
+        when (
+            error.code
+        ) {
+            "no_suitable_edges" ->
+                NavigationFault(
+                    code =
+                        NavigationFaultCode.NoSuitableEdges,
+
+                    domain =
+                        NavigationFaultDomain.RoutingBackend,
+
+                    disposition =
+                        NavigationFaultDisposition.FailClosedNavigationTruth,
+
+                    userMessage =
+                        "Für den gewählten Punkt wurde keine geeignete befahrbare Straße gefunden.",
+
+                    technicalMessage =
+                        technical,
+                )
+
+            "invalid_request" ->
+                NavigationFault(
+                    code =
+                        NavigationFaultCode.InvalidRequest,
+
+                    domain =
+                        NavigationFaultDomain.RoutingBackend,
+
+                    disposition =
+                        NavigationFaultDisposition.FailClosedNavigationTruth,
+
+                    userMessage =
+                        "Die Routenanfrage wurde vom Routing-Dienst abgelehnt.",
+
+                    technicalMessage =
+                        technical,
+                )
+
+            "routing_timeout" ->
+                timeout(
+                    technical
+                )
+
+            "route_export_failed",
+            "backend_failure",
+            "backend_not_ready" ->
+                NavigationFault(
+                    code =
+                        NavigationFaultCode.ServiceUnavailable,
+
+                    domain =
+                        NavigationFaultDomain.RoutingBackend,
+
+                    disposition =
+                        NavigationFaultDisposition.RetryableInfrastructure,
+
+                    userMessage =
+                        "Der Routing-Dienst ist vorübergehend nicht verfügbar.",
+
+                    technicalMessage =
+                        technical,
+                )
+
+            "invalid_exported_route",
+            "response_too_large" ->
+                NavigationFault(
+                    code =
+                        NavigationFaultCode.InvalidResponse,
+
+                    domain =
+                        NavigationFaultDomain.RouteContract,
+
+                    disposition =
+                        NavigationFaultDisposition.FailClosedNavigationTruth,
+
+                    userMessage =
+                        "Der Routing-Dienst hat eine ungültige Antwort geliefert.",
+
+                    technicalMessage =
+                        technical,
+                )
+
+            "development_header_required",
+            "not_found" ->
+                NavigationFault(
+                    code =
+                        NavigationFaultCode.ServiceRejected,
+
+                    domain =
+                        NavigationFaultDomain.RoutingBackend,
+
+                    disposition =
+                        NavigationFaultDisposition.NonRetryableConfiguration,
+
+                    userMessage =
+                        "Der Routing-Dienst ist nicht korrekt konfiguriert.",
+
+                    technicalMessage =
+                        technical,
+                )
+
+            else ->
+                null
+        }
+
+    private fun parseServiceError(
+        responseBody:
+            String,
+    ): NavigationServiceErrorPayload? {
+
+        /*
+         * Keep the reliability classifier pure Kotlin.
+         *
+         * Android's org.json implementation is not a trustworthy JVM
+         * unit-test dependency: local Android unit tests use framework
+         * stubs unless an explicit implementation is supplied.
+         *
+         * This parser intentionally understands only our small,
+         * versioned error envelope. Unknown/malformed schemas return
+         * null and therefore fall back to the conservative HTTP policy.
+         */
+        val bounded =
+            responseBody.take(
+                MAX_SERVICE_ENVELOPE_CHARS
+            )
+
+        val schemaVersion =
+            SERVICE_SCHEMA_REGEX
+                .find(
+                    bounded
+                )
+                ?.groupValues
+                ?.getOrNull(
+                    1
+                )
+                ?.toIntOrNull()
+                ?: return null
+
+        if (
+            schemaVersion !=
+                SERVICE_ERROR_SCHEMA_VERSION
+        ) {
+            return null
+        }
+
+        val errorObject =
+            SERVICE_ERROR_OBJECT_REGEX
+                .find(
+                    bounded
+                )
+                ?.groupValues
+                ?.getOrNull(
+                    1
+                )
+                ?: return null
+
+        val encodedCode =
+            SERVICE_CODE_REGEX
+                .find(
+                    errorObject
+                )
+                ?.groupValues
+                ?.getOrNull(
+                    1
+                )
+                ?: return null
+
+        val code =
+            decodeJsonString(
+                encodedCode
+            )
+                ?.trim()
+                .orEmpty()
+
+        if (
+            code.isEmpty()
+        ) {
+            return null
+        }
+
+        val encodedMessage =
+            SERVICE_MESSAGE_REGEX
+                .find(
+                    errorObject
+                )
+                ?.groupValues
+                ?.getOrNull(
+                    1
+                )
+                .orEmpty()
+
+        val message =
+            decodeJsonString(
+                encodedMessage
+            )
+                ?.trim()
+                ?.take(
+                    MAX_SERVICE_MESSAGE_CHARS
+                )
+                .orEmpty()
+
+        return NavigationServiceErrorPayload(
+            code =
+                code,
+
+            message =
+                message,
+        )
+    }
+
+    private fun decodeJsonString(
+        value:
+            String,
+    ): String? {
+
+        val output =
+            StringBuilder(
+                value.length
+            )
+
+        var index =
+            0
+
+        while (
+            index <
+                value.length
+        ) {
+            val current =
+                value[
+                    index
+                ]
+
+            if (
+                current !=
+                    '\\'
+            ) {
+                output.append(
+                    current
+                )
+
+                index +=
+                    1
+
+                continue
+            }
+
+            if (
+                index + 1 >=
+                    value.length
+            ) {
+                return null
+            }
+
+            val escaped =
+                value[
+                    index + 1
+                ]
+
+            when (
+                escaped
+            ) {
+                '"',
+                '\\',
+                '/' -> {
+                    output.append(
+                        escaped
+                    )
+
+                    index +=
+                        2
+                }
+
+                'b' -> {
+                    output.append(
+                        '\b'
+                    )
+
+                    index +=
+                        2
+                }
+
+                'f' -> {
+                    output.append(
+                        '\u000C'
+                    )
+
+                    index +=
+                        2
+                }
+
+                'n' -> {
+                    output.append(
+                        '\n'
+                    )
+
+                    index +=
+                        2
+                }
+
+                'r' -> {
+                    output.append(
+                        '\r'
+                    )
+
+                    index +=
+                        2
+                }
+
+                't' -> {
+                    output.append(
+                        '\t'
+                    )
+
+                    index +=
+                        2
+                }
+
+                'u' -> {
+                    if (
+                        index + 6 >
+                            value.length
+                    ) {
+                        return null
+                    }
+
+                    val codeUnit =
+                        value
+                            .substring(
+                                index + 2,
+                                index + 6,
+                            )
+                            .toIntOrNull(
+                                16
+                            )
+                            ?: return null
+
+                    output.append(
+                        codeUnit.toChar()
+                    )
+
+                    index +=
+                        6
+                }
+
+                else ->
+                    return null
+            }
+        }
+
+        return output.toString()
+    }
+
     private fun timeout(
         technical:
             String,
@@ -475,5 +878,45 @@ internal object NavigationReliabilityClassifier {
         )
 }
 
+private data class NavigationServiceErrorPayload(
+    val code:
+        String,
+
+    val message:
+        String,
+)
+
 private const val MAX_TECHNICAL_DETAIL_CHARS =
     1_000
+
+private const val MAX_UNSTRUCTURED_DETAIL_CHARS =
+    300
+
+private const val MAX_SERVICE_MESSAGE_CHARS =
+    300
+
+private const val SERVICE_ERROR_SCHEMA_VERSION =
+    1
+
+private const val MAX_SERVICE_ENVELOPE_CHARS =
+    4_096
+
+private val SERVICE_SCHEMA_REGEX =
+    Regex(
+        "\"schemaVersion\"\\s*:\\s*(\\d+)"
+    )
+
+private val SERVICE_ERROR_OBJECT_REGEX =
+    Regex(
+        "\"error\"\\s*:\\s*\\{((?:\"(?:\\\\.|[^\"\\\\])*\"|[^{}])*)\\}"
+    )
+
+private val SERVICE_CODE_REGEX =
+    Regex(
+        "\"code\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\""
+    )
+
+private val SERVICE_MESSAGE_REGEX =
+    Regex(
+        "\"message\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\""
+    )

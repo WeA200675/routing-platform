@@ -164,6 +164,105 @@ class NavigationReliabilityTest {
     }
 
     @Test
+    fun structuredNoSuitableEdgesWinsWithoutRawLogParsing() {
+        val fault =
+            NavigationReliabilityClassifier
+                .fromHttp(
+                    responseCode =
+                        422,
+
+                    responseBody =
+                        """{"schemaVersion":1,"error":{"code":"no_suitable_edges","message":"graph miss","retryable":false}}""",
+                )
+
+        assertEquals(
+            NavigationFaultCode.NoSuitableEdges,
+            fault.code,
+        )
+
+        assertEquals(
+            NavigationFaultDisposition.FailClosedNavigationTruth,
+            fault.disposition,
+        )
+    }
+
+    @Test
+    fun structuredBackendFailureIsBoundedRetryableInfrastructure() {
+        val fault =
+            NavigationReliabilityClassifier
+                .fromHttp(
+                    responseCode =
+                        502,
+
+                    responseBody =
+                        """{"schemaVersion":1,"error":{"code":"route_export_failed","message":"backend failed","retryable":true}}""",
+                )
+
+        assertEquals(
+            NavigationFaultCode.ServiceUnavailable,
+            fault.code,
+        )
+
+        assertEquals(
+            NavigationFaultDisposition.RetryableInfrastructure,
+            fault.disposition,
+        )
+    }
+
+    @Test
+    fun structuredInvalidExportFailsClosed() {
+        val fault =
+            NavigationReliabilityClassifier
+                .fromHttp(
+                    responseCode =
+                        502,
+
+                    responseBody =
+                        """{"schemaVersion":1,"error":{"code":"invalid_exported_route","message":"invalid json","retryable":false}}""",
+                )
+
+        assertEquals(
+            NavigationFaultCode.InvalidResponse,
+            fault.code,
+        )
+
+        assertSame(
+            NavigationRecoveryDecision.FailClosed,
+            NavigationRecoveryPolicy()
+                .decide(
+                    fault =
+                        fault,
+
+                    retriesAlreadyAttempted =
+                        0,
+                ),
+        )
+    }
+
+    @Test
+    fun unknownStructuredCodeCannotOverrideLocalRecoveryPolicy() {
+        val fault =
+            NavigationReliabilityClassifier
+                .fromHttp(
+                    responseCode =
+                        400,
+
+                    responseBody =
+                        """{"schemaVersion":1,"error":{"code":"future_unknown","message":"unknown","retryable":true}}""",
+                )
+
+        assertEquals(
+            NavigationFaultCode.InvalidRequest,
+            fault.code,
+        )
+
+        assertEquals(
+            NavigationFaultDisposition.FailClosedNavigationTruth,
+            fault.disposition,
+        )
+    }
+
+    @Test
     fun serviceFiveHundredIsRetryableButBadRequestIsNot() {
         val unavailable =
             NavigationReliabilityClassifier
