@@ -508,6 +508,30 @@ class NavigationProgressCoordinatorTest {
             return snapshot
         }
 
+        override fun stopNavigation():
+            NavigationUiSnapshot {
+
+            check(
+                snapshot.state ==
+                    NavigationSessionState.Navigating
+            ) {
+                "Navigation stop requires Navigating state."
+            }
+
+            /*
+             * Test bridge mirrors the production G4 contract:
+             * only the session state changes. Route and progress
+             * fields remain untouched.
+             */
+            snapshot =
+                snapshot.copy(
+                    state =
+                        NavigationSessionState.Preview
+                )
+
+            return snapshot
+        }
+
         override fun updateProgress(
             shapeSegmentIndex:
                 Int,

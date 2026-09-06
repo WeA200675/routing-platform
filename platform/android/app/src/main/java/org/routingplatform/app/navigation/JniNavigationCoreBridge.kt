@@ -28,6 +28,13 @@ class JniNavigationCoreBridge :
                 .toUiSnapshot()
         )
 
+    override fun stopNavigation():
+        NavigationUiSnapshot =
+        finalizeNativeSnapshot(
+            nativeStopNavigation()
+                .toUiSnapshot()
+        )
+
     override fun updateProgress(
         shapeSegmentIndex: Int,
         segmentFraction: Double,
@@ -162,6 +169,9 @@ class JniNavigationCoreBridge :
         NativeNavigationSnapshot
 
     private external fun nativeStartNavigation():
+        NativeNavigationSnapshot
+
+    private external fun nativeStopNavigation():
         NativeNavigationSnapshot
 
     private external fun nativeUpdateProgress(

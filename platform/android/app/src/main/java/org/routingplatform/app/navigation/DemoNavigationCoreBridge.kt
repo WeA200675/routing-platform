@@ -99,6 +99,23 @@ class DemoNavigationCoreBridge :
         return makeSnapshot()
     }
 
+    override fun stopNavigation():
+        NavigationUiSnapshot {
+
+        check(
+            started &&
+                progressFraction <
+                1.0
+        ) {
+            "Navigation stop requires Navigating state."
+        }
+
+        started =
+            false
+
+        return makeSnapshot()
+    }
+
     override fun updateProgress(
         shapeSegmentIndex: Int,
         segmentFraction: Double,

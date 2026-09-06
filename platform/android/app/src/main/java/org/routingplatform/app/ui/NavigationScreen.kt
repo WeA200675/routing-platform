@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,12 +25,15 @@ import androidx.compose.ui.unit.dp
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationUiSnapshot
+import org.routingplatform.app.profile.DisplayPreferences
+import org.routingplatform.app.profile.NavigationControlSide
 import kotlin.math.roundToInt
 
 @Composable
 fun NavigationScreen(
     snapshot: NavigationUiSnapshot,
     onStartNavigation: () -> Unit,
+    onStopNavigation: () -> Unit,
     onAdvanceProgress: () -> Unit,
 
     navigationStartEnabled:
@@ -54,6 +59,14 @@ fun NavigationScreen(
     trustedTravelBearingDegrees:
         Double? =
         null,
+
+    displayPreferences:
+        DisplayPreferences =
+        DisplayPreferences(),
+
+    onNavigationControlSideChanged:
+        (NavigationControlSide) -> Unit =
+        {},
 ) {
     Column(
         modifier =
@@ -84,6 +97,9 @@ fun NavigationScreen(
 
                 trustedTravelBearingDegrees =
                     trustedTravelBearingDegrees,
+
+                displayPreferences =
+                    displayPreferences,
 
                 modifier =
                     Modifier.fillMaxSize(),
@@ -274,29 +290,51 @@ fun NavigationScreen(
                         Modifier.height(16.dp)
                 )
 
-                when (snapshot.state) {
-                    NavigationSessionState.Preview -> {
-                        Button(
-                            modifier =
-                                Modifier.fillMaxWidth(),
+                val navigationControl =
+                    NavigationControlPresentation
+                        .create(
+                            state =
+                                snapshot.state,
 
-                            enabled =
+                            side =
+                                displayPreferences
+                                    .navigationControlSide,
+
+                            navigationStartEnabled =
                                 navigationStartEnabled,
+                        )
 
-                            onClick =
-                                onStartNavigation,
+                NavigationPrimaryControl(
+                    presentation =
+                        navigationControl,
+
+                    onPrimaryAction = {
+                        when (
+                            snapshot.state
                         ) {
-                            Text(
-                                if (
-                                    navigationStartEnabled
-                                ) {
-                                    "Navigation starten"
-                                } else {
-                                    "Produktionsroute nicht verfügbar"
-                                }
-                            )
-                        }
+                            NavigationSessionState.Preview ->
+                                onStartNavigation()
 
+                            NavigationSessionState.Navigating ->
+                                onStopNavigation()
+
+                            NavigationSessionState.Arrived ->
+                                Unit
+                        }
+                    },
+
+                    onMoveToOtherSide = {
+                        onNavigationControlSideChanged(
+                            navigationControl
+                                .oppositeSide()
+                        )
+                    },
+                )
+
+                when (
+                    snapshot.state
+                ) {
+                    NavigationSessionState.Preview -> {
                         if (
                             !navigationStartEnabled &&
                             !navigationUnavailableMessage
@@ -327,6 +365,13 @@ fun NavigationScreen(
                     }
 
                     NavigationSessionState.Navigating -> {
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    8.dp
+                                )
+                        )
+
                         Button(
                             modifier =
                                 Modifier.fillMaxWidth(),
@@ -349,21 +394,8 @@ fun NavigationScreen(
                         }
                     }
 
-                    NavigationSessionState.Arrived -> {
-                        Button(
-                            modifier =
-                                Modifier.fillMaxWidth(),
-
-                            enabled =
-                                false,
-
-                            onClick = {},
-                        ) {
-                            Text(
-                                "Ziel erreicht"
-                            )
-                        }
-                    }
+                    NavigationSessionState.Arrived ->
+                        Unit
                 }
 
                 if (
@@ -383,6 +415,109 @@ fun NavigationScreen(
                             MaterialTheme
                                 .colorScheme
                                 .error,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavigationPrimaryControl(
+    presentation:
+        NavigationControlPresentation,
+
+    onPrimaryAction:
+        () -> Unit,
+
+    onMoveToOtherSide:
+        () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier.fillMaxWidth(),
+
+        horizontalArrangement =
+            when (
+                presentation.side
+            ) {
+                NavigationControlSide.Left ->
+                    Arrangement.Start
+
+                NavigationControlSide.Right ->
+                    Arrangement.End
+            },
+    ) {
+        Column(
+            modifier =
+                Modifier.fillMaxWidth(
+                    0.72f
+                ),
+
+            horizontalAlignment =
+                when (
+                    presentation.side
+                ) {
+                    NavigationControlSide.Left ->
+                        Alignment.Start
+
+                    NavigationControlSide.Right ->
+                        Alignment.End
+                },
+        ) {
+            Button(
+                modifier =
+                    Modifier.fillMaxWidth(),
+
+                enabled =
+                    presentation.enabled,
+
+                colors =
+                    if (
+                        presentation.destructive
+                    ) {
+                        ButtonDefaults
+                            .buttonColors(
+                                containerColor =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .error,
+
+                                contentColor =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .onError,
+                            )
+                    } else {
+                        ButtonDefaults
+                            .buttonColors()
+                    },
+
+                onClick =
+                    onPrimaryAction,
+            ) {
+                Text(
+                    presentation.label
+                )
+            }
+
+            if (
+                presentation.enabled
+            ) {
+                TextButton(
+                    onClick =
+                        onMoveToOtherSide,
+                ) {
+                    Text(
+                        when (
+                            presentation.side
+                        ) {
+                            NavigationControlSide.Left ->
+                                "Nach rechts verschieben"
+
+                            NavigationControlSide.Right ->
+                                "Nach links verschieben"
+                        }
                     )
                 }
             }

@@ -966,6 +966,26 @@ start_navigation(
 
 
 jobject
+stop_navigation(
+    JNIEnv* env) {
+  try {
+    std::lock_guard<std::mutex> lock(
+        native_session_mutex());
+
+    return to_java_snapshot(
+        env,
+        native_session().stop());
+  } catch (const std::exception& error) {
+    throw_illegal_state(
+        env,
+        error.what());
+
+    return nullptr;
+  }
+}
+
+
+jobject
 update_progress(
     JNIEnv* env,
     const jint shape_segment_index,
@@ -1192,6 +1212,17 @@ JniNavigationCoreBridge_nativeStartNavigation(
     JNIEnv* env,
     jobject) {
   return start_navigation(
+      env);
+}
+
+
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_org_routingplatform_app_navigation_\
+JniNavigationCoreBridge_nativeStopNavigation(
+    JNIEnv* env,
+    jobject) {
+  return stop_navigation(
       env);
 }
 

@@ -62,6 +62,11 @@ enum class ProfileMapOrientation {
     NorthUp,
 }
 
+enum class NavigationControlSide {
+    Left,
+    Right,
+}
+
 enum class InformationDensityPreference {
     Minimal,
     Standard,
@@ -231,6 +236,10 @@ data class DisplayPreferences(
     val routeLineScale:
         Double =
         1.0,
+
+    val navigationControlSide:
+        NavigationControlSide =
+        NavigationControlSide.Right,
 ) {
     init {
         require(

@@ -203,6 +203,10 @@ class NavigationSession {
 
   [[nodiscard]]
   NavigationSnapshot
+  stop();
+
+  [[nodiscard]]
+  NavigationSnapshot
   update_progress(
       const NavigationProgressUpdate& update);
 

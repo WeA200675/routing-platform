@@ -40,6 +40,7 @@ import org.routingplatform.app.navigation.buildNavigationStartRoadContext
 import org.routingplatform.app.navigation.hasNavigationLocationPermission
 import org.routingplatform.app.navigation.hasPreciseNavigationLocationPermission
 import org.routingplatform.app.navigation.navigationRuntimePermissionsToRequest
+import org.routingplatform.app.profile.AndroidUserProfileStore
 import org.routingplatform.app.ui.NavigationAssistOverlay
 import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NavigationScreen
@@ -63,6 +64,21 @@ class MainActivity :
             val bridge =
                 remember {
                     JniNavigationCoreBridge()
+                }
+
+            val profileStore =
+                remember {
+                    AndroidUserProfileStore(
+                        applicationContext
+                    )
+                }
+
+            var activeProfile by
+                remember {
+                    mutableStateOf(
+                        profileStore
+                            .loadActiveProfile()
+                    )
                 }
 
             val runtimeController =
@@ -620,10 +636,43 @@ class MainActivity :
                             telemetry
                                 .trustedTravelBearingDegrees,
 
-                        onStartNavigation = {
-                            progressStep =
-                                0
+                        displayPreferences =
+                            activeProfile
+                                .display,
 
+                        onNavigationControlSideChanged = {
+                                side ->
+
+                            val updated =
+                                activeProfile.copy(
+                                    display =
+                                        activeProfile
+                                            .display
+                                            .copy(
+                                                navigationControlSide =
+                                                    side
+                                            )
+                                )
+
+                            check(
+                                profileStore
+                                    .saveAndActivate(
+                                        updated
+                                    )
+                            ) {
+                                "Could not persist active profile."
+                            }
+
+                            activeProfile =
+                                updated
+                        },
+
+                        onStartNavigation = {
+                            /*
+                             * progressStep deliberately survives a
+                             * stop/start cycle because native route
+                             * progress is also preserved.
+                             */
                             runtimeController.reset()
 
                             telemetry =
@@ -660,6 +709,38 @@ class MainActivity :
                                     permissions
                                 )
                             }
+                        },
+
+                        onStopNavigation = {
+                            /*
+                             * First stop all automatic observation/
+                             * matcher activity so no late callback can
+                             * race the native Navigating -> Preview
+                             * transition.
+                             */
+                            runtimeController.reset()
+
+                            telemetry =
+                                NavigationRuntimeTelemetry
+                                    .stopped(
+                                        acceptedProgress =
+                                            RouteProgressAnchor(
+                                                shapeSegmentIndex =
+                                                    snapshot
+                                                        .shapeSegmentIndex,
+
+                                                segmentFraction =
+                                                    snapshot
+                                                        .segmentFraction,
+                                            )
+                                    )
+
+                            navigationStartedAtNanos =
+                                null
+
+                            snapshot =
+                                bridge
+                                    .stopNavigation()
                         },
 
                         onAdvanceProgress = {

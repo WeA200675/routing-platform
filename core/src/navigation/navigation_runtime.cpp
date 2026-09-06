@@ -509,6 +509,28 @@ NavigationSession::start() {
 
 
 NavigationSnapshot
+NavigationSession::stop() {
+  if (state_ !=
+      NavigationSessionState::Navigating) {
+    throw std::logic_error(
+        "Navigation stop requires Navigating state.");
+  }
+
+  /*
+   * Stop is a session-state transition only.
+   *
+   * The immutable selected route and the accepted route-progress
+   * coordinates remain unchanged so a later start() can continue
+   * from the same route position.
+   */
+  state_ =
+      NavigationSessionState::Preview;
+
+  return make_snapshot();
+}
+
+
+NavigationSnapshot
 NavigationSession::update_progress(
     const NavigationProgressUpdate& update) {
   if (state_ !=

@@ -8,6 +8,9 @@ interface NavigationCoreBridge {
     fun startNavigation():
         NavigationUiSnapshot
 
+    fun stopNavigation():
+        NavigationUiSnapshot
+
     fun updateProgress(
         shapeSegmentIndex: Int,
         segmentFraction: Double,
