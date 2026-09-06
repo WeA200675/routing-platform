@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.maplibre.android.MapLibre
+import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.JniNavigationCoreBridge
 import org.routingplatform.app.navigation.NavigationExitLookaheadEngine
@@ -32,6 +33,8 @@ import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
 import org.routingplatform.app.navigation.NavigationStartOrientationVisibilityController
+import org.routingplatform.app.navigation.NavigationTripPlan
+import org.routingplatform.app.navigation.NavigationTripStop
 import org.routingplatform.app.navigation.RouteProgressAnchor
 import org.routingplatform.app.navigation.alongRouteDistanceMeters
 import org.routingplatform.app.navigation.buildDiagnosticProgressAnchors
@@ -40,6 +43,11 @@ import org.routingplatform.app.navigation.buildNavigationStartRoadContext
 import org.routingplatform.app.navigation.hasNavigationLocationPermission
 import org.routingplatform.app.navigation.hasPreciseNavigationLocationPermission
 import org.routingplatform.app.navigation.navigationRuntimePermissionsToRequest
+import org.routingplatform.app.places.AndroidFavoriteDestinationStore
+import org.routingplatform.app.places.AndroidGeocoderDestinationSearchSource
+import org.routingplatform.app.places.DestinationSearchHandle
+import org.routingplatform.app.places.DestinationSearchResult
+import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AndroidUserProfileStore
 import org.routingplatform.app.ui.NavigationAssistOverlay
 import org.routingplatform.app.ui.NavigationObservedPositionPresentation
@@ -80,6 +88,84 @@ class MainActivity :
                             .loadActiveProfile()
                     )
                 }
+
+            val favoriteDestinationStore =
+                remember {
+                    AndroidFavoriteDestinationStore(
+                        applicationContext
+                    )
+                }
+
+            var favoriteDestinations by
+                remember(
+                    activeProfile.profileId
+                ) {
+                    mutableStateOf(
+                        favoriteDestinationStore
+                            .load(
+                                activeProfile.profileId
+                            )
+                    )
+                }
+
+            val destinationSearchSource =
+                remember {
+                    AndroidGeocoderDestinationSearchSource(
+                        applicationContext
+                    )
+                }
+
+            var destinationSearchHandle by
+                remember {
+                    mutableStateOf<
+                        DestinationSearchHandle?
+                    >(
+                        null
+                    )
+                }
+
+            var destinationSearchResults by
+                remember {
+                    mutableStateOf(
+                        emptyList<
+                            DestinationSearchResult
+                        >()
+                    )
+                }
+
+            var destinationPlannerMessage by
+                remember {
+                    mutableStateOf<String?>(
+                        null
+                    )
+                }
+
+            var destinationPlannerBusy by
+                remember {
+                    mutableStateOf(
+                        false
+                    )
+                }
+
+            val planningLocationController =
+                remember {
+                    AndroidNavigationPlanningLocationController(
+                        applicationContext
+                    )
+                }
+
+            DisposableEffect(
+                destinationSearchSource,
+                planningLocationController,
+            ) {
+                onDispose {
+                    destinationSearchSource
+                        .close()
+
+                    planningLocationController
+                        .close()
+                }
+            }
 
             val runtimeController =
                 remember {
@@ -151,6 +237,27 @@ class MainActivity :
                         .fromIntent(
                             intent
                         )
+                }
+
+            var tripPlan by
+                remember(
+                    initialRouteRequest
+                ) {
+                    mutableStateOf(
+                        NavigationTripPlan
+                            .fromRequest(
+                                initialRouteRequest
+                            )
+                    )
+                }
+
+            var selectedTripStop by
+                remember {
+                    mutableStateOf<
+                        NavigationTripStop?
+                    >(
+                        null
+                    )
                 }
 
             var snapshot by
@@ -277,6 +384,340 @@ class MainActivity :
                         hasPreciseNavigationLocationPermission(
                             applicationContext
                         )
+                }
+
+            val saveFavoriteDestinations:
+                (
+                    FavoriteDestinationCollection,
+                    String,
+                ) -> Unit =
+                {
+                    updated,
+                    successMessage ->
+
+                    val saved =
+                        runCatching {
+                            favoriteDestinationStore
+                                .save(
+                                    updated
+                                )
+                        }.getOrDefault(
+                            false
+                        )
+
+                    if (
+                        saved
+                    ) {
+                        favoriteDestinations =
+                            updated
+
+                        destinationPlannerMessage =
+                            successMessage
+                    } else {
+                        destinationPlannerMessage =
+                            "Favorit konnte nicht gespeichert werden."
+                    }
+                }
+
+            val searchDestination:
+                (String) -> Unit =
+                search@ {
+                    rawQuery ->
+
+                    if (
+                        snapshot.state !=
+                            NavigationSessionState.Preview
+                    ) {
+                        destinationPlannerMessage =
+                            "Navigation zuerst stoppen, bevor ein neues Ziel gesucht wird."
+
+                        return@search
+                    }
+
+                    if (
+                        destinationPlannerBusy
+                    ) {
+                        return@search
+                    }
+
+                    val query =
+                        rawQuery.trim()
+
+                    if (
+                        query.length !in
+                            2..160 ||
+                        query.any {
+                            it.code <
+                                0x20 ||
+                                it.code ==
+                                0x7f
+                        }
+                    ) {
+                        destinationPlannerMessage =
+                            "Bitte mindestens zwei gültige Zeichen eingeben."
+
+                        return@search
+                    }
+
+                    destinationSearchHandle
+                        ?.cancel()
+
+                    destinationSearchHandle =
+                        null
+
+                    destinationPlannerBusy =
+                        true
+
+                    destinationPlannerMessage =
+                        "Zielsuche läuft …"
+
+                    destinationSearchHandle =
+                        runCatching {
+                            destinationSearchSource
+                                .search(
+                                    query
+                                ) {
+                                        result ->
+
+                                    destinationSearchHandle =
+                                        null
+
+                                    destinationPlannerBusy =
+                                        false
+
+                                    result.fold(
+                                        onSuccess = {
+                                                results ->
+
+                                            destinationSearchResults =
+                                                results
+
+                                            destinationPlannerMessage =
+                                                if (
+                                                    results.isEmpty()
+                                                ) {
+                                                    "Keine passenden Ziele gefunden."
+                                                } else {
+                                                    "${results.size} Zieltreffer gefunden."
+                                                }
+                                        },
+
+                                        onFailure = {
+                                                error ->
+
+                                            destinationSearchResults =
+                                                emptyList()
+
+                                            destinationPlannerMessage =
+                                                error.message
+                                                    ?: "Zielsuche fehlgeschlagen."
+                                        },
+                                    )
+                                }
+                        }.getOrElse {
+                                error ->
+
+                            destinationPlannerBusy =
+                                false
+
+                            destinationPlannerMessage =
+                                error.message
+                                    ?: "Zielsuche konnte nicht gestartet werden."
+
+                            null
+                        }
+                }
+
+            val requestTripPlanRoute:
+                (NavigationTripPlan) -> Unit =
+                routeRequest@ {
+                    requestedPlan ->
+
+                    if (
+                        snapshot.state !=
+                            NavigationSessionState.Preview
+                    ) {
+                        destinationPlannerMessage =
+                            "Navigation zuerst stoppen, bevor der Reiseplan geändert wird."
+
+                        return@routeRequest
+                    }
+
+                    if (
+                        destinationPlannerBusy
+                    ) {
+                        return@routeRequest
+                    }
+
+                    val controller =
+                        routeLifecycleController
+
+                    if (
+                        controller ==
+                            null
+                    ) {
+                        destinationPlannerMessage =
+                            "Live-Routing ist nicht konfiguriert."
+
+                        return@routeRequest
+                    }
+
+                    if (
+                        !hasPreciseNavigationLocationPermission(
+                            applicationContext
+                        )
+                    ) {
+                        destinationPlannerMessage =
+                            "Präzise Standortfreigabe erforderlich. Nach der Freigabe Ziel erneut bestätigen."
+
+                        permissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                            )
+                        )
+
+                        return@routeRequest
+                    }
+
+                    destinationSearchHandle
+                        ?.cancel()
+
+                    destinationSearchHandle =
+                        null
+
+                    destinationPlannerBusy =
+                        true
+
+                    destinationPlannerMessage =
+                        "Aktuelle Position wird für die Routenplanung bestimmt …"
+
+                    planningLocationController
+                        .request {
+                                planningResult ->
+
+                            planningResult.fold(
+                                onSuccess = {
+                                        planningLocation ->
+
+                                    val request =
+                                        requestedPlan
+                                            .toRouteRequest(
+                                                origin =
+                                                    planningLocation
+                                                        .position,
+
+                                                family =
+                                                    initialRouteRequest
+                                                        .family,
+                                            )
+
+                                    destinationPlannerMessage =
+                                        "Routenvorschau wird berechnet …"
+
+                                    controller
+                                        .loadInitial(
+                                            request =
+                                                request,
+
+                                            snapshotProvider = {
+                                                snapshot
+                                            },
+
+                                            onSnapshot = {
+                                                    updatedSnapshot ->
+
+                                                /*
+                                                 * Installing a newly
+                                                 * planned route is still
+                                                 * a Preview-only route-data
+                                                 * operation. It does not
+                                                 * start navigation and does
+                                                 * not create JNI progress.
+                                                 */
+                                                snapshot =
+                                                    updatedSnapshot
+
+                                                tripPlan =
+                                                    requestedPlan
+
+                                                selectedTripStop =
+                                                    null
+
+                                                progressStep =
+                                                    0
+                                            },
+
+                                            onTelemetry = {
+                                                    updatedAcquisition ->
+
+                                                routeAcquisitionTelemetry =
+                                                    updatedAcquisition
+
+                                                when (
+                                                    updatedAcquisition
+                                                        .state
+                                                ) {
+                                                    NavigationRouteAcquisitionState.LoadingInitial -> {
+                                                        destinationPlannerBusy =
+                                                            true
+
+                                                        destinationPlannerMessage =
+                                                            "Routenvorschau wird berechnet …"
+                                                    }
+
+                                                    NavigationRouteAcquisitionState.LiveReady -> {
+                                                        destinationPlannerBusy =
+                                                            false
+
+                                                        destinationPlannerMessage =
+                                                            "Routenvorschau aktualisiert."
+                                                    }
+
+                                                    NavigationRouteAcquisitionState.LiveFailed,
+                                                    NavigationRouteAcquisitionState.RerouteFailed -> {
+                                                        destinationPlannerBusy =
+                                                            false
+
+                                                        destinationPlannerMessage =
+                                                            updatedAcquisition
+                                                                .message
+                                                    }
+
+                                                    NavigationRouteAcquisitionState.FallbackReady -> {
+                                                        destinationPlannerBusy =
+                                                            false
+
+                                                        destinationPlannerMessage =
+                                                            updatedAcquisition
+                                                                .message
+                                                    }
+
+                                                    NavigationRouteAcquisitionState.Rerouting -> {
+                                                        destinationPlannerBusy =
+                                                            true
+
+                                                        destinationPlannerMessage =
+                                                            updatedAcquisition
+                                                                .message
+                                                    }
+                                                }
+                                            },
+                                        )
+                                },
+
+                                onFailure = {
+                                        error ->
+
+                                    destinationPlannerBusy =
+                                        false
+
+                                    destinationPlannerMessage =
+                                        error.message
+                                            ?: "Aktuelle Position ist für die Routenplanung nicht verfügbar."
+                                },
+                            )
+                        }
                 }
 
             /*
@@ -606,7 +1047,8 @@ class MainActivity :
                                 routeAcquisitionTelemetry
                                     .state !=
                                     NavigationRouteAcquisitionState
-                                        .LoadingInitial,
+                                        .LoadingInitial &&
+                                !destinationPlannerBusy,
 
                         navigationUnavailableMessage =
                             if (
@@ -639,6 +1081,318 @@ class MainActivity :
                         displayPreferences =
                             activeProfile
                                 .display,
+
+                        selectedTripStop =
+                            selectedTripStop,
+
+                        tripPlan =
+                            tripPlan,
+
+                        favoriteDestinations =
+                            favoriteDestinations,
+
+                        destinationSearchResults =
+                            destinationSearchResults,
+
+                        destinationPlannerMessage =
+                            destinationPlannerMessage,
+
+                        destinationPlannerBusy =
+                            destinationPlannerBusy,
+
+                        onMapTargetSelected = {
+                                point ->
+
+                            if (
+                                snapshot.state ==
+                                    NavigationSessionState.Preview
+                            ) {
+                                selectedTripStop =
+                                    NavigationTripStop(
+                                        point =
+                                            point,
+
+                                        label =
+                                            "Kartenpunkt",
+                                    )
+
+                                destinationPlannerMessage =
+                                    "Kartenpunkt ausgewählt."
+                            }
+                        },
+
+                        onSearchDestination =
+                            searchDestination,
+
+                        onSearchResultSelected = {
+                                result ->
+
+                            if (
+                                snapshot.state ==
+                                    NavigationSessionState.Preview
+                            ) {
+                                selectedTripStop =
+                                    NavigationTripStop(
+                                        point =
+                                            result.point,
+
+                                        label =
+                                            result.displayText,
+                                    )
+
+                                destinationPlannerMessage =
+                                    "Suchtreffer ausgewählt."
+                            }
+                        },
+
+                        onFavoriteSelected = {
+                                favorite ->
+
+                            if (
+                                snapshot.state ==
+                                    NavigationSessionState.Preview
+                            ) {
+                                selectedTripStop =
+                                    NavigationTripStop(
+                                        point =
+                                            favorite.point,
+
+                                        label =
+                                            favorite.label,
+                                    )
+
+                                destinationPlannerMessage =
+                                    "${favorite.label} ausgewählt."
+                            }
+                        },
+
+                        onSaveSelectedAsHome = {
+                            selectedTripStop
+                                ?.let {
+                                        selected ->
+
+                                    saveFavoriteDestinations(
+                                        favoriteDestinations
+                                            .withHome(
+                                                selected.point
+                                            ),
+
+                                        "Zuhause gespeichert.",
+                                    )
+                                }
+                        },
+
+                        onSaveSelectedAsWork = {
+                            selectedTripStop
+                                ?.let {
+                                        selected ->
+
+                                    saveFavoriteDestinations(
+                                        favoriteDestinations
+                                            .withWork(
+                                                selected.point
+                                            ),
+
+                                        "Arbeit gespeichert.",
+                                    )
+                                }
+                        },
+
+                        onSaveSelectedAsCustom = {
+                                label ->
+
+                            val selected =
+                                selectedTripStop
+
+                            if (
+                                selected ==
+                                    null
+                            ) {
+                                destinationPlannerMessage =
+                                    "Zuerst ein Ziel auswählen."
+                            } else {
+                                val trimmedLabel =
+                                    label.trim()
+
+                                if (
+                                    trimmedLabel.isEmpty()
+                                ) {
+                                    destinationPlannerMessage =
+                                        "Favoritenname darf nicht leer sein."
+                                } else {
+                                    runCatching {
+                                        favoriteDestinations
+                                            .addCustom(
+                                                id =
+                                                    "custom-" +
+                                                        java.util.UUID
+                                                            .randomUUID()
+                                                            .toString(),
+
+                                                label =
+                                                    trimmedLabel,
+
+                                                point =
+                                                    selected.point,
+                                            )
+                                    }.onSuccess {
+                                            updated ->
+
+                                        saveFavoriteDestinations(
+                                            updated,
+                                            "Favorit gespeichert.",
+                                        )
+                                    }.onFailure {
+                                            error ->
+
+                                        destinationPlannerMessage =
+                                            error.message
+                                                ?: "Favorit konnte nicht gespeichert werden."
+                                    }
+                                }
+                            }
+                        },
+
+                        onDeleteFavorite = {
+                                favoriteId ->
+
+                            runCatching {
+                                favoriteDestinations
+                                    .remove(
+                                        favoriteId
+                                    )
+                            }.onSuccess {
+                                    updated ->
+
+                                saveFavoriteDestinations(
+                                    updated,
+                                    "Favorit gelöscht.",
+                                )
+                            }.onFailure {
+                                    error ->
+
+                                destinationPlannerMessage =
+                                    error.message
+                                        ?: "Favorit konnte nicht gelöscht werden."
+                            }
+                        },
+
+                        onUseSelectedAsDestination = {
+                            selectedTripStop
+                                ?.let {
+                                        selected ->
+
+                                    requestTripPlanRoute(
+                                        tripPlan
+                                            .withDestination(
+                                                selected
+                                            )
+                                    )
+                                }
+                        },
+
+                        onAppendSelectedVia = {
+                            selectedTripStop
+                                ?.let {
+                                        selected ->
+
+                                    runCatching {
+                                        tripPlan
+                                            .appendVia(
+                                                selected
+                                            )
+                                    }.onSuccess {
+                                            updatedPlan ->
+
+                                        requestTripPlanRoute(
+                                            updatedPlan
+                                        )
+                                    }.onFailure {
+                                            error ->
+
+                                        destinationPlannerMessage =
+                                            error.message
+                                                ?: "Zwischenziel konnte nicht hinzugefügt werden."
+                                    }
+                                }
+                        },
+
+                        onClearSelectedTarget = {
+                            selectedTripStop =
+                                null
+
+                            destinationPlannerMessage =
+                                "Markierung entfernt."
+                        },
+
+                        onRemoveVia = {
+                                index ->
+
+                            runCatching {
+                                tripPlan
+                                    .removeVia(
+                                        index
+                                    )
+                            }.onSuccess {
+                                    updatedPlan ->
+
+                                requestTripPlanRoute(
+                                    updatedPlan
+                                )
+                            }.onFailure {
+                                    error ->
+
+                                destinationPlannerMessage =
+                                    error.message
+                                        ?: "Zwischenziel konnte nicht gelöscht werden."
+                            }
+                        },
+
+                        onMoveViaUp = {
+                                index ->
+
+                            runCatching {
+                                tripPlan
+                                    .moveViaUp(
+                                        index
+                                    )
+                            }.onSuccess {
+                                    updatedPlan ->
+
+                                requestTripPlanRoute(
+                                    updatedPlan
+                                )
+                            }.onFailure {
+                                    error ->
+
+                                destinationPlannerMessage =
+                                    error.message
+                                        ?: "Zwischenziel konnte nicht verschoben werden."
+                            }
+                        },
+
+                        onMoveViaDown = {
+                                index ->
+
+                            runCatching {
+                                tripPlan
+                                    .moveViaDown(
+                                        index
+                                    )
+                            }.onSuccess {
+                                    updatedPlan ->
+
+                                requestTripPlanRoute(
+                                    updatedPlan
+                                )
+                            }.onFailure {
+                                    error ->
+
+                                destinationPlannerMessage =
+                                    error.message
+                                        ?: "Zwischenziel konnte nicht verschoben werden."
+                            }
+                        },
 
                         onNavigationControlSideChanged = {
                                 side ->

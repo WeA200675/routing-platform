@@ -5,26 +5,46 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationSessionState
+import org.routingplatform.app.navigation.NavigationTripPlan
+import org.routingplatform.app.navigation.NavigationTripStop
 import org.routingplatform.app.navigation.NavigationUiSnapshot
+import org.routingplatform.app.navigation.RoutePoint
+import org.routingplatform.app.places.DestinationSearchResult
+import org.routingplatform.app.places.FavoriteDestination
+import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.DisplayPreferences
 import org.routingplatform.app.profile.NavigationControlSide
 import kotlin.math.roundToInt
@@ -67,7 +87,108 @@ fun NavigationScreen(
     onNavigationControlSideChanged:
         (NavigationControlSide) -> Unit =
         {},
+
+    selectedTripStop:
+        NavigationTripStop? =
+        null,
+
+    tripPlan:
+        NavigationTripPlan? =
+        null,
+
+    favoriteDestinations:
+        FavoriteDestinationCollection? =
+        null,
+
+    destinationSearchResults:
+        List<DestinationSearchResult> =
+        emptyList(),
+
+    destinationPlannerMessage:
+        String? =
+        null,
+
+    destinationPlannerBusy:
+        Boolean =
+        false,
+
+    onMapTargetSelected:
+        (RoutePoint) -> Unit =
+        {},
+
+    onSearchDestination:
+        (String) -> Unit =
+        {},
+
+    onSearchResultSelected:
+        (DestinationSearchResult) -> Unit =
+        {},
+
+    onFavoriteSelected:
+        (FavoriteDestination) -> Unit =
+        {},
+
+    onSaveSelectedAsHome:
+        () -> Unit =
+        {},
+
+    onSaveSelectedAsWork:
+        () -> Unit =
+        {},
+
+    onSaveSelectedAsCustom:
+        (String) -> Unit =
+        {},
+
+    onDeleteFavorite:
+        (String) -> Unit =
+        {},
+
+    onUseSelectedAsDestination:
+        () -> Unit =
+        {},
+
+    onAppendSelectedVia:
+        () -> Unit =
+        {},
+
+    onClearSelectedTarget:
+        () -> Unit =
+        {},
+
+    onRemoveVia:
+        (Int) -> Unit =
+        {},
+
+    onMoveViaUp:
+        (Int) -> Unit =
+        {},
+
+    onMoveViaDown:
+        (Int) -> Unit =
+        {},
 ) {
+    var plannerOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
+    var searchQuery by
+        remember {
+            mutableStateOf(
+                ""
+            )
+        }
+
+    var customFavoriteLabel by
+        remember {
+            mutableStateOf(
+                ""
+            )
+        }
+
     Column(
         modifier =
             Modifier.fillMaxSize(),
@@ -100,6 +221,26 @@ fun NavigationScreen(
 
                 displayPreferences =
                     displayPreferences,
+
+                selectedTarget =
+                    selectedTripStop
+                        ?.point,
+
+                mapSelectionEnabled =
+                    snapshot.state ==
+                        NavigationSessionState.Preview &&
+                        !destinationPlannerBusy,
+
+                onMapLongPress = {
+                        point ->
+
+                    onMapTargetSelected(
+                        point
+                    )
+
+                    plannerOpen =
+                        true
+                },
 
                 modifier =
                     Modifier.fillMaxSize(),
@@ -335,6 +476,36 @@ fun NavigationScreen(
                     snapshot.state
                 ) {
                     NavigationSessionState.Preview -> {
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    8.dp
+                                )
+                        )
+
+                        Button(
+                            modifier =
+                                Modifier.fillMaxWidth(),
+
+                            enabled =
+                                !destinationPlannerBusy,
+
+                            onClick = {
+                                plannerOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                if (
+                                    destinationPlannerBusy
+                                ) {
+                                    "Zielplanung läuft …"
+                                } else {
+                                    "Ziel planen"
+                                }
+                            )
+                        }
+
                         if (
                             !navigationStartEnabled &&
                             !navigationUnavailableMessage
@@ -417,6 +588,855 @@ fun NavigationScreen(
                                 .error,
                     )
                 }
+            }
+        }
+    }
+
+    if (
+        plannerOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        DestinationPlannerDialog(
+            selectedTripStop =
+                selectedTripStop,
+
+            tripPlan =
+                tripPlan,
+
+            favoriteDestinations =
+                favoriteDestinations,
+
+            searchResults =
+                destinationSearchResults,
+
+            plannerMessage =
+                destinationPlannerMessage,
+
+            busy =
+                destinationPlannerBusy,
+
+            searchQuery =
+                searchQuery,
+
+            onSearchQueryChanged = {
+                searchQuery =
+                    it
+            },
+
+            customFavoriteLabel =
+                customFavoriteLabel,
+
+            onCustomFavoriteLabelChanged = {
+                customFavoriteLabel =
+                    it
+            },
+
+            onDismiss = {
+                plannerOpen =
+                    false
+            },
+
+            onSearch = {
+                onSearchDestination(
+                    searchQuery
+                )
+            },
+
+            onSearchResultSelected =
+                onSearchResultSelected,
+
+            onFavoriteSelected =
+                onFavoriteSelected,
+
+            onSaveHome =
+                onSaveSelectedAsHome,
+
+            onSaveWork =
+                onSaveSelectedAsWork,
+
+            onSaveCustom = {
+                onSaveSelectedAsCustom(
+                    customFavoriteLabel
+                )
+            },
+
+            onDeleteFavorite =
+                onDeleteFavorite,
+
+            onUseAsDestination = {
+                onUseSelectedAsDestination()
+
+                plannerOpen =
+                    false
+            },
+
+            onAppendVia =
+                onAppendSelectedVia,
+
+            onClearSelection =
+                onClearSelectedTarget,
+
+            onRemoveVia =
+                onRemoveVia,
+
+            onMoveViaUp =
+                onMoveViaUp,
+
+            onMoveViaDown =
+                onMoveViaDown,
+        )
+    }
+}
+
+@Composable
+private fun DestinationPlannerDialog(
+    selectedTripStop:
+        NavigationTripStop?,
+
+    tripPlan:
+        NavigationTripPlan?,
+
+    favoriteDestinations:
+        FavoriteDestinationCollection?,
+
+    searchResults:
+        List<DestinationSearchResult>,
+
+    plannerMessage:
+        String?,
+
+    busy:
+        Boolean,
+
+    searchQuery:
+        String,
+
+    onSearchQueryChanged:
+        (String) -> Unit,
+
+    customFavoriteLabel:
+        String,
+
+    onCustomFavoriteLabelChanged:
+        (String) -> Unit,
+
+    onDismiss:
+        () -> Unit,
+
+    onSearch:
+        () -> Unit,
+
+    onSearchResultSelected:
+        (DestinationSearchResult) -> Unit,
+
+    onFavoriteSelected:
+        (FavoriteDestination) -> Unit,
+
+    onSaveHome:
+        () -> Unit,
+
+    onSaveWork:
+        () -> Unit,
+
+    onSaveCustom:
+        () -> Unit,
+
+    onDeleteFavorite:
+        (String) -> Unit,
+
+    onUseAsDestination:
+        () -> Unit,
+
+    onAppendVia:
+        () -> Unit,
+
+    onClearSelection:
+        () -> Unit,
+
+    onRemoveVia:
+        (Int) -> Unit,
+
+    onMoveViaUp:
+        (Int) -> Unit,
+
+    onMoveViaDown:
+        (Int) -> Unit,
+) {
+    val focusManager =
+        LocalFocusManager.current
+
+    Dialog(
+        onDismissRequest =
+            onDismiss,
+    ) {
+        Surface(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(
+                        0.92f
+                    )
+                    .imePadding(),
+
+            tonalElevation =
+                8.dp,
+
+            shape =
+                MaterialTheme
+                    .shapes
+                    .large,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(
+                            rememberScrollState()
+                        )
+                        .padding(
+                            16.dp
+                        ),
+            ) {
+                Row(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+
+                    horizontalArrangement =
+                        Arrangement.SpaceBetween,
+
+                    verticalAlignment =
+                        Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text =
+                            "Zielplanung",
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleLarge,
+
+                        fontWeight =
+                            FontWeight.Bold,
+                    )
+
+                    TextButton(
+                        onClick =
+                            onDismiss,
+                    ) {
+                        Text(
+                            "Schließen"
+                        )
+                    }
+                }
+
+                plannerMessage
+                    ?.takeIf {
+                        it.isNotBlank()
+                    }
+                    ?.let {
+                            message ->
+
+                        Text(
+                            text =
+                                message,
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall,
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    8.dp
+                                )
+                        )
+                    }
+
+                Text(
+                    text =
+                        "Ziel suchen",
+
+                    fontWeight =
+                        FontWeight.SemiBold,
+                )
+
+                OutlinedTextField(
+                    value =
+                        searchQuery,
+
+                    onValueChange =
+                        onSearchQueryChanged,
+
+                    modifier =
+                        Modifier.fillMaxWidth(),
+
+                    enabled =
+                        !busy,
+
+                    singleLine =
+                        true,
+
+                    keyboardOptions =
+                        KeyboardOptions(
+                            imeAction =
+                                ImeAction.Search
+                        ),
+
+                    keyboardActions =
+                        KeyboardActions(
+                            onSearch = {
+                                if (
+                                    !busy &&
+                                    searchQuery
+                                        .trim()
+                                        .length in
+                                        2..160
+                                ) {
+                                    focusManager
+                                        .clearFocus()
+
+                                    onSearch()
+                                }
+                            }
+                        ),
+
+                    label = {
+                        Text(
+                            "Adresse, Ort oder POI"
+                        )
+                    },
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.height(
+                            8.dp
+                        )
+                )
+
+                Button(
+                    modifier =
+                        Modifier.fillMaxWidth(),
+
+                    enabled =
+                        !busy &&
+                        searchQuery
+                            .trim()
+                            .length in
+                            2..160,
+
+                    onClick = {
+                        focusManager
+                            .clearFocus()
+
+                        onSearch()
+                    },
+                ) {
+                    Text(
+                        "Suchen"
+                    )
+                }
+
+                if (
+                    searchResults.isNotEmpty()
+                ) {
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                8.dp
+                            )
+                    )
+
+                    searchResults.forEach {
+                            result ->
+
+                        TextButton(
+                            modifier =
+                                Modifier.fillMaxWidth(),
+
+                            enabled =
+                                !busy,
+
+                            onClick = {
+                                onSearchResultSelected(
+                                    result
+                                )
+                            },
+                        ) {
+                            Text(
+                                result.displayText
+                            )
+                        }
+                    }
+                }
+
+                Spacer(
+                    modifier =
+                        Modifier.height(
+                            12.dp
+                        )
+                )
+
+                Text(
+                    text =
+                        "Favoriten",
+
+                    fontWeight =
+                        FontWeight.SemiBold,
+                )
+
+                val favorites =
+                    favoriteDestinations
+                        ?.all()
+                        ?: emptyList()
+
+                if (
+                    favorites.isEmpty()
+                ) {
+                    Text(
+                        text =
+                            "Noch keine Favoriten gespeichert.",
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+                    )
+                } else {
+                    favorites.forEach {
+                            favorite ->
+
+                        Row(
+                            modifier =
+                                Modifier.fillMaxWidth(),
+
+                            horizontalArrangement =
+                                Arrangement.SpaceBetween,
+
+                            verticalAlignment =
+                                Alignment.CenterVertically,
+                        ) {
+                            TextButton(
+                                modifier =
+                                    Modifier.weight(
+                                        1.0f
+                                    ),
+
+                                enabled =
+                                    !busy,
+
+                                onClick = {
+                                    onFavoriteSelected(
+                                        favorite
+                                    )
+                                },
+                            ) {
+                                Text(
+                                    favorite.label
+                                )
+                            }
+
+                            TextButton(
+                                enabled =
+                                    !busy,
+
+                                onClick = {
+                                    onDeleteFavorite(
+                                        favorite.id
+                                    )
+                                },
+                            ) {
+                                Text(
+                                    "Löschen"
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(
+                    modifier =
+                        Modifier.height(
+                            12.dp
+                        )
+                )
+
+                Text(
+                    text =
+                        "Ausgewählte Markierung",
+
+                    fontWeight =
+                        FontWeight.SemiBold,
+                )
+
+                if (
+                    selectedTripStop ==
+                        null
+                ) {
+                    Text(
+                        text =
+                            "Karte lange drücken oder einen Suchtreffer/Favoriten auswählen.",
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+                    )
+                } else {
+                    Text(
+                        text =
+                            selectedTripStop
+                                .label
+                                ?: "Kartenpunkt",
+
+                        fontWeight =
+                            FontWeight.Medium,
+                    )
+
+                    Text(
+                        text =
+                            selectedTripStop
+                                .point
+                                .latitude
+                                .toString() +
+                                ", " +
+                                selectedTripStop
+                                    .point
+                                    .longitude
+                                    .toString(),
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                8.dp
+                            )
+                    )
+
+                    Button(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        enabled =
+                            !busy,
+
+                        onClick =
+                            onUseAsDestination,
+                    ) {
+                        Text(
+                            "Hierhin navigieren"
+                        )
+                    }
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                6.dp
+                            )
+                    )
+
+                    Button(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        enabled =
+                            !busy &&
+                            (
+                                tripPlan
+                                    ?.viaPoints
+                                    ?.size
+                                    ?: 16
+                            ) <
+                                16,
+
+                        onClick =
+                            onAppendVia,
+                    ) {
+                        Text(
+                            "Als Zwischenziel"
+                        )
+                    }
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                6.dp
+                            )
+                    )
+
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        horizontalArrangement =
+                            Arrangement.SpaceBetween,
+                    ) {
+                        TextButton(
+                            enabled =
+                                !busy,
+
+                            onClick =
+                                onSaveHome,
+                        ) {
+                            Text(
+                                "Als Zuhause"
+                            )
+                        }
+
+                        TextButton(
+                            enabled =
+                                !busy,
+
+                            onClick =
+                                onSaveWork,
+                        ) {
+                            Text(
+                                "Als Arbeit"
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value =
+                            customFavoriteLabel,
+
+                        onValueChange =
+                            onCustomFavoriteLabelChanged,
+
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        enabled =
+                            !busy,
+
+                        singleLine =
+                            true,
+
+                        keyboardOptions =
+                            KeyboardOptions(
+                                imeAction =
+                                    ImeAction.Done
+                            ),
+
+                        keyboardActions =
+                            KeyboardActions(
+                                onDone = {
+                                    if (
+                                        !busy &&
+                                        customFavoriteLabel
+                                            .trim()
+                                            .isNotEmpty()
+                                    ) {
+                                        focusManager
+                                            .clearFocus()
+
+                                        onSaveCustom()
+                                    }
+                                }
+                            ),
+
+                        label = {
+                            Text(
+                                "Freier Favoritenname"
+                            )
+                        },
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                6.dp
+                            )
+                    )
+
+                    Button(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        enabled =
+                            !busy &&
+                            customFavoriteLabel
+                                .trim()
+                                .isNotEmpty(),
+
+                        onClick = {
+                            focusManager
+                                .clearFocus()
+
+                            onSaveCustom()
+                        },
+                    ) {
+                        Text(
+                            "Als Favorit speichern"
+                        )
+                    }
+
+                    TextButton(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        enabled =
+                            !busy,
+
+                        onClick =
+                            onClearSelection,
+                    ) {
+                        Text(
+                            "Markierung entfernen"
+                        )
+                    }
+                }
+
+                tripPlan
+                    ?.let {
+                            plan ->
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    12.dp
+                                )
+                        )
+
+                        Text(
+                            text =
+                                "Reiseplan",
+
+                            fontWeight =
+                                FontWeight.SemiBold,
+                        )
+
+                        Text(
+                            text =
+                                "Ziel: " +
+                                    (
+                                        plan.destination
+                                            .label
+                                            ?: (
+                                                plan.destination
+                                                    .point
+                                                    .latitude
+                                                    .toString() +
+                                                    ", " +
+                                                    plan.destination
+                                                        .point
+                                                        .longitude
+                                                        .toString()
+                                            )
+                                    ),
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall,
+                        )
+
+                        if (
+                            plan.viaPoints.isEmpty()
+                        ) {
+                            Text(
+                                text =
+                                    "Keine Zwischenziele.",
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodySmall,
+                            )
+                        } else {
+                            plan.viaPoints
+                                .forEachIndexed {
+                                        index,
+                                        stop ->
+
+                                    Row(
+                                        modifier =
+                                            Modifier.fillMaxWidth(),
+
+                                        verticalAlignment =
+                                            Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text =
+                                                "${index + 1}. " +
+                                                    (
+                                                        stop.label
+                                                            ?: "Zwischenziel"
+                                                    ),
+
+                                            modifier =
+                                                Modifier.weight(
+                                                    1.0f
+                                                ),
+
+                                            style =
+                                                MaterialTheme
+                                                    .typography
+                                                    .bodySmall,
+                                        )
+
+                                        TextButton(
+                                            enabled =
+                                                !busy &&
+                                                index >
+                                                    0,
+
+                                            onClick = {
+                                                onMoveViaUp(
+                                                    index
+                                                )
+                                            },
+                                        ) {
+                                            Text(
+                                                "↑"
+                                            )
+                                        }
+
+                                        TextButton(
+                                            enabled =
+                                                !busy &&
+                                                index <
+                                                    plan.viaPoints
+                                                        .lastIndex,
+
+                                            onClick = {
+                                                onMoveViaDown(
+                                                    index
+                                                )
+                                            },
+                                        ) {
+                                            Text(
+                                                "↓"
+                                            )
+                                        }
+
+                                        TextButton(
+                                            enabled =
+                                                !busy,
+
+                                            onClick = {
+                                                onRemoveVia(
+                                                    index
+                                                )
+                                            },
+                                        ) {
+                                            Text(
+                                                "Löschen"
+                                            )
+                                        }
+                                    }
+                                }
+                        }
+                    }
             }
         }
     }

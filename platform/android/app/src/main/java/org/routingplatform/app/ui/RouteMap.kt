@@ -72,6 +72,18 @@ fun RouteMap(
     trustedTravelBearingDegrees:
         Double? =
         null,
+
+    selectedTarget:
+        RoutePoint? =
+        null,
+
+    mapSelectionEnabled:
+        Boolean =
+        false,
+
+    onMapLongPress:
+        (RoutePoint) -> Unit =
+        {},
 ) {
     val context =
         LocalContext.current
@@ -146,6 +158,62 @@ fun RouteMap(
                 NavigationMapLoadState.Loading
             )
         }
+
+    DisposableEffect(
+        mapLibreMap,
+        mapSelectionEnabled,
+        onMapLongPress,
+    ) {
+        val map =
+            mapLibreMap
+
+        val longClickListener:
+            MapLibreMap.OnMapLongClickListener? =
+            if (
+                map !=
+                    null &&
+                mapSelectionEnabled
+            ) {
+                MapLibreMap
+                    .OnMapLongClickListener {
+                            point ->
+
+                        onMapLongPress(
+                            RoutePoint(
+                                latitude =
+                                    point.latitude,
+
+                                longitude =
+                                    point.longitude,
+                            )
+                        )
+
+                        true
+                    }
+            } else {
+                null
+            }
+
+        longClickListener
+            ?.let {
+                    listener ->
+
+                map?.addOnMapLongClickListener(
+                    listener
+                )
+            }
+
+        onDispose {
+            longClickListener
+                ?.let {
+                        listener ->
+
+                    map?.removeOnMapLongClickListener(
+                        listener
+                    )
+                }
+        }
+    }
 
     DisposableEffect(
         lifecycleOwner,
@@ -315,6 +383,9 @@ fun RouteMap(
 
                     observedPosition =
                         observedPosition,
+
+                    selectedTarget =
+                        selectedTarget,
                 )
 
                 loadedStyle =
@@ -339,6 +410,7 @@ fun RouteMap(
         showProgress,
         displayPreferences,
         observedPosition,
+        selectedTarget,
         compassPresentation,
     ) {
         val style =
@@ -430,6 +502,20 @@ fun RouteMap(
                 observedPosition
                     ?.let {
                         observedAccuracyGeoJson(
+                            it
+                        )
+                    }
+                    ?: emptyFeatureCollectionGeoJson()
+            )
+
+        style
+            .getSourceAs<GeoJsonSource>(
+                SELECTED_TARGET_SOURCE_ID
+            )
+            ?.setGeoJson(
+                selectedTarget
+                    ?.let {
+                        pointGeoJson(
                             it
                         )
                     }
@@ -613,13 +699,46 @@ fun RouteMap(
                     )
                     .build()
         } else {
-            fitPreviewRoute(
-                map =
-                    map,
+            if (
+                selectedTarget !=
+                    null
+            ) {
+                map.cameraPosition =
+                    CameraPosition
+                        .Builder()
+                        .target(
+                            LatLng(
+                                selectedTarget
+                                    .latitude,
 
-                points =
-                    points,
-            )
+                                selectedTarget
+                                    .longitude,
+                            )
+                        )
+                        .zoom(
+                            displayPreferences
+                                .defaultZoom
+                                .coerceIn(
+                                    14.0,
+                                    18.0,
+                                )
+                        )
+                        .bearing(
+                            0.0
+                        )
+                        .tilt(
+                            0.0
+                        )
+                        .build()
+            } else {
+                fitPreviewRoute(
+                    map =
+                        map,
+
+                    points =
+                        points,
+                )
+            }
         }
     }
 
@@ -852,6 +971,7 @@ private fun installNavigationLayers(
     progressPosition: RoutePoint,
     displayPreferences: DisplayPreferences,
     observedPosition: NavigationObservedPositionPresentation?,
+    selectedTarget: RoutePoint?,
 ) {
     style.addSource(
         GeoJsonSource(
@@ -974,6 +1094,42 @@ private fun installNavigationLayers(
 
             PropertyFactory.visibility(
                 Property.NONE
+            ),
+        )
+    )
+
+    style.addSource(
+        GeoJsonSource(
+            SELECTED_TARGET_SOURCE_ID,
+            selectedTarget
+                ?.let {
+                    pointGeoJson(
+                        it
+                    )
+                }
+                ?: emptyFeatureCollectionGeoJson(),
+        )
+    )
+
+    style.addLayer(
+        CircleLayer(
+            SELECTED_TARGET_LAYER_ID,
+            SELECTED_TARGET_SOURCE_ID,
+        ).withProperties(
+            PropertyFactory.circleColor(
+                "#D81B60"
+            ),
+
+            PropertyFactory.circleRadius(
+                10.0f
+            ),
+
+            PropertyFactory.circleStrokeColor(
+                "#FFFFFF"
+            ),
+
+            PropertyFactory.circleStrokeWidth(
+                3.0f
             ),
         )
     )
@@ -1219,6 +1375,12 @@ private const val ROUTE_PROGRESS_SOURCE_ID =
 
 private const val ROUTE_PROGRESS_LAYER_ID =
     "routing-platform-route-progress-layer"
+
+private const val SELECTED_TARGET_SOURCE_ID =
+    "routing-platform-selected-target-source"
+
+private const val SELECTED_TARGET_LAYER_ID =
+    "routing-platform-selected-target-layer"
 
 private const val OBSERVED_ACCURACY_SOURCE_ID =
     "routing-platform-observed-accuracy-source"
