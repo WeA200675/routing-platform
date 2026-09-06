@@ -1068,6 +1068,15 @@ class MainActivity :
                             routeAcquisitionTelemetry
                                 .message,
 
+                        routeAcquisitionState =
+                            routeAcquisitionTelemetry
+                                .state,
+
+                        routeAcquisitionFaultCode =
+                            routeAcquisitionTelemetry
+                                .fault
+                                ?.code,
+
                         manualProgressEnabled =
                             !automaticPreciseProgressActive,
 

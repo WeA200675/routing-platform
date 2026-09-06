@@ -32,11 +32,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import org.routingplatform.app.navigation.NavigationFaultCode
 import org.routingplatform.app.navigation.NavigationFormatter
+import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationTripPlan
 import org.routingplatform.app.navigation.NavigationTripStop
@@ -66,6 +71,14 @@ fun NavigationScreen(
 
     routeAcquisitionMessage:
         String? =
+        null,
+
+    routeAcquisitionState:
+        NavigationRouteAcquisitionState =
+        NavigationRouteAcquisitionState.FallbackReady,
+
+    routeAcquisitionFaultCode:
+        NavigationFaultCode? =
         null,
 
     manualProgressEnabled:
@@ -191,7 +204,19 @@ fun NavigationScreen(
 
     Column(
         modifier =
-            Modifier.fillMaxSize(),
+            Modifier
+                .fillMaxSize()
+                .semantics {
+                    /*
+                     * Expose testTag as resource-id to UIAutomator.
+                     * This is automation metadata only.
+                     */
+                    testTagsAsResourceId =
+                        true
+                }
+                .testTag(
+                    NavigationUiTestTags.Root
+                ),
     ) {
         Box(
             modifier =
@@ -275,6 +300,14 @@ fun NavigationScreen(
                                     snapshot.state
                                 ),
 
+                        modifier =
+                            Modifier.testTag(
+                                NavigationUiTestTags
+                                    .sessionState(
+                                        snapshot.state
+                                    )
+                            ),
+
                         fontWeight =
                             FontWeight.Bold,
                     )
@@ -282,6 +315,12 @@ fun NavigationScreen(
                     Text(
                         text =
                             "Route ${snapshot.routeId}",
+
+                        modifier =
+                            Modifier.testTag(
+                                NavigationUiTestTags.RouteId
+                            ),
+
                         style =
                             MaterialTheme
                                 .typography
@@ -340,6 +379,18 @@ fun NavigationScreen(
                         text =
                             "Routing: " +
                                 routeAcquisitionMessage,
+
+                        modifier =
+                            Modifier.testTag(
+                                NavigationUiTestTags
+                                    .routeAcquisition(
+                                        state =
+                                            routeAcquisitionState,
+
+                                        faultCode =
+                                            routeAcquisitionFaultCode,
+                                    )
+                            ),
 
                         style =
                             MaterialTheme
@@ -485,7 +536,12 @@ fun NavigationScreen(
 
                         Button(
                             modifier =
-                                Modifier.fillMaxWidth(),
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
+                                            .PlannerOpen
+                                    ),
 
                             enabled =
                                 !destinationPlannerBusy,
@@ -777,7 +833,11 @@ private fun DestinationPlannerDialog(
                     .fillMaxHeight(
                         0.92f
                     )
-                    .imePadding(),
+                    .imePadding()
+                    .testTag(
+                        NavigationUiTestTags
+                            .PlannerDialog
+                    ),
 
             tonalElevation =
                 8.dp,
@@ -872,7 +932,12 @@ private fun DestinationPlannerDialog(
                         onSearchQueryChanged,
 
                     modifier =
-                        Modifier.fillMaxWidth(),
+                        Modifier
+                            .fillMaxWidth()
+                            .testTag(
+                                NavigationUiTestTags
+                                    .SearchField
+                            ),
 
                     enabled =
                         !busy,
@@ -920,7 +985,12 @@ private fun DestinationPlannerDialog(
 
                 Button(
                     modifier =
-                        Modifier.fillMaxWidth(),
+                        Modifier
+                            .fillMaxWidth()
+                            .testTag(
+                                NavigationUiTestTags
+                                    .SearchAction
+                            ),
 
                     enabled =
                         !busy &&
@@ -951,12 +1021,20 @@ private fun DestinationPlannerDialog(
                             )
                     )
 
-                    searchResults.forEach {
+                    searchResults.forEachIndexed {
+                            index,
                             result ->
 
                         TextButton(
                             modifier =
-                                Modifier.fillMaxWidth(),
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
+                                            .searchResult(
+                                                index
+                                            )
+                                    ),
 
                             enabled =
                                 !busy,
@@ -1124,7 +1202,12 @@ private fun DestinationPlannerDialog(
 
                     Button(
                         modifier =
-                            Modifier.fillMaxWidth(),
+                            Modifier
+                                .fillMaxWidth()
+                                .testTag(
+                                    NavigationUiTestTags
+                                        .UseDestination
+                                ),
 
                         enabled =
                             !busy,
@@ -1146,7 +1229,12 @@ private fun DestinationPlannerDialog(
 
                     Button(
                         modifier =
-                            Modifier.fillMaxWidth(),
+                            Modifier
+                                .fillMaxWidth()
+                                .testTag(
+                                    NavigationUiTestTags
+                                        .AppendVia
+                                ),
 
                         enabled =
                             !busy &&
@@ -1213,7 +1301,12 @@ private fun DestinationPlannerDialog(
                             onCustomFavoriteLabelChanged,
 
                         modifier =
-                            Modifier.fillMaxWidth(),
+                            Modifier
+                                .fillMaxWidth()
+                                .testTag(
+                                    NavigationUiTestTags
+                                        .CustomFavoriteField
+                                ),
 
                         enabled =
                             !busy,
@@ -1260,7 +1353,12 @@ private fun DestinationPlannerDialog(
 
                     Button(
                         modifier =
-                            Modifier.fillMaxWidth(),
+                            Modifier
+                                .fillMaxWidth()
+                                .testTag(
+                                    NavigationUiTestTags
+                                        .CustomFavoriteSave
+                                ),
 
                         enabled =
                             !busy &&
@@ -1487,7 +1585,12 @@ private fun NavigationPrimaryControl(
         ) {
             Button(
                 modifier =
-                    Modifier.fillMaxWidth(),
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag(
+                            NavigationUiTestTags
+                                .PrimaryAction
+                        ),
 
                 enabled =
                     presentation.enabled,

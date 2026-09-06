@@ -1,0 +1,107 @@
+package org.routingplatform.app.ui
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.routingplatform.app.navigation.NavigationFaultCode
+import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
+import org.routingplatform.app.navigation.NavigationSessionState
+
+class NavigationUiTestTagsTest {
+
+    @Test
+    fun stableTerminalStateTagsDoNotDependOnLocalizedText() {
+        assertEquals(
+            "rp.navigation.session.Preview",
+            NavigationUiTestTags
+                .sessionState(
+                    NavigationSessionState.Preview
+                ),
+        )
+
+        assertEquals(
+            "rp.navigation.acquisition.LiveFailed.NoSuitableEdges",
+            NavigationUiTestTags
+                .routeAcquisition(
+                    state =
+                        NavigationRouteAcquisitionState.LiveFailed,
+
+                    faultCode =
+                        NavigationFaultCode.NoSuitableEdges,
+                ),
+        )
+
+        assertEquals(
+            "rp.navigation.acquisition.LiveFailed.TransportUnavailable",
+            NavigationUiTestTags
+                .routeAcquisition(
+                    state =
+                        NavigationRouteAcquisitionState.LiveFailed,
+
+                    faultCode =
+                        NavigationFaultCode.TransportUnavailable,
+                ),
+        )
+    }
+
+    @Test
+    fun staticTagsAreUniqueAndNamespaced() {
+        val tags =
+            listOf(
+                NavigationUiTestTags.Root,
+                NavigationUiTestTags.RouteId,
+                NavigationUiTestTags.PrimaryAction,
+                NavigationUiTestTags.PlannerOpen,
+                NavigationUiTestTags.PlannerDialog,
+                NavigationUiTestTags.SearchField,
+                NavigationUiTestTags.SearchAction,
+                NavigationUiTestTags.UseDestination,
+                NavigationUiTestTags.AppendVia,
+                NavigationUiTestTags.CustomFavoriteField,
+                NavigationUiTestTags.CustomFavoriteSave,
+            )
+
+        assertEquals(
+            tags.size,
+            tags.toSet().size,
+        )
+
+        assertTrue(
+            tags.all {
+                it.startsWith(
+                    "rp.navigation."
+                )
+            }
+        )
+    }
+
+    @Test
+    fun dynamicSearchResultTagsAreStableAndDistinct() {
+        assertEquals(
+            "rp.navigation.search_result.0",
+            NavigationUiTestTags
+                .searchResult(
+                    0
+                ),
+        )
+
+        assertEquals(
+            "rp.navigation.search_result.1",
+            NavigationUiTestTags
+                .searchResult(
+                    1
+                ),
+        )
+
+        assertTrue(
+            NavigationUiTestTags
+                .searchResult(
+                    0
+                ) !=
+                NavigationUiTestTags
+                    .searchResult(
+                        1
+                    )
+        )
+    }
+}
