@@ -72,6 +72,26 @@ data class NavigationRuntimeTelemetry(
     val lastLocationElapsedRealtimeNanos:
         Long? =
         null,
+
+    val safetyApprovedCandidate:
+        RouteProgressAnchor? =
+        null,
+
+    val nativeUpdateAttempted:
+        Boolean =
+        false,
+
+    val nativeUpdateAccepted:
+        Boolean =
+        false,
+
+    val nativeFailureClass:
+        String? =
+        null,
+
+    val nativeFailureMessage:
+        String? =
+        null,
 ) {
     companion object {
         fun stopped(
@@ -528,8 +548,8 @@ class AndroidNavigationRuntimeController(
 
         val pipelineStatus =
             when {
-                result.nativeFailureMessage !=
-                    null ->
+                result.nativeUpdateAttempted &&
+                    !result.nativeForwarded ->
                     NavigationRuntimePipelineStatus.NativeUpdateFailed
 
                 result.nativeForwarded ->
@@ -630,6 +650,32 @@ class AndroidNavigationRuntimeController(
                     lastLocationElapsedRealtimeNanos =
                         sample
                             .elapsedRealtimeNanos,
+
+                    safetyApprovedCandidate =
+                        result
+                            .safetyDecision
+                            .acceptedProgress
+                            ?.takeIf {
+                                result
+                                    .safetyDecision
+                                    .mayUpdateNativeRuntime
+                            },
+
+                    nativeUpdateAttempted =
+                        result
+                            .nativeUpdateAttempted,
+
+                    nativeUpdateAccepted =
+                        result
+                            .nativeForwarded,
+
+                    nativeFailureClass =
+                        result
+                            .nativeFailureClass,
+
+                    nativeFailureMessage =
+                        result
+                            .nativeFailureMessage,
                 )
             )
     }

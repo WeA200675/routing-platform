@@ -25,6 +25,12 @@
             android:excludeFromRecents="true"
             android:exported="true" />
 
+        <!-- Debug-only drive-proof recorder control surface. -->
+        <activity
+            android:name=".navigation.G5R6DriveProofControlActivity"
+            android:excludeFromRecents="true"
+            android:exported="true" />
+
     </application>
 
 </manifest>

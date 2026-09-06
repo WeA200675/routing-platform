@@ -10,8 +10,14 @@ data class NavigationProgressCoordinatorResult(
     val nativeSnapshot:
         NavigationUiSnapshot?,
 
+    val nativeUpdateAttempted:
+        Boolean,
+
     val nativeForwarded:
         Boolean,
+
+    val nativeFailureClass:
+        String?,
 
     val nativeFailureMessage:
         String?,
@@ -178,8 +184,14 @@ class NavigationProgressCoordinator(
                 nativeSnapshot =
                     null,
 
+                nativeUpdateAttempted =
+                    false,
+
                 nativeForwarded =
                     false,
+
+                nativeFailureClass =
+                    null,
 
                 nativeFailureMessage =
                     null,
@@ -202,6 +214,10 @@ class NavigationProgressCoordinator(
         val nativeSnapshot =
             nativeResult
                 .getOrNull()
+
+        val nativeFailure =
+            nativeResult
+                .exceptionOrNull()
 
         if (
             nativeSnapshot !=
@@ -229,14 +245,24 @@ class NavigationProgressCoordinator(
             nativeSnapshot =
                 nativeSnapshot,
 
+            nativeUpdateAttempted =
+                true,
+
             nativeForwarded =
                 nativeSnapshot !=
                     null,
 
+            nativeFailureClass =
+                nativeFailure
+                    ?.javaClass
+                    ?.name,
+
             nativeFailureMessage =
-                nativeResult
-                    .exceptionOrNull()
-                    ?.message,
+                nativeFailure
+                    ?.let {
+                        it.message
+                            ?: it.javaClass.name
+                    },
         )
     }
 

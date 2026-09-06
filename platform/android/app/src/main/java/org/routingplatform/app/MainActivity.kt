@@ -21,6 +21,7 @@ import org.maplibre.android.MapLibre
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.JniNavigationCoreBridge
+import org.routingplatform.app.navigation.NavigationDriveProofObservationSinkFactory
 import org.routingplatform.app.navigation.NavigationExitLookaheadEngine
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionTelemetry
@@ -177,6 +178,23 @@ class MainActivity :
                             bridge,
                     )
                 }
+
+            val driveProofObservationSink =
+                remember {
+                    NavigationDriveProofObservationSinkFactory
+                        .create(
+                            applicationContext
+                        )
+                }
+
+            DisposableEffect(
+                driveProofObservationSink
+            ) {
+                onDispose {
+                    driveProofObservationSink
+                        .close()
+                }
+            }
 
             val startOrientationEngine =
                 remember {
@@ -808,6 +826,19 @@ class MainActivity :
 
                         onTelemetry = {
                                 updatedTelemetry ->
+
+                            driveProofObservationSink
+                                .record(
+                                    snapshot =
+                                        snapshot,
+
+                                    telemetry =
+                                        updatedTelemetry,
+
+                                    capturedAtElapsedRealtimeNanos =
+                                        SystemClock
+                                            .elapsedRealtimeNanos(),
+                                )
 
                             telemetry =
                                 updatedTelemetry
