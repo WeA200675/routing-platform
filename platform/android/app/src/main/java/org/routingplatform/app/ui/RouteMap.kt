@@ -1,5 +1,6 @@
 package org.routingplatform.app.ui
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,7 +14,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -37,9 +40,27 @@ import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.routingplatform.app.navigation.NavigationRecoveryDecision
+import org.routingplatform.app.navigation.NavigationRecoveryPolicy
+import org.routingplatform.app.navigation.NavigationReliabilityClassifier
+import org.routingplatform.app.navigation.NavigationReliabilityEvent
+import org.routingplatform.app.navigation.NavigationReliabilityEventKind
 import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.navigation.splitRouteProgressGeometry
 import org.routingplatform.app.profile.DisplayPreferences
+
+private fun logNavigationMapReliabilityEvent(
+    event:
+        NavigationReliabilityEvent,
+) {
+    Log.w(
+        NAVIGATION_MAP_LOG_TAG,
+        "${event.kind}/${event.fault.code}/${event.fault.domain}",
+    )
+}
+
+private const val NAVIGATION_MAP_LOG_TAG =
+    "RoutingPlatformMap"
 
 /*
  * Presentation boundary only.
@@ -84,12 +105,32 @@ fun RouteMap(
     onMapLongPress:
         (RoutePoint) -> Unit =
         {},
+
+    onReliabilityEvent:
+        (NavigationReliabilityEvent) -> Unit =
+        ::logNavigationMapReliabilityEvent,
 ) {
     val context =
         LocalContext.current
 
     val lifecycleOwner =
         LocalLifecycleOwner.current
+
+    val currentReliabilityEvent by
+        rememberUpdatedState(
+            onReliabilityEvent
+        )
+
+    val mapRecoveryPolicy =
+        remember {
+            NavigationRecoveryPolicy(
+                maxInfrastructureRetries =
+                    1,
+
+                retryCooldownMs =
+                    400L,
+            )
+        }
 
     val styleDescriptor =
         NavigationMapPresentation
@@ -157,6 +198,136 @@ fun RouteMap(
             mutableStateOf(
                 NavigationMapLoadState.Loading
             )
+        }
+
+    var mapLoadRetryCount by
+        remember(
+            styleDescriptor.styleUri
+        ) {
+            mutableStateOf(
+                0
+            )
+        }
+
+    var mapReloadGeneration by
+        remember(
+            styleDescriptor.styleUri
+        ) {
+            mutableStateOf(
+                0
+            )
+        }
+
+    var pendingMapRetry by
+        remember(
+            styleDescriptor.styleUri
+        ) {
+            mutableStateOf<
+                NavigationRecoveryDecision.Retry?
+            >(
+                null
+            )
+        }
+
+    val handleMapFailure:
+        (String) -> Unit = {
+                detail ->
+
+            if (
+                loadedStyle ==
+                    null &&
+                pendingMapRetry ==
+                    null
+            ) {
+                val fault =
+                    NavigationReliabilityClassifier
+                        .mapUnavailable(
+                            detail
+                        )
+
+                currentReliabilityEvent(
+                    NavigationReliabilityEvent(
+                        kind =
+                            NavigationReliabilityEventKind.FaultObserved,
+
+                        fault =
+                            fault,
+
+                        retryNumber =
+                            mapLoadRetryCount,
+
+                        delayMs =
+                            0L,
+                    )
+                )
+
+                when (
+                    val decision =
+                        mapRecoveryPolicy
+                            .decide(
+                                fault =
+                                    fault,
+
+                                retriesAlreadyAttempted =
+                                    mapLoadRetryCount,
+                            )
+                ) {
+                    is NavigationRecoveryDecision.Retry -> {
+                        mapLoadRetryCount =
+                            decision.retryNumber
+
+                        pendingMapRetry =
+                            decision
+
+                        mapLoadState =
+                            NavigationMapLoadState
+                                .Loading
+
+                        currentReliabilityEvent(
+                            NavigationReliabilityEvent(
+                                kind =
+                                    NavigationReliabilityEventKind.RecoveryScheduled,
+
+                                fault =
+                                    fault,
+
+                                retryNumber =
+                                    decision.retryNumber,
+
+                                delayMs =
+                                    decision.delayMs,
+                            )
+                        )
+                    }
+
+                    NavigationRecoveryDecision.FailClosed -> {
+                        /*
+                         * Map presentation degrades after the bounded
+                         * retry budget. Navigation truth/session state
+                         * is not changed here.
+                         */
+                        mapLoadState =
+                            NavigationMapLoadState
+                                .Failed
+
+                        currentReliabilityEvent(
+                            NavigationReliabilityEvent(
+                                kind =
+                                    NavigationReliabilityEventKind.RecoveryExhausted,
+
+                                fault =
+                                    fault,
+
+                                retryNumber =
+                                    mapLoadRetryCount,
+
+                                delayMs =
+                                    0L,
+                            )
+                        )
+                    }
+                }
+            }
         }
 
     DisposableEffect(
@@ -244,16 +415,16 @@ fun RouteMap(
 
         val failureListener =
             MapView.OnDidFailLoadingMapListener {
-                    _ ->
+                    failureReason ->
 
-                if (
-                    loadedStyle ==
-                        null
-                ) {
-                    mapLoadState =
-                        NavigationMapLoadState
-                            .Failed
-                }
+                handleMapFailure(
+                    "MapLibre style load failed: " +
+                        failureReason
+                            .toString()
+                            .take(
+                                300
+                            )
+                )
             }
 
         val renderListener =
@@ -314,6 +485,34 @@ fun RouteMap(
         }
     }
 
+    LaunchedEffect(
+        pendingMapRetry
+    ) {
+        val retry =
+            pendingMapRetry
+                ?: return@LaunchedEffect
+
+        if (
+            retry.delayMs >
+                0L
+        ) {
+            delay(
+                retry.delayMs
+            )
+        }
+
+        if (
+            pendingMapRetry ==
+                retry
+        ) {
+            pendingMapRetry =
+                null
+
+            mapReloadGeneration +=
+                1
+        }
+    }
+
     /*
      * Style changes are presentation changes only.
      *
@@ -323,6 +522,8 @@ fun RouteMap(
     LaunchedEffect(
         mapView,
         styleDescriptor.styleUri,
+        mapReloadGeneration,
+        points.size,
     ) {
         if (points.size < 2) {
             return@LaunchedEffect
@@ -347,53 +548,72 @@ fun RouteMap(
             ) {
                     style ->
 
-                val progressGeometry =
-                    splitRouteProgressGeometry(
-                        points =
+                try {
+                    val progressGeometry =
+                        splitRouteProgressGeometry(
+                            points =
+                                points,
+
+                            shapeSegmentIndex =
+                                shapeSegmentIndex,
+
+                            segmentFraction =
+                                segmentFraction,
+                        )
+
+                    installNavigationLayers(
+                        style =
+                            style,
+
+                        fullRoute =
                             points,
 
-                        shapeSegmentIndex =
-                            shapeSegmentIndex,
+                        traveledRoute =
+                            progressGeometry
+                                .traveledPoints,
 
-                        segmentFraction =
-                            segmentFraction,
+                        remainingRoute =
+                            progressGeometry
+                                .remainingPoints,
+
+                        progressPosition =
+                            progressGeometry
+                                .currentPosition,
+
+                        displayPreferences =
+                            displayPreferences,
+
+                        observedPosition =
+                            observedPosition,
+
+                        selectedTarget =
+                            selectedTarget,
                     )
 
-                installNavigationLayers(
-                    style =
-                        style,
+                    pendingMapRetry =
+                        null
 
-                    fullRoute =
-                        points,
+                    mapLoadRetryCount =
+                        0
 
-                    traveledRoute =
-                        progressGeometry
-                            .traveledPoints,
+                    loadedStyle =
+                        style
 
-                    remainingRoute =
-                        progressGeometry
-                            .remainingPoints,
+                    mapLoadState =
+                        NavigationMapLoadState
+                            .Rendering
+                } catch (
+                    error:
+                        RuntimeException
+                ) {
+                    loadedStyle =
+                        null
 
-                    progressPosition =
-                        progressGeometry
-                            .currentPosition,
-
-                    displayPreferences =
-                        displayPreferences,
-
-                    observedPosition =
-                        observedPosition,
-
-                    selectedTarget =
-                        selectedTarget,
-                )
-
-                loadedStyle =
-                    style
-
-                mapLoadState =
-                    NavigationMapLoadState
-                        .Rendering
+                    handleMapFailure(
+                        "Map layer installation failed: " +
+                            error.javaClass.name
+                    )
+                }
             }
         }
     }

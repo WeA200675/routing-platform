@@ -263,6 +263,156 @@ class NavigationReliabilityTest {
     }
 
     @Test
+    fun persistenceReadFailureFallsBackAndReportsIncident() {
+        val events =
+            mutableListOf<
+                NavigationReliabilityEvent
+            >()
+
+        val loaded =
+            NavigationPersistenceReliability
+                .loadOrFallback(
+                    fallback =
+                        "safe-fallback",
+
+                    operationName =
+                        "test.load",
+
+                    onReliabilityEvent =
+                        events::add,
+                ) {
+                    error(
+                        "corrupt local state"
+                    )
+                }
+
+        assertEquals(
+            "safe-fallback",
+            loaded,
+        )
+
+        assertEquals(
+            NavigationFaultCode.PersistenceUnavailable,
+            events.first().fault.code,
+        )
+
+        assertEquals(
+            NavigationReliabilityEventKind.RecoveryExhausted,
+            events.last().kind,
+        )
+    }
+
+    @Test
+    fun persistenceSaveRetriesExactlyOnceAndCanRecover() {
+        val events =
+            mutableListOf<
+                NavigationReliabilityEvent
+            >()
+
+        var attempts =
+            0
+
+        val saved =
+            NavigationPersistenceReliability
+                .saveWithSingleRetry(
+                    operationName =
+                        "test.save",
+
+                    onReliabilityEvent =
+                        events::add,
+                ) {
+                    attempts +=
+                        1
+
+                    attempts ==
+                        2
+                }
+
+        assertTrue(
+            saved
+        )
+
+        assertEquals(
+            2,
+            attempts,
+        )
+
+        assertTrue(
+            events.any {
+                it.kind ==
+                    NavigationReliabilityEventKind.RecoveryScheduled
+            }
+        )
+    }
+
+    @Test
+    fun mapFailureGetsOneBoundedInfrastructureRetry() {
+        val fault =
+            NavigationReliabilityClassifier
+                .mapUnavailable(
+                    "style load failed"
+                )
+
+        val policy =
+            NavigationRecoveryPolicy()
+
+        assertTrue(
+            policy.decide(
+                fault =
+                    fault,
+
+                retriesAlreadyAttempted =
+                    0,
+            ) is
+                NavigationRecoveryDecision.Retry
+        )
+
+        assertSame(
+            NavigationRecoveryDecision.FailClosed,
+            policy.decide(
+                fault =
+                    fault,
+
+                retriesAlreadyAttempted =
+                    1,
+            ),
+        )
+    }
+
+    @Test
+    fun nativeBoundaryViolationIsTypedAndFailsClosed() {
+        val error =
+            runCatching {
+                requireNativeBoundary(
+                    condition =
+                        false,
+
+                    detail =
+                        "native route id mismatch",
+                )
+            }
+                .exceptionOrNull()
+
+        assertTrue(
+            error is
+                NavigationReliabilityException
+        )
+
+        error as
+            NavigationReliabilityException
+
+        assertEquals(
+            NavigationFaultCode.NativeBoundaryRejected,
+            error.fault.code,
+        )
+
+        assertEquals(
+            NavigationFaultDisposition.FailClosedNavigationTruth,
+            error.fault.disposition,
+        )
+    }
+
+    @Test
     fun serviceFiveHundredIsRetryableButBadRequestIsNot() {
         val unavailable =
             NavigationReliabilityClassifier

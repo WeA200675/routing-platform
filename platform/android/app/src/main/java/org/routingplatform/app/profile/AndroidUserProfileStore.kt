@@ -1,6 +1,9 @@
 package org.routingplatform.app.profile
 
 import android.content.Context
+import android.util.Log
+import org.routingplatform.app.navigation.NavigationPersistenceReliability
+import org.routingplatform.app.navigation.NavigationReliabilityEvent
 
 /*
  * Small local store for explicit user profile settings.
@@ -11,6 +14,10 @@ import android.content.Context
 class AndroidUserProfileStore(
     context:
         Context,
+
+    private val onReliabilityEvent:
+        (NavigationReliabilityEvent) -> Unit =
+        ::logUserProfilePersistenceEvent,
 ) {
     private val preferences =
         context.applicationContext
@@ -24,60 +31,83 @@ class AndroidUserProfileStore(
         fallback:
             UserProfile =
             ProfileDefaults.guest(),
-    ): UserProfile {
+    ): UserProfile =
+        NavigationPersistenceReliability
+            .loadOrFallback(
+                fallback =
+                    fallback,
 
-        val activeProfileId =
-            preferences.getString(
-                ACTIVE_PROFILE_ID_KEY,
-                null,
-            )
-                ?: return fallback
+                operationName =
+                    "user-profile.load",
 
-        val encoded =
-            preferences.getString(
-                profileKey(
-                    activeProfileId
-                ),
-                null,
-            )
-                ?: return fallback
+                onReliabilityEvent =
+                    onReliabilityEvent,
+            ) {
+                val activeProfileId =
+                    preferences.getString(
+                        ACTIVE_PROFILE_ID_KEY,
+                        null,
+                    )
+                        ?: return@loadOrFallback fallback
 
-        return runCatching {
-            ProfilePersistenceCodec
-                .decode(
-                    encoded
-                )
-        }.getOrElse {
-            fallback
-        }
-    }
+                val encoded =
+                    preferences.getString(
+                        profileKey(
+                            activeProfileId
+                        ),
+                        null,
+                    )
+                        ?: return@loadOrFallback fallback
+
+                val decoded =
+                    ProfilePersistenceCodec
+                        .decode(
+                            encoded
+                        )
+
+                require(
+                    decoded.profileId ==
+                        activeProfileId
+                ) {
+                    "Active profile id does not match stored profile."
+                }
+
+                decoded
+            }
 
     @Synchronized
     fun saveAndActivate(
         profile:
             UserProfile,
-    ): Boolean {
+    ): Boolean =
+        NavigationPersistenceReliability
+            .saveWithSingleRetry(
+                operationName =
+                    "user-profile.save",
 
-        val encoded =
-            ProfilePersistenceCodec
-                .encode(
-                    profile
-                )
+                onReliabilityEvent =
+                    onReliabilityEvent,
+            ) {
+                val encoded =
+                    ProfilePersistenceCodec
+                        .encode(
+                            profile
+                        )
 
-        return preferences
-            .edit()
-            .putString(
-                profileKey(
-                    profile.profileId
-                ),
-                encoded,
-            )
-            .putString(
-                ACTIVE_PROFILE_ID_KEY,
-                profile.profileId,
-            )
-            .commit()
-    }
+                preferences
+                    .edit()
+                    .putString(
+                        profileKey(
+                            profile.profileId
+                        ),
+                        encoded,
+                    )
+                    .putString(
+                        ACTIVE_PROFILE_ID_KEY,
+                        profile.profileId,
+                    )
+                    .commit()
+            }
 
     private fun profileKey(
         profileId:
@@ -86,6 +116,19 @@ class AndroidUserProfileStore(
         PROFILE_KEY_PREFIX +
             profileId
 }
+
+private fun logUserProfilePersistenceEvent(
+    event:
+        NavigationReliabilityEvent,
+) {
+    Log.w(
+        USER_PROFILE_STORE_LOG_TAG,
+        "${event.kind}/${event.fault.code}/${event.fault.domain}",
+    )
+}
+
+private const val USER_PROFILE_STORE_LOG_TAG =
+    "RoutingProfileStore"
 
 private const val PROFILE_PREFERENCES_NAME =
     "routing-platform-user-profiles-v1"

@@ -74,19 +74,23 @@ class JniNavigationCoreBridge :
                 ).toUiSnapshot()
             )
 
-        check(
-            nativeSnapshot.routeId ==
-                route.routeId
-        ) {
-            "Native route installation returned another route id."
-        }
+        requireNativeBoundary(
+            condition =
+                nativeSnapshot.routeId ==
+                    route.routeId,
 
-        check(
-            nativeSnapshot.geometry.size ==
-                route.geometry.size
-        ) {
-            "Native route installation changed route geometry size."
-        }
+            detail =
+                "Native route installation returned another route id.",
+        )
+
+        requireNativeBoundary(
+            condition =
+                nativeSnapshot.geometry.size ==
+                    route.geometry.size,
+
+            detail =
+                "Native route installation changed route geometry size.",
+        )
 
         /*
          * Only publish Kotlin-side route metadata after native
@@ -112,12 +116,14 @@ class JniNavigationCoreBridge :
         val previous =
             currentSnapshot()
 
-        check(
-            previous.state ==
-                NavigationSessionState.Navigating
-        ) {
-            "Active route replacement requires Navigating state."
-        }
+        requireNativeBoundary(
+            condition =
+                previous.state ==
+                    NavigationSessionState.Navigating,
+
+            detail =
+                "Active route replacement requires Navigating state.",
+        )
 
         val payload =
             NavigationRouteNativeCodec
@@ -132,26 +138,41 @@ class JniNavigationCoreBridge :
                 ).toUiSnapshot()
             )
 
-        check(
-            nativeSnapshot.state ==
-                NavigationSessionState.Navigating
-        ) {
-            "Replacement route did not start a new navigation session."
-        }
+        requireNativeBoundary(
+            condition =
+                nativeSnapshot.state ==
+                    NavigationSessionState.Navigating,
 
-        check(
-            nativeSnapshot.sessionId !=
-                previous.sessionId
-        ) {
-            "Replacement route did not create a new native session."
-        }
+            detail =
+                "Replacement route did not start a new navigation session.",
+        )
 
-        check(
-            nativeSnapshot.geometry.size ==
-                route.geometry.size
-        ) {
-            "Replacement route changed geometry size."
-        }
+        requireNativeBoundary(
+            condition =
+                nativeSnapshot.sessionId !=
+                    previous.sessionId,
+
+            detail =
+                "Replacement route did not create a new native session.",
+        )
+
+        requireNativeBoundary(
+            condition =
+                nativeSnapshot.routeId ==
+                    route.routeId,
+
+            detail =
+                "Replacement route returned another route id.",
+        )
+
+        requireNativeBoundary(
+            condition =
+                nativeSnapshot.geometry.size ==
+                    route.geometry.size,
+
+            detail =
+                "Replacement route changed geometry size.",
+        )
 
         installedRoute =
             route
@@ -334,11 +355,13 @@ class JniNavigationCoreBridge :
         snapshot: NavigationUiSnapshot,
     ): NavigationUiSnapshot {
 
-        check(
-            snapshot.presentationBoundaryIntact
-        ) {
-            "Native bridge crossed the Navigation Runtime presentation boundary."
-        }
+        requireNativeBoundary(
+            condition =
+                snapshot.presentationBoundaryIntact,
+
+            detail =
+                "Native bridge crossed the Navigation Runtime presentation boundary.",
+        )
 
         return snapshot
     }

@@ -1,6 +1,9 @@
 package org.routingplatform.app.places
 
 import android.content.Context
+import android.util.Log
+import org.routingplatform.app.navigation.NavigationPersistenceReliability
+import org.routingplatform.app.navigation.NavigationReliabilityEvent
 
 /*
  * Explicit, profile-local saved places.
@@ -11,6 +14,10 @@ import android.content.Context
 class AndroidFavoriteDestinationStore(
     context:
         Context,
+
+    private val onReliabilityEvent:
+        (NavigationReliabilityEvent) -> Unit =
+        ::logFavoritePersistenceEvent,
 ) {
     private val preferences =
         context.applicationContext
@@ -31,34 +38,41 @@ class AndroidFavoriteDestinationStore(
                     profileId
                 )
 
-        val encoded =
-            preferences.getString(
-                favoriteKey(
-                    profileId
-                ),
-                null,
-            )
-                ?: return empty
+        return NavigationPersistenceReliability
+            .loadOrFallback(
+                fallback =
+                    empty,
 
-        return runCatching {
-            FavoriteDestinationCodec
-                .decode(
-                    encoded
-                )
-        }.mapCatching {
-                decoded ->
+                operationName =
+                    "favorite-destinations.load",
 
-            require(
-                decoded.profileId ==
-                    profileId
+                onReliabilityEvent =
+                    onReliabilityEvent,
             ) {
-                "Favorite destination profile mismatch."
-            }
+                val encoded =
+                    preferences.getString(
+                        favoriteKey(
+                            profileId
+                        ),
+                        null,
+                    )
+                        ?: return@loadOrFallback empty
 
-            decoded
-        }.getOrElse {
-            empty
-        }
+                val decoded =
+                    FavoriteDestinationCodec
+                        .decode(
+                            encoded
+                        )
+
+                require(
+                    decoded.profileId ==
+                        profileId
+                ) {
+                    "Favorite destination profile mismatch."
+                }
+
+                decoded
+            }
     }
 
     @Synchronized
@@ -66,18 +80,27 @@ class AndroidFavoriteDestinationStore(
         collection:
             FavoriteDestinationCollection,
     ): Boolean =
-        preferences
-            .edit()
-            .putString(
-                favoriteKey(
-                    collection.profileId
-                ),
-                FavoriteDestinationCodec
-                    .encode(
-                        collection
-                    ),
-            )
-            .commit()
+        NavigationPersistenceReliability
+            .saveWithSingleRetry(
+                operationName =
+                    "favorite-destinations.save",
+
+                onReliabilityEvent =
+                    onReliabilityEvent,
+            ) {
+                preferences
+                    .edit()
+                    .putString(
+                        favoriteKey(
+                            collection.profileId
+                        ),
+                        FavoriteDestinationCodec
+                            .encode(
+                                collection
+                            ),
+                    )
+                    .commit()
+            }
 
     private fun favoriteKey(
         profileId:
@@ -93,6 +116,19 @@ class AndroidFavoriteDestinationStore(
             profileId
     }
 }
+
+private fun logFavoritePersistenceEvent(
+    event:
+        NavigationReliabilityEvent,
+) {
+    Log.w(
+        FAVORITE_STORE_LOG_TAG,
+        "${event.kind}/${event.fault.code}/${event.fault.domain}",
+    )
+}
+
+private const val FAVORITE_STORE_LOG_TAG =
+    "RoutingFavoriteStore"
 
 private const val FAVORITE_DESTINATION_PREFERENCES_NAME =
     "routing-platform-favorite-destinations-v1"

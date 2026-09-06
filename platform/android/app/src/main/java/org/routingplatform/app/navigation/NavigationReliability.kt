@@ -494,6 +494,75 @@ internal object NavigationReliabilityClassifier {
                 "AndroidLocationSource.start() returned false for route planning.",
         )
 
+    fun persistenceUnavailable(
+        detail:
+            String,
+    ): NavigationFault =
+        NavigationFault(
+            code =
+                NavigationFaultCode.PersistenceUnavailable,
+
+            domain =
+                NavigationFaultDomain.Persistence,
+
+            disposition =
+                NavigationFaultDisposition.RetryableInfrastructure,
+
+            userMessage =
+                "Lokale Einstellungen konnten nicht zuverlässig gelesen oder gespeichert werden.",
+
+            technicalMessage =
+                detail.take(
+                    MAX_TECHNICAL_DETAIL_CHARS
+                ),
+        )
+
+    fun mapUnavailable(
+        detail:
+            String,
+    ): NavigationFault =
+        NavigationFault(
+            code =
+                NavigationFaultCode.MapUnavailable,
+
+            domain =
+                NavigationFaultDomain.MapPresentation,
+
+            disposition =
+                NavigationFaultDisposition.RetryableInfrastructure,
+
+            userMessage =
+                "Die Kartenansicht ist vorübergehend nicht verfügbar.",
+
+            technicalMessage =
+                detail.take(
+                    MAX_TECHNICAL_DETAIL_CHARS
+                ),
+        )
+
+    fun nativeBoundaryRejected(
+        detail:
+            String,
+    ): NavigationFault =
+        NavigationFault(
+            code =
+                NavigationFaultCode.NativeBoundaryRejected,
+
+            domain =
+                NavigationFaultDomain.NativeBoundary,
+
+            disposition =
+                NavigationFaultDisposition.FailClosedNavigationTruth,
+
+            userMessage =
+                "Die Navigation hat einen ungültigen nativen Zustand abgelehnt.",
+
+            technicalMessage =
+                detail.take(
+                    MAX_TECHNICAL_DETAIL_CHARS
+                ),
+        )
+
     private fun structuredServiceFault(
         error:
             NavigationServiceErrorPayload,
@@ -878,6 +947,197 @@ internal object NavigationReliabilityClassifier {
         )
 }
 
+internal object NavigationPersistenceReliability {
+
+    fun <T> loadOrFallback(
+        fallback:
+            T,
+
+        operationName:
+            String,
+
+        onReliabilityEvent:
+            (NavigationReliabilityEvent) -> Unit,
+
+        operation:
+            () -> T,
+    ): T {
+        return try {
+            operation()
+        } catch (
+            error:
+                Exception
+        ) {
+            val fault =
+                NavigationReliabilityClassifier
+                    .persistenceUnavailable(
+                        "$operationName failed: " +
+                            error.javaClass.name
+                    )
+
+            onReliabilityEvent(
+                NavigationReliabilityEvent(
+                    kind =
+                        NavigationReliabilityEventKind.FaultObserved,
+
+                    fault =
+                        fault,
+
+                    retryNumber =
+                        0,
+
+                    delayMs =
+                        0L,
+                )
+            )
+
+            /*
+             * Reads fail over immediately to the caller-provided
+             * safe fallback. We do not repeatedly decode corrupted
+             * local state.
+             */
+            onReliabilityEvent(
+                NavigationReliabilityEvent(
+                    kind =
+                        NavigationReliabilityEventKind.RecoveryExhausted,
+
+                    fault =
+                        fault,
+
+                    retryNumber =
+                        0,
+
+                    delayMs =
+                        0L,
+                )
+            )
+
+            fallback
+        }
+    }
+
+    fun saveWithSingleRetry(
+        operationName:
+            String,
+
+        onReliabilityEvent:
+            (NavigationReliabilityEvent) -> Unit,
+
+        operation:
+            () -> Boolean,
+    ): Boolean {
+
+        var retriesAlreadyAttempted =
+            0
+
+        while (true) {
+            val attempt =
+                try {
+                    operation()
+                } catch (
+                    error:
+                        Exception
+                ) {
+                    false
+                }
+
+            if (
+                attempt
+            ) {
+                return true
+            }
+
+            val fault =
+                NavigationReliabilityClassifier
+                    .persistenceUnavailable(
+                        "$operationName failed to commit."
+                    )
+
+            onReliabilityEvent(
+                NavigationReliabilityEvent(
+                    kind =
+                        NavigationReliabilityEventKind.FaultObserved,
+
+                    fault =
+                        fault,
+
+                    retryNumber =
+                        retriesAlreadyAttempted,
+
+                    delayMs =
+                        0L,
+                )
+            )
+
+            if (
+                retriesAlreadyAttempted >=
+                    MAX_PERSISTENCE_SAVE_RETRIES
+            ) {
+                onReliabilityEvent(
+                    NavigationReliabilityEvent(
+                        kind =
+                            NavigationReliabilityEventKind.RecoveryExhausted,
+
+                        fault =
+                            fault,
+
+                        retryNumber =
+                            retriesAlreadyAttempted,
+
+                        delayMs =
+                            0L,
+                    )
+                )
+
+                return false
+            }
+
+            retriesAlreadyAttempted +=
+                1
+
+            onReliabilityEvent(
+                NavigationReliabilityEvent(
+                    kind =
+                        NavigationReliabilityEventKind.RecoveryScheduled,
+
+                    fault =
+                        fault,
+
+                    retryNumber =
+                        retriesAlreadyAttempted,
+
+                    /*
+                     * SharedPreferences.commit() is synchronous and
+                     * idempotent for this write. Retry once without
+                     * sleeping on the UI thread.
+                     */
+                    delayMs =
+                        0L,
+                )
+            )
+        }
+    }
+}
+
+internal fun requireNativeBoundary(
+    condition:
+        Boolean,
+
+    detail:
+        String,
+) {
+    if (
+        !condition
+    ) {
+        throw NavigationReliabilityException(
+            NavigationReliabilityClassifier
+                .nativeBoundaryRejected(
+                    detail
+                )
+        )
+    }
+}
+
 private data class NavigationServiceErrorPayload(
     val code:
         String,
@@ -885,6 +1145,9 @@ private data class NavigationServiceErrorPayload(
     val message:
         String,
 )
+
+private const val MAX_PERSISTENCE_SAVE_RETRIES =
+    1
 
 private const val MAX_TECHNICAL_DETAIL_CHARS =
     1_000
