@@ -616,6 +616,10 @@ class MainActivity :
                         observedPosition =
                             observedPositionPresentation,
 
+                        trustedTravelBearingDegrees =
+                            telemetry
+                                .trustedTravelBearingDegrees,
+
                         onStartNavigation = {
                             progressStep =
                                 0

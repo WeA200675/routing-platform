@@ -48,6 +48,17 @@ data class NavigationRuntimeTelemetry(
         Double?,
 
     /*
+     * Read-only presentation heading.
+     *
+     * This value cannot move route progress and is published only
+     * from a current direct observation with High/Medium confidence
+     * and Consistent motion agreement.
+     */
+    val trustedTravelBearingDegrees:
+        Double? =
+        null,
+
+    /*
      * Observation only.
      *
      * It is not accepted route progress and may only participate
@@ -578,6 +589,39 @@ class AndroidNavigationRuntimeController(
                     lastLocationAccuracyM =
                         sample
                             .horizontalAccuracyM,
+
+                    trustedTravelBearingDegrees =
+                        result
+                            .fusionUpdate
+                            .estimate
+                            ?.bearingDegrees
+                            ?.takeIf {
+                                    bearing ->
+
+                                bearing.isFinite() &&
+                                    result
+                                        .fusionUpdate
+                                        .mode ==
+                                        NavigationFusionMode
+                                            .DirectObservation &&
+                                    result
+                                        .fusionUpdate
+                                        .motionAgreement ==
+                                        NavigationMotionAgreement
+                                            .Consistent &&
+                                    (
+                                        result
+                                            .fusionUpdate
+                                            .stabilizedConfidence ==
+                                            NavigationPositionConfidence
+                                                .High ||
+                                        result
+                                            .fusionUpdate
+                                            .stabilizedConfidence ==
+                                            NavigationPositionConfidence
+                                                .Medium
+                                    )
+                            },
 
                     lastObservedPosition =
                         sample

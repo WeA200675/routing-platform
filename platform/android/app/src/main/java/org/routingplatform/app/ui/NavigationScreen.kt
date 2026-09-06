@@ -50,6 +50,10 @@ fun NavigationScreen(
     observedPosition:
         NavigationObservedPositionPresentation? =
         null,
+
+    trustedTravelBearingDegrees:
+        Double? =
+        null,
 ) {
     Column(
         modifier =
@@ -77,6 +81,9 @@ fun NavigationScreen(
 
                 observedPosition =
                     observedPosition,
+
+                trustedTravelBearingDegrees =
+                    trustedTravelBearingDegrees,
 
                 modifier =
                     Modifier.fillMaxSize(),

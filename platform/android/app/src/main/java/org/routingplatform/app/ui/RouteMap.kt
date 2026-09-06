@@ -3,6 +3,7 @@ package org.routingplatform.app.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -15,7 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -65,6 +68,10 @@ fun RouteMap(
     observedPosition:
         NavigationObservedPositionPresentation? =
         null,
+
+    trustedTravelBearingDegrees:
+        Double? =
+        null,
 ) {
     val context =
         LocalContext.current
@@ -78,6 +85,39 @@ fun RouteMap(
                 displayPreferences
                     .mapStyle
             )
+
+    /*
+     * Heading-up is a presentation decision only.
+     *
+     * The existing G3 camera gate must be open AND the runtime must
+     * supply a current trusted travel bearing. Otherwise the map
+     * remains north-up.
+     */
+    val compassPresentation =
+        remember(
+            displayPreferences
+                .mapOrientation,
+
+            trustedTravelBearingDegrees,
+
+            observedPosition
+                ?.cameraFollowAllowed,
+        ) {
+            NavigationCompassPresentation
+                .create(
+                    mapOrientation =
+                        displayPreferences
+                            .mapOrientation,
+
+                    trustedTravelBearingDegrees =
+                        trustedTravelBearingDegrees,
+
+                    cameraFollowAllowed =
+                        observedPosition
+                            ?.cameraFollowAllowed ==
+                            true,
+                )
+        }
 
     val mapView =
         remember {
@@ -299,6 +339,7 @@ fun RouteMap(
         showProgress,
         displayPreferences,
         observedPosition,
+        compassPresentation,
     ) {
         val style =
             loadedStyle
@@ -533,8 +574,9 @@ fun RouteMap(
              * Only Accepted + High/Medium + DirectObservation
              * presentation state may become the camera target.
              *
-             * We still have no trusted heading in this UI contract,
-             * so bearing remains north-up instead of inventing one.
+             * Heading-up is allowed only through compassPresentation.
+             * If heading evidence is missing/stale/unsafe, its map
+             * bearing is exactly zero and the map remains north-up.
              */
             val cameraTarget =
                 observedPosition
@@ -566,7 +608,8 @@ fun RouteMap(
                             .mapTiltDegrees
                     )
                     .bearing(
-                        0.0
+                        compassPresentation
+                            .mapBearingDegrees
                     )
                     .build()
         } else {
@@ -591,6 +634,21 @@ fun RouteMap(
 
             modifier =
                 Modifier.fillMaxSize(),
+        )
+
+        NavigationCompass(
+            presentation =
+                compassPresentation,
+
+            modifier =
+                Modifier
+                    .align(
+                        Alignment.CenterEnd
+                    )
+                    .padding(
+                        end =
+                            8.dp,
+                    ),
         )
 
         observedPosition
@@ -666,6 +724,116 @@ fun RouteMap(
                         vertical =
                             6.dp,
                     ),
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .labelSmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NavigationCompass(
+    presentation:
+        NavigationCompassPresentation,
+
+    modifier:
+        Modifier =
+        Modifier,
+) {
+    Surface(
+        modifier =
+            modifier,
+
+        tonalElevation =
+            6.dp,
+
+        shape =
+            MaterialTheme
+                .shapes
+                .large,
+    ) {
+        Box(
+            modifier =
+                Modifier.size(
+                    56.dp
+                ),
+
+            contentAlignment =
+                Alignment.Center,
+        ) {
+            /*
+             * The complete North rose rotates around the center.
+             * The degree label stays screen-aligned for readability.
+             */
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .rotate(
+                            presentation
+                                .compassNorthRotationDegrees
+                                .toFloat()
+                        ),
+            ) {
+                Text(
+                    text =
+                        "N",
+
+                    modifier =
+                        Modifier
+                            .align(
+                                Alignment.TopCenter
+                            )
+                            .padding(
+                                top =
+                                    3.dp
+                            ),
+
+                    fontWeight =
+                        FontWeight.Bold,
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelMedium,
+                )
+
+                Text(
+                    text =
+                        "▲",
+
+                    modifier =
+                        Modifier.align(
+                            Alignment.Center
+                        ),
+
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .error,
+
+                    fontWeight =
+                        FontWeight.Bold,
+                )
+            }
+
+            Text(
+                text =
+                    presentation
+                        .label,
+
+                modifier =
+                    Modifier
+                        .align(
+                            Alignment.BottomCenter
+                        )
+                        .padding(
+                            bottom =
+                                3.dp
+                        ),
 
                 style =
                     MaterialTheme
