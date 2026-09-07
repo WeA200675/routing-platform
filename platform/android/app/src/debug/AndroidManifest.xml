@@ -29,7 +29,9 @@
         <activity
             android:name=".navigation.G5R6DriveProofControlActivity"
             android:excludeFromRecents="true"
-            android:exported="true" />
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="org.routingplatform.app.driveproofcontrol" />
 
     </application>
 

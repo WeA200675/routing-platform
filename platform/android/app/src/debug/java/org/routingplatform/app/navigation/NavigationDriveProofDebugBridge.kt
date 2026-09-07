@@ -1,6 +1,7 @@
 package org.routingplatform.app.navigation
 
 import android.app.Activity
+import android.content.Intent
 import android.content.Context
 import android.os.Bundle
 import android.widget.TextView
@@ -383,6 +384,9 @@ internal object NavigationDriveProofDebugCaptureController {
 class G5R6DriveProofControlActivity :
     Activity() {
 
+    private lateinit var statusView:
+        TextView
+
     override fun onCreate(
         savedInstanceState:
             Bundle?,
@@ -391,7 +395,7 @@ class G5R6DriveProofControlActivity :
             savedInstanceState
         )
 
-        val status =
+        statusView =
             TextView(
                 this
             ).apply {
@@ -410,11 +414,37 @@ class G5R6DriveProofControlActivity :
             }
 
         setContentView(
-            status
+            statusView
         )
 
-        val mode =
+        renderControlIntent(
             intent
+        )
+    }
+
+    override fun onNewIntent(
+        intent:
+            Intent,
+    ) {
+        super.onNewIntent(
+            intent
+        )
+
+        setIntent(
+            intent
+        )
+
+        renderControlIntent(
+            intent
+        )
+    }
+
+    private fun renderControlIntent(
+        controlIntent:
+            Intent,
+    ) {
+        val mode =
+            controlIntent
                 .getStringExtra(
                     EXTRA_MODE
                 )
@@ -428,7 +458,7 @@ class G5R6DriveProofControlActivity :
                 ) {
                     "arm" -> {
                         val captureId =
-                            intent
+                            controlIntent
                                 .getStringExtra(
                                     EXTRA_CAPTURE_ID
                                 )
@@ -499,7 +529,7 @@ class G5R6DriveProofControlActivity :
                 }
             }
 
-        status.text =
+        statusView.text =
             result.fold(
                 onSuccess = {
                         detail ->
