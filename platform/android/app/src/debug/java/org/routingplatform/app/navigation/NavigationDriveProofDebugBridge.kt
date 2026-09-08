@@ -387,6 +387,9 @@ class G5R6DriveProofControlActivity :
     private lateinit var statusView:
         TextView
 
+    private lateinit var stopButton:
+        android.widget.Button
+
     override fun onCreate(
         savedInstanceState:
             Bundle?,
@@ -394,6 +397,21 @@ class G5R6DriveProofControlActivity :
         super.onCreate(
             savedInstanceState
         )
+
+        val content =
+            android.widget.LinearLayout(
+                this
+            ).apply {
+                orientation =
+                    android.widget.LinearLayout.VERTICAL
+
+                setPadding(
+                    32,
+                    32,
+                    32,
+                    32,
+                )
+            }
 
         statusView =
             TextView(
@@ -406,15 +424,43 @@ class G5R6DriveProofControlActivity :
                     16.0f
 
                 setPadding(
-                    32,
-                    32,
-                    32,
-                    32,
+                    0,
+                    0,
+                    0,
+                    24,
                 )
             }
 
-        setContentView(
+        stopButton =
+            android.widget.Button(
+                this
+            ).apply {
+                text =
+                    "Drive-Proof stoppen"
+
+                contentDescription =
+                    STOP_BUTTON_CONTENT_DESCRIPTION
+
+                setOnClickListener {
+                    renderControlIntent(
+                        Intent().putExtra(
+                            EXTRA_MODE,
+                            "stop",
+                        )
+                    )
+                }
+            }
+
+        content.addView(
             statusView
+        )
+
+        content.addView(
+            stopButton
+        )
+
+        setContentView(
+            content
         )
 
         renderControlIntent(
@@ -450,6 +496,9 @@ class G5R6DriveProofControlActivity :
                 )
                 ?.trim()
                 .orEmpty()
+                .ifEmpty {
+                    "status"
+                }
 
         val result =
             runCatching {
@@ -561,6 +610,20 @@ class G5R6DriveProofControlActivity :
                             )
                 },
             )
+
+        stopButton.isEnabled =
+            runCatching {
+                NavigationDriveProofDebugCaptureController
+                    .status()
+            }
+                .getOrNull()
+                ?.let {
+                        state ->
+
+                    state.armedCaptureId != null ||
+                        state.activeCaptureId != null
+                }
+                ?: false
     }
 
     companion object {
@@ -569,5 +632,8 @@ class G5R6DriveProofControlActivity :
 
         private const val EXTRA_CAPTURE_ID =
             "captureId"
+
+        private const val STOP_BUTTON_CONTENT_DESCRIPTION =
+            "g5r7_drive_proof_stop_button"
     }
 }
