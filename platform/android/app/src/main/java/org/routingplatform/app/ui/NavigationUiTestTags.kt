@@ -68,6 +68,30 @@ internal object NavigationUiTestTags {
     const val VoiceSave =
         "rp.navigation.voice_save"
 
+    const val HapticSettingsOpen =
+        "rp.navigation.haptic_settings_open"
+
+    const val HapticSettingsDialog =
+        "rp.navigation.haptic_settings_dialog"
+
+    const val HapticPreview =
+        "rp.navigation.haptic_preview"
+
+    const val HapticSave =
+        "rp.navigation.haptic_save"
+
+    fun hapticIntensity(
+        intensityName:
+            String,
+    ): String {
+        require(
+            intensityName.isNotBlank()
+        )
+
+        return "rp.navigation.haptic_intensity." +
+            intensityName
+    }
+
     fun experiencePack(
         packId:
             String,

@@ -59,6 +59,7 @@ import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
 import org.routingplatform.app.ui.RoutingPlatformTheme
+import org.routingplatform.app.ui.rememberNavigationHapticRuntime
 import org.routingplatform.app.ui.rememberNavigationVoiceRuntime
 import org.routingplatform.app.ui.rememberNavigationNightAdaptation
 
@@ -1117,6 +1118,16 @@ class MainActivity :
                             .personality,
                 )
 
+            val hapticRuntime =
+                rememberNavigationHapticRuntime(
+                    snapshot =
+                        snapshot,
+
+                    navigationPreferences =
+                        activeProfile
+                            .navigation,
+                )
+
             RoutingPlatformTheme(
                 appearance =
                     runtimeDisplayPreferences
@@ -1218,6 +1229,18 @@ class MainActivity :
                         voicePreferences =
                             activeProfile
                                 .voice,
+
+                        navigationPreferences =
+                            activeProfile
+                                .navigation,
+
+                        hapticAvailable =
+                            hapticRuntime
+                                .available,
+
+                        onHapticPreview =
+                            hapticRuntime
+                                .preview,
 
                         voiceCatalogState =
                             voiceRuntime
@@ -1577,6 +1600,28 @@ class MainActivity :
                                                 navigationControlSide =
                                                     side
                                             )
+                                )
+
+                            check(
+                                profileStore
+                                    .saveAndActivate(
+                                        updated
+                                    )
+                            ) {
+                                "Could not persist active profile."
+                            }
+
+                            activeProfile =
+                                updated
+                        },
+
+                        onNavigationPreferencesChanged = {
+                                updatedNavigation ->
+
+                            val updated =
+                                activeProfile.copy(
+                                    navigation =
+                                        updatedNavigation
                                 )
 
                             check(

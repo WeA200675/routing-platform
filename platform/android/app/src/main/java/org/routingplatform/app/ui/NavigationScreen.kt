@@ -54,7 +54,9 @@ import org.routingplatform.app.profile.DisplayPreferences
 import org.routingplatform.app.profile.ExperiencePackCatalog
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.NavigationControlSide
+import org.routingplatform.app.profile.NavigationHapticIntensity
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
+import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoicePreferences
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
 import kotlin.math.roundToInt
@@ -145,6 +147,25 @@ internal fun NavigationScreen(
 
     onVoicePreferencesChanged:
         (VoicePreferences) -> Unit =
+        {},
+
+    navigationPreferences:
+        NavigationPreferences =
+        NavigationPreferences(),
+
+    hapticAvailable:
+        Boolean =
+        false,
+
+    onHapticPreview:
+        (NavigationHapticIntensity) ->
+        Boolean =
+        {
+            false
+        },
+
+    onNavigationPreferencesChanged:
+        (NavigationPreferences) -> Unit =
         {},
 
     onExperiencePackSelected:
@@ -254,6 +275,13 @@ internal fun NavigationScreen(
         }
 
     var voiceSettingsOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
+    var hapticSettingsOpen by
         remember {
             mutableStateOf(
                 false
@@ -772,6 +800,48 @@ internal fun NavigationScreen(
                             )
                         }
 
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
+                                            .HapticSettingsOpen
+                                    ),
+
+                            onClick = {
+                                hapticSettingsOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    "Haptik: " +
+                                        if (
+                                            navigationPreferences
+                                                .hapticGuidanceEnabled
+                                        ) {
+                                            navigationHapticIntensityLabel(
+                                                navigationPreferences
+                                                    .hapticIntensity
+                                            )
+                                        } else {
+                                            "Aus | " +
+                                                navigationHapticIntensityLabel(
+                                                    navigationPreferences
+                                                        .hapticIntensity
+                                                )
+                                        }
+                            )
+                        }
+
                         if (
                             !navigationStartEnabled &&
                             !navigationUnavailableMessage
@@ -1102,6 +1172,31 @@ internal fun NavigationScreen(
 
             onDismiss = {
                 voiceSettingsOpen =
+                    false
+            },
+        )
+    }
+
+    if (
+        hapticSettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationHapticSettingsDialog(
+            preferences =
+                navigationPreferences,
+
+            hapticAvailable =
+                hapticAvailable,
+
+            onPreview =
+                onHapticPreview,
+
+            onSave =
+                onNavigationPreferencesChanged,
+
+            onDismiss = {
+                hapticSettingsOpen =
                     false
             },
         )
