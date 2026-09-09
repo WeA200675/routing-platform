@@ -50,6 +50,7 @@ import org.routingplatform.app.places.DestinationSearchHandle
 import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AndroidUserProfileStore
+import org.routingplatform.app.profile.ExperiencePackSelectionSource
 import org.routingplatform.app.ui.NavigationAssistOverlay
 import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NavigationScreen
@@ -1122,6 +1123,10 @@ class MainActivity :
                             activeProfile
                                 .display,
 
+                        personalityPreferences =
+                            activeProfile
+                                .personality,
+
                         selectedTripStop =
                             selectedTripStop,
 
@@ -1445,6 +1450,105 @@ class MainActivity :
                                             .copy(
                                                 navigationControlSide =
                                                     side
+                                            )
+                                )
+
+                            check(
+                                profileStore
+                                    .saveAndActivate(
+                                        updated
+                                    )
+                            ) {
+                                "Could not persist active profile."
+                            }
+
+                            activeProfile =
+                                updated
+                        },
+
+                        onExperiencePackSelected = {
+                                packId ->
+
+                            val updated =
+                                activeProfile.copy(
+                                    personality =
+                                        activeProfile
+                                            .personality
+                                            .copy(
+                                                selectedPackId =
+                                                    packId,
+
+                                                selectionSource =
+                                                    ExperiencePackSelectionSource
+                                                        .Explicit,
+
+                                                weeklyDiscoveryEnabled =
+                                                    false,
+                                            )
+                                )
+
+                            check(
+                                profileStore
+                                    .saveAndActivate(
+                                        updated
+                                    )
+                            ) {
+                                "Could not persist active profile."
+                            }
+
+                            activeProfile =
+                                updated
+                        },
+
+                        onWeeklyDiscoveryChanged = {
+                                enabled ->
+
+                            val updated =
+                                activeProfile.copy(
+                                    personality =
+                                        activeProfile
+                                            .personality
+                                            .copy(
+                                                weeklyDiscoveryEnabled =
+                                                    enabled,
+
+                                                selectionSource =
+                                                    if (
+                                                        enabled
+                                                    ) {
+                                                        ExperiencePackSelectionSource
+                                                            .WeeklyDiscovery
+                                                    } else {
+                                                        ExperiencePackSelectionSource
+                                                            .Explicit
+                                                    },
+                                            )
+                                )
+
+                            check(
+                                profileStore
+                                    .saveAndActivate(
+                                        updated
+                                    )
+                            ) {
+                                "Could not persist active profile."
+                            }
+
+                            activeProfile =
+                                updated
+                        },
+
+                        onWeeklyDiscoveryIntensityChanged = {
+                                intensity ->
+
+                            val updated =
+                                activeProfile.copy(
+                                    personality =
+                                        activeProfile
+                                            .personality
+                                            .copy(
+                                                weeklyDiscoveryIntensity =
+                                                    intensity
                                             )
                                 )
 

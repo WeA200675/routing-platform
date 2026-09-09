@@ -51,7 +51,10 @@ import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestination
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.DisplayPreferences
+import org.routingplatform.app.profile.ExperiencePackCatalog
 import org.routingplatform.app.profile.NavigationControlSide
+import org.routingplatform.app.profile.NavigationPersonalityPreferences
+import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
 import kotlin.math.roundToInt
 
 @Composable
@@ -99,6 +102,22 @@ fun NavigationScreen(
 
     onNavigationControlSideChanged:
         (NavigationControlSide) -> Unit =
+        {},
+
+    personalityPreferences:
+        NavigationPersonalityPreferences =
+        NavigationPersonalityPreferences(),
+
+    onExperiencePackSelected:
+        (String) -> Unit =
+        {},
+
+    onWeeklyDiscoveryChanged:
+        (Boolean) -> Unit =
+        {},
+
+    onWeeklyDiscoveryIntensityChanged:
+        (WeeklyDiscoveryIntensity) -> Unit =
         {},
 
     selectedTripStop:
@@ -182,6 +201,13 @@ fun NavigationScreen(
         {},
 ) {
     var plannerOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
+    var experiencePackOpen by
         remember {
             mutableStateOf(
                 false
@@ -562,6 +588,50 @@ fun NavigationScreen(
                             )
                         }
 
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
+                                            .ExperiencePackOpen
+                                    ),
+
+                            onClick = {
+                                experiencePackOpen =
+                                    true
+                            },
+                        ) {
+                            val selectedPack =
+                                ExperiencePackCatalog
+                                    .require(
+                                        personalityPreferences
+                                            .selectedPackId
+                                    )
+
+                            Text(
+                                text =
+                                    "Navi-Stil: " +
+                                        selectedPack
+                                            .displayName +
+                                        if (
+                                            personalityPreferences
+                                                .weeklyDiscoveryEnabled
+                                        ) {
+                                            " · Überraschung an"
+                                        } else {
+                                            ""
+                                        }
+                            )
+                        }
+
                         if (
                             !navigationStartEnabled &&
                             !navigationUnavailableMessage
@@ -741,6 +811,31 @@ fun NavigationScreen(
 
             onMoveViaDown =
                 onMoveViaDown,
+        )
+    }
+
+    if (
+        experiencePackOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        ExperiencePackDialog(
+            preferences =
+                personalityPreferences,
+
+            onSelectPack =
+                onExperiencePackSelected,
+
+            onWeeklyDiscoveryChanged =
+                onWeeklyDiscoveryChanged,
+
+            onWeeklyDiscoveryIntensityChanged =
+                onWeeklyDiscoveryIntensityChanged,
+
+            onDismiss = {
+                experiencePackOpen =
+                    false
+            },
         )
     }
 }

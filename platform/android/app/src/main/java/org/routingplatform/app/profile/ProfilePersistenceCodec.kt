@@ -191,6 +191,28 @@ object ProfilePersistenceCodec {
                 profile.dataReferences
                     .aiContextStoreId
             )
+
+            output.writeUTF(
+                profile.personality
+                    .selectedPackId
+            )
+
+            output.writeUTF(
+                profile.personality
+                    .selectionSource
+                    .name
+            )
+
+            output.writeBoolean(
+                profile.personality
+                    .weeklyDiscoveryEnabled
+            )
+
+            output.writeUTF(
+                profile.personality
+                    .weeklyDiscoveryIntensity
+                    .name
+            )
         }
 
         val bytes =
@@ -266,17 +288,43 @@ object ProfilePersistenceCodec {
                 "Profile persistence magic mismatch."
             }
 
+            val persistenceVersion =
+                input.readInt()
+
             require(
-                input.readInt() ==
-                    PROFILE_PERSISTENCE_VERSION
+                persistenceVersion in
+                    MIN_SUPPORTED_PROFILE_PERSISTENCE_VERSION..
+                        PROFILE_PERSISTENCE_VERSION
             ) {
                 "Unsupported profile persistence version."
+            }
+
+            val persistedSchemaVersion =
+                input.readInt()
+
+            if (
+                persistenceVersion ==
+                    LEGACY_PROFILE_PERSISTENCE_VERSION
+            ) {
+                require(
+                    persistedSchemaVersion ==
+                        LEGACY_USER_PROFILE_SCHEMA_VERSION
+                ) {
+                    "Legacy profile schema version mismatch."
+                }
+            } else {
+                require(
+                    persistedSchemaVersion ==
+                        USER_PROFILE_SCHEMA_VERSION
+                ) {
+                    "Profile schema version mismatch."
+                }
             }
 
             val profile =
                 UserProfile(
                     schemaVersion =
-                        input.readInt(),
+                        USER_PROFILE_SCHEMA_VERSION,
 
                     profileId =
                         input.readUTF(),
@@ -419,6 +467,32 @@ object ProfilePersistenceCodec {
                             aiContextStoreId =
                                 input.readOptionalString(),
                         ),
+
+                    personality =
+                        if (
+                            persistenceVersion >=
+                                2
+                        ) {
+                            NavigationPersonalityPreferences(
+                                selectedPackId =
+                                    input.readUTF(),
+
+                                selectionSource =
+                                    input.readEnumValue(
+                                        "experience pack selection source"
+                                    ),
+
+                                weeklyDiscoveryEnabled =
+                                    input.readBoolean(),
+
+                                weeklyDiscoveryIntensity =
+                                    input.readEnumValue(
+                                        "weekly discovery intensity"
+                                    ),
+                            )
+                        } else {
+                            NavigationPersonalityPreferences()
+                        },
                 )
 
             require(
@@ -483,7 +557,16 @@ private inline fun <
 private const val PROFILE_PERSISTENCE_MAGIC =
     0x52504631
 
+private const val LEGACY_PROFILE_PERSISTENCE_VERSION =
+    1
+
 private const val PROFILE_PERSISTENCE_VERSION =
+    2
+
+private const val MIN_SUPPORTED_PROFILE_PERSISTENCE_VERSION =
+    LEGACY_PROFILE_PERSISTENCE_VERSION
+
+private const val LEGACY_USER_PROFILE_SCHEMA_VERSION =
     1
 
 private const val MAX_PROFILE_PERSISTENCE_BYTES =

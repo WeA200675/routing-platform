@@ -59,6 +59,9 @@ class NavigationUiTestTagsTest {
                 NavigationUiTestTags.AppendVia,
                 NavigationUiTestTags.CustomFavoriteField,
                 NavigationUiTestTags.CustomFavoriteSave,
+                NavigationUiTestTags.ExperiencePackOpen,
+                NavigationUiTestTags.ExperiencePackDialog,
+                NavigationUiTestTags.WeeklyDiscoveryToggle,
             )
 
         assertEquals(
@@ -72,6 +75,25 @@ class NavigationUiTestTagsTest {
                     "rp.navigation."
                 )
             }
+        )
+    }
+
+    @Test
+    fun experiencePackTagsAreStableAndNamespaced() {
+        assertEquals(
+            "rp.navigation.experience_pack.galactic",
+            NavigationUiTestTags
+                .experiencePack(
+                    "galactic"
+                ),
+        )
+
+        assertEquals(
+            "rp.navigation.weekly_intensity.Wild",
+            NavigationUiTestTags
+                .weeklyIntensity(
+                    "Wild"
+                ),
         )
     }
 

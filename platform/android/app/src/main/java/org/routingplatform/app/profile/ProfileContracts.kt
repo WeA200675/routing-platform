@@ -11,7 +11,7 @@ package org.routingplatform.app.profile
  * safety-critical runtime boundaries.
  */
 const val USER_PROFILE_SCHEMA_VERSION =
-    1
+    2
 
 enum class VoiceGuidanceVerbosity {
     Minimal,
@@ -381,13 +381,17 @@ data class UserProfile(
     val dataReferences:
         ProfileDataReferences =
         ProfileDataReferences(),
+
+    val personality:
+        NavigationPersonalityPreferences =
+        NavigationPersonalityPreferences(),
 ) {
     init {
         require(
             schemaVersion ==
                 USER_PROFILE_SCHEMA_VERSION
         ) {
-            "Only UserProfile schema v1 is supported."
+            "Only UserProfile schema v2 is supported."
         }
 
         require(

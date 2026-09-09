@@ -47,6 +47,39 @@ internal object NavigationUiTestTags {
     const val CustomFavoriteSave =
         "rp.navigation.custom_favorite_save"
 
+    const val ExperiencePackOpen =
+        "rp.navigation.experience_pack_open"
+
+    const val ExperiencePackDialog =
+        "rp.navigation.experience_pack_dialog"
+
+    const val WeeklyDiscoveryToggle =
+        "rp.navigation.weekly_discovery_toggle"
+
+    fun experiencePack(
+        packId:
+            String,
+    ): String {
+        require(
+            packId.isNotBlank()
+        )
+
+        return "rp.navigation.experience_pack." +
+            packId
+    }
+
+    fun weeklyIntensity(
+        intensityName:
+            String,
+    ): String {
+        require(
+            intensityName.isNotBlank()
+        )
+
+        return "rp.navigation.weekly_intensity." +
+            intensityName
+    }
+
     fun sessionState(
         state:
             NavigationSessionState,

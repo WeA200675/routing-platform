@@ -1,5 +1,8 @@
 package org.routingplatform.app.profile
 
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
+import java.util.Base64
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -113,6 +116,24 @@ class ProfilePersistenceCodecTest {
                             aiContextStoreId =
                                 "ai-driver-a",
                         ),
+
+                    personality =
+                        NavigationPersonalityPreferences(
+                            selectedPackId =
+                                ExperiencePackCatalog
+                                    .GALACTIC_PACK_ID,
+
+                            selectionSource =
+                                ExperiencePackSelectionSource
+                                    .Explicit,
+
+                            weeklyDiscoveryEnabled =
+                                true,
+
+                            weeklyDiscoveryIntensity =
+                                WeeklyDiscoveryIntensity
+                                    .Wild,
+                        ),
                 )
 
         val decoded =
@@ -131,6 +152,52 @@ class ProfilePersistenceCodecTest {
     }
 
     @Test
+    fun legacyV1PayloadMigratesToCurrentSchemaAndPersonalityDefaults() {
+        val decoded =
+            ProfilePersistenceCodec
+                .decode(
+                    legacyV1ProfilePayload()
+                )
+
+        assertEquals(
+            USER_PROFILE_SCHEMA_VERSION,
+            decoded.schemaVersion,
+        )
+
+        assertEquals(
+            "legacy-driver",
+            decoded.profileId,
+        )
+
+        assertEquals(
+            ExperiencePackCatalog
+                .CLASSIC_PACK_ID,
+            decoded.personality
+                .selectedPackId,
+        )
+
+        assertEquals(
+            ExperiencePackSelectionSource
+                .Default,
+            decoded.personality
+                .selectionSource,
+        )
+
+        assertEquals(
+            false,
+            decoded.personality
+                .weeklyDiscoveryEnabled,
+        )
+
+        assertEquals(
+            WeeklyDiscoveryIntensity
+                .Creative,
+            decoded.personality
+                .weeklyDiscoveryIntensity,
+        )
+    }
+
+    @Test
     fun invalidPayloadFailsClosed() {
         assertThrows(
             IllegalArgumentException::class.java
@@ -140,5 +207,194 @@ class ProfilePersistenceCodecTest {
                     "not-a-profile!"
                 )
         }
+    }
+
+    private fun legacyV1ProfilePayload():
+        String {
+
+        val buffer =
+            ByteArrayOutputStream()
+
+        DataOutputStream(
+            buffer
+        ).use {
+                output ->
+
+            output.writeInt(
+                0x52504631
+            )
+
+            output.writeInt(
+                1
+            )
+
+            output.writeInt(
+                1
+            )
+
+            output.writeUTF(
+                "legacy-driver"
+            )
+
+            output.writeUTF(
+                "Legacy Driver"
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeUTF(
+                "de-DE"
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeDouble(
+                1.0
+            )
+
+            output.writeUTF(
+                VoiceGuidanceVerbosity
+                    .Standard
+                    .name
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeUTF(
+                DrivingStylePreference
+                    .Balanced
+                    .name
+            )
+
+            output.writeUTF(
+                RouteStylePreference
+                    .Balanced
+                    .name
+            )
+
+            output.writeUTF(
+                RouteStabilityPreference
+                    .Balanced
+                    .name
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeUTF(
+                InstructionLeadTimePreference
+                    .Standard
+                    .name
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeUTF(
+                ProfileAppearance
+                    .System
+                    .name
+            )
+
+            output.writeUTF(
+                ProfileMapStyle
+                    .Standard
+                    .name
+            )
+
+            output.writeUTF(
+                ProfileMapOrientation
+                    .HeadingUp
+                    .name
+            )
+
+            output.writeDouble(
+                45.0
+            )
+
+            output.writeDouble(
+                16.0
+            )
+
+            output.writeUTF(
+                InformationDensityPreference
+                    .Standard
+                    .name
+            )
+
+            output.writeDouble(
+                1.0
+            )
+
+            output.writeDouble(
+                1.0
+            )
+
+            output.writeUTF(
+                NavigationControlSide
+                    .Right
+                    .name
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeUTF(
+                AssistantStylePreference
+                    .Standard
+                    .name
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeBoolean(
+                false
+            )
+        }
+
+        return Base64
+            .getEncoder()
+            .encodeToString(
+                buffer.toByteArray()
+            )
     }
 }
