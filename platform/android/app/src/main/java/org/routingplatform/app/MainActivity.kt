@@ -58,8 +58,8 @@ import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
-import org.routingplatform.app.ui.NavigationVoiceRuntimeEffect
 import org.routingplatform.app.ui.RoutingPlatformTheme
+import org.routingplatform.app.ui.rememberNavigationVoiceRuntime
 import org.routingplatform.app.ui.rememberNavigationNightAdaptation
 
 class MainActivity :
@@ -1103,11 +1103,19 @@ class MainActivity :
                         navigationBrightnessCorrection,
                 )
 
-            NavigationVoiceRuntimeEffect(
-                snapshot = snapshot,
-                baseVoice = activeProfile.voice,
-                personality = activeProfile.personality,
-            )
+            val voiceRuntime =
+                rememberNavigationVoiceRuntime(
+                    snapshot =
+                        snapshot,
+
+                    baseVoice =
+                        activeProfile
+                            .voice,
+
+                    personality =
+                        activeProfile
+                            .personality,
+                )
 
             RoutingPlatformTheme(
                 appearance =
@@ -1206,6 +1214,44 @@ class MainActivity :
                         personalityPreferences =
                             activeProfile
                                 .personality,
+
+                        voicePreferences =
+                            activeProfile
+                                .voice,
+
+                        voiceCatalogState =
+                            voiceRuntime
+                                .catalogState,
+
+                        onVoiceCatalogRefresh =
+                            voiceRuntime
+                                .refreshCatalog,
+
+                        onVoicePreview =
+                            voiceRuntime
+                                .preview,
+
+                        onVoicePreferencesChanged = {
+                                updatedVoice ->
+
+                            val updated =
+                                activeProfile.copy(
+                                    voice =
+                                        updatedVoice
+                                )
+
+                            check(
+                                profileStore
+                                    .saveAndActivate(
+                                        updated
+                                    )
+                            ) {
+                                "Could not persist active profile."
+                            }
+
+                            activeProfile =
+                                updated
+                        },
 
                         selectedTripStop =
                             selectedTripStop,

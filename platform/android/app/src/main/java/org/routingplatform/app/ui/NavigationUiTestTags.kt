@@ -56,6 +56,18 @@ internal object NavigationUiTestTags {
     const val WeeklyDiscoveryToggle =
         "rp.navigation.weekly_discovery_toggle"
 
+    const val VoiceSettingsOpen =
+        "rp.navigation.voice_settings_open"
+
+    const val VoiceSettingsDialog =
+        "rp.navigation.voice_settings_dialog"
+
+    const val VoicePreview =
+        "rp.navigation.voice_preview"
+
+    const val VoiceSave =
+        "rp.navigation.voice_save"
+
     fun experiencePack(
         packId:
             String,
@@ -78,6 +90,18 @@ internal object NavigationUiTestTags {
 
         return "rp.navigation.weekly_intensity." +
             intensityName
+    }
+
+    fun voiceLanguage(
+        languageTag:
+            String,
+    ): String {
+        require(
+            languageTag.isNotBlank()
+        )
+
+        return "rp.navigation.voice_language." +
+            languageTag
     }
 
     fun sessionState(
