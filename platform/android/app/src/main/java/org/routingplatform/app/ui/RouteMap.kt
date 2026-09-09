@@ -91,6 +91,14 @@ fun RouteMap(
         Boolean =
         false,
 
+    automaticMapZoomEnabled:
+        Boolean =
+        false,
+
+    distanceToCurrentManeuverEndM:
+        Double =
+        Double.POSITIVE_INFINITY,
+
     focusModeActive:
         Boolean =
         false,
@@ -762,6 +770,8 @@ fun RouteMap(
         segmentFraction,
         showProgress,
         displayPreferences,
+        automaticMapZoomEnabled,
+        distanceToCurrentManeuverEndM,
         observedPosition,
         selectedTarget,
         compassPresentation,
@@ -1026,6 +1036,20 @@ fun RouteMap(
                     ?: progressGeometry
                         .currentPosition
 
+            val zoomPresentation =
+                NavigationCameraZoomPolicy
+                    .create(
+                        automaticEnabled =
+                            automaticMapZoomEnabled,
+
+                        defaultZoom =
+                            displayPreferences
+                                .defaultZoom,
+
+                        distanceToManeuverM =
+                            distanceToCurrentManeuverEndM,
+                    )
+
             map.cameraPosition =
                 CameraPosition
                     .Builder()
@@ -1039,8 +1063,8 @@ fun RouteMap(
                         )
                     )
                     .zoom(
-                        displayPreferences
-                            .defaultZoom
+                        zoomPresentation
+                            .zoom
                     )
                     .tilt(
                         displayPreferences

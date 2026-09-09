@@ -288,6 +288,13 @@ internal fun NavigationScreen(
             )
         }
 
+    var cameraZoomSettingsOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
     var searchQuery by
         remember {
             mutableStateOf(
@@ -370,6 +377,17 @@ internal fun NavigationScreen(
                         .active &&
                         nightPresentation
                             .nightMode,
+
+                automaticMapZoomEnabled =
+                    navigationPreferences
+                        .automaticMapZoom &&
+                        snapshot.state ==
+                            NavigationSessionState
+                            .Navigating,
+
+                distanceToCurrentManeuverEndM =
+                    snapshot
+                        .distanceToCurrentManeuverEndM,
 
                 focusModeActive =
                     focusMode
@@ -813,6 +831,41 @@ internal fun NavigationScreen(
                                     .fillMaxWidth()
                                     .testTag(
                                         NavigationUiTestTags
+                                            .CameraZoomSettingsOpen
+                                    ),
+
+                            onClick = {
+                                cameraZoomSettingsOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    "Kartenzoom: " +
+                                        if (
+                                            navigationPreferences
+                                                .automaticMapZoom
+                                        ) {
+                                            "Automatisch"
+                                        } else {
+                                            "Fest"
+                                        }
+                            )
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
                                             .HapticSettingsOpen
                                     ),
 
@@ -1172,6 +1225,25 @@ internal fun NavigationScreen(
 
             onDismiss = {
                 voiceSettingsOpen =
+                    false
+            },
+        )
+    }
+
+    if (
+        cameraZoomSettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationCameraZoomSettingsDialog(
+            preferences =
+                navigationPreferences,
+
+            onSave =
+                onNavigationPreferencesChanged,
+
+            onDismiss = {
+                cameraZoomSettingsOpen =
                     false
             },
         )

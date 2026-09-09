@@ -68,6 +68,18 @@ internal object NavigationUiTestTags {
     const val VoiceSave =
         "rp.navigation.voice_save"
 
+    const val CameraZoomSettingsOpen =
+        "rp.navigation.camera_zoom_settings_open"
+
+    const val CameraZoomSettingsDialog =
+        "rp.navigation.camera_zoom_settings_dialog"
+
+    const val CameraAutoZoomToggle =
+        "rp.navigation.camera_auto_zoom_toggle"
+
+    const val CameraZoomSave =
+        "rp.navigation.camera_zoom_save"
+
     const val HapticSettingsOpen =
         "rp.navigation.haptic_settings_open"
 
