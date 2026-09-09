@@ -91,6 +91,18 @@ fun RouteMap(
         Boolean =
         false,
 
+    focusModeActive:
+        Boolean =
+        false,
+
+    onMapTap:
+        () -> Unit =
+        {},
+
+    onMapInteractionChanged:
+        (Boolean) -> Unit =
+        {},
+
     observedPosition:
         NavigationObservedPositionPresentation? =
         null,
@@ -124,6 +136,16 @@ fun RouteMap(
     val currentReliabilityEvent by
         rememberUpdatedState(
             onReliabilityEvent
+        )
+
+    val currentMapTap by
+        rememberUpdatedState(
+            onMapTap
+        )
+
+    val currentMapInteractionChanged by
+        rememberUpdatedState(
+            onMapInteractionChanged
         )
 
     val mapRecoveryPolicy =
@@ -398,6 +420,105 @@ fun RouteMap(
         }
     }
 
+    /*
+     * G6.8 presentation signals from the real MapLibre surface.
+     *
+     * A tap reveals navigation chrome. Camera movement only marks
+     * interaction active when MapLibre identifies the movement as
+     * an API gesture; programmatic camera-follow updates therefore
+     * cannot keep Focus Mode artificially expanded.
+     */
+    DisposableEffect(
+        mapLibreMap,
+    ) {
+        val map =
+            mapLibreMap
+
+        if (map == null) {
+            onDispose {
+                Unit
+            }
+        } else {
+            var userGestureActive =
+                false
+
+            val mapClickListener =
+                MapLibreMap
+                    .OnMapClickListener {
+                            _ ->
+
+                        currentMapTap()
+
+                        false
+                    }
+
+            val cameraMoveStartedListener =
+                MapLibreMap
+                    .OnCameraMoveStartedListener {
+                            reason ->
+
+                        if (
+                            reason ==
+                            MapLibreMap
+                                .OnCameraMoveStartedListener
+                                .REASON_API_GESTURE &&
+                            !userGestureActive
+                        ) {
+                            userGestureActive =
+                                true
+
+                            currentMapInteractionChanged(
+                                true
+                            )
+                        }
+                    }
+
+            val cameraIdleListener =
+                MapLibreMap
+                    .OnCameraIdleListener {
+                        if (userGestureActive) {
+                            userGestureActive =
+                                false
+
+                            currentMapInteractionChanged(
+                                false
+                            )
+                        }
+                    }
+
+            map.addOnMapClickListener(
+                mapClickListener
+            )
+
+            map.addOnCameraMoveStartedListener(
+                cameraMoveStartedListener
+            )
+
+            map.addOnCameraIdleListener(
+                cameraIdleListener
+            )
+
+            onDispose {
+                if (userGestureActive) {
+                    currentMapInteractionChanged(
+                        false
+                    )
+                }
+
+                map.removeOnMapClickListener(
+                    mapClickListener
+                )
+
+                map.removeOnCameraMoveStartedListener(
+                    cameraMoveStartedListener
+                )
+
+                map.removeOnCameraIdleListener(
+                    cameraIdleListener
+                )
+            }
+        }
+    }
     DisposableEffect(
         lifecycleOwner,
         mapView,
@@ -987,20 +1108,22 @@ fun RouteMap(
                 Modifier.fillMaxSize(),
         )
 
-        NavigationCompass(
-            presentation =
-                compassPresentation,
+        if (!focusModeActive) {
+            NavigationCompass(
+                presentation =
+                    compassPresentation,
 
-            modifier =
-                Modifier
-                    .align(
-                        Alignment.CenterEnd
-                    )
-                    .padding(
-                        end =
-                            8.dp,
-                    ),
-        )
+                modifier =
+                    Modifier
+                        .align(
+                            Alignment.CenterEnd
+                        )
+                        .padding(
+                            end =
+                                8.dp,
+                        ),
+            )
+        }
 
         observedPosition
             ?.let {
