@@ -242,6 +242,14 @@ fun NavigationScreen(
             )
         }
 
+    val focusMode =
+        rememberNavigationFocusMode(
+            navigationActive =
+                snapshot.state ==
+                    NavigationSessionState
+                        .Navigating,
+        )
+
     val runtimeDisplayPreferences =
         ExperiencePackRuntimeResolver
             .resolveDisplayPreferences(
@@ -303,6 +311,19 @@ fun NavigationScreen(
                         nightPresentation
                             .nightMode,
 
+                focusModeActive =
+                    focusMode
+                        .presentation
+                        .focused,
+
+                onMapTap =
+                    focusMode
+                        .notifyUserActivity,
+
+                onMapInteractionChanged =
+                    focusMode
+                        .setInteractionActive,
+
                 selectedTarget =
                     selectedTripStop
                         ?.point,
@@ -327,7 +348,12 @@ fun NavigationScreen(
                     Modifier.fillMaxSize(),
             )
 
-            Surface(
+            if (
+                focusMode
+                    .presentation
+                    .showTopChrome
+            ) {
+                Surface(
                 modifier =
                     Modifier
                         .align(
@@ -413,6 +439,7 @@ fun NavigationScreen(
                             )
                         }
                 }
+            }
             }
         }
 
@@ -697,7 +724,12 @@ fun NavigationScreen(
                     }
 
                     NavigationSessionState.Navigating -> {
-                        Spacer(
+                        if (
+                            focusMode
+                                .presentation
+                                .showSecondaryControls
+                        ) {
+                            Spacer(
                             modifier =
                                 Modifier.height(
                                     8.dp
@@ -711,8 +743,12 @@ fun NavigationScreen(
                             enabled =
                                 manualProgressEnabled,
 
-                            onClick =
-                                onAdvanceProgress,
+                            onClick = {
+                                focusMode
+                                    .notifyUserActivity()
+
+                                onAdvanceProgress()
+                            },
                         ) {
                             Text(
                                 if (
@@ -782,8 +818,12 @@ fun NavigationScreen(
                                                 .brightnessCorrection >
                                                 NAVIGATION_BRIGHTNESS_CORRECTION_MIN,
 
-                                        onClick =
-                                            onNightBrightnessDarker,
+                                        onClick = {
+                                            focusMode
+                                                .notifyUserActivity()
+
+                                            onNightBrightnessDarker()
+                                        },
                                     ) {
                                         Text(
                                             "Dunkler"
@@ -796,8 +836,12 @@ fun NavigationScreen(
                                                 .brightnessCorrection <
                                                 NAVIGATION_BRIGHTNESS_CORRECTION_MAX,
 
-                                        onClick =
-                                            onNightBrightnessBrighter,
+                                        onClick = {
+                                            focusMode
+                                                .notifyUserActivity()
+
+                                            onNightBrightnessBrighter()
+                                        },
                                     ) {
                                         Text(
                                             "Heller"
@@ -805,6 +849,7 @@ fun NavigationScreen(
                                     }
                                 }
                             }
+                        }
                         }
                     }
 
