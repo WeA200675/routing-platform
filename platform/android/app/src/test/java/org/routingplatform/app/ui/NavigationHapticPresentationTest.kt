@@ -253,6 +253,10 @@ class NavigationHapticPresentationTest {
         maneuverType:
             ManeuverType =
             ManeuverType.TurnRight,
+
+        repeatCritical:
+            Boolean =
+            true,
     ): NavigationHapticCue? =
         NavigationHapticPresentation
             .cue(
@@ -268,7 +272,10 @@ class NavigationHapticPresentationTest {
                 preferences =
                     preferences(
                         leadTime =
-                            leadTime
+                            leadTime,
+
+                        repeatCritical =
+                            repeatCritical,
                     ),
             )
 
@@ -286,10 +293,17 @@ class NavigationHapticPresentationTest {
             InstructionLeadTimePreference =
             InstructionLeadTimePreference
                 .Standard,
+
+        repeatCritical:
+            Boolean =
+            true,
     ): NavigationPreferences =
         NavigationPreferences(
             instructionLeadTime =
                 leadTime,
+
+            repeatCriticalInstructions =
+                repeatCritical,
 
             hapticGuidanceEnabled =
                 enabled,
@@ -401,4 +415,46 @@ class NavigationHapticPresentationTest {
             arrived =
                 arrived,
         )
+
+    @Test
+    fun criticalRepeatUsesDistinctHapticStageAndCriticalSignal() {
+        val repeated =
+            cue(
+                distanceMeters =
+                    15.0,
+
+                maneuverType =
+                    ManeuverType.Exit,
+
+                repeatCritical =
+                    true,
+            )
+
+        val disabled =
+            cue(
+                distanceMeters =
+                    15.0,
+
+                maneuverType =
+                    ManeuverType.Exit,
+
+                repeatCritical =
+                    false,
+            )
+
+        assertEquals(
+            NavigationHapticCueStage.CriticalRepeat,
+            repeated?.key?.stage,
+        )
+
+        assertEquals(
+            NavigationHapticSignal.Critical,
+            repeated?.signal,
+        )
+
+        assertEquals(
+            NavigationHapticCueStage.Now,
+            disabled?.key?.stage,
+        )
+    }
 }

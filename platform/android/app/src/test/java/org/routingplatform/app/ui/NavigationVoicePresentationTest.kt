@@ -12,6 +12,7 @@ import org.routingplatform.app.profile.ExperiencePackCatalog
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.ExperiencePackSelectionSource
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
+import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoiceGuidanceVerbosity
 import org.routingplatform.app.profile.VoicePreferences
 
@@ -443,6 +444,10 @@ class NavigationVoicePresentationTest {
         instruction:
             String =
             "In 120 Metern rechts abbiegen",
+
+        maneuverType:
+            ManeuverType =
+            ManeuverType.TurnRight,
     ): NavigationUiSnapshot =
         NavigationUiSnapshot(
             sessionId =
@@ -491,7 +496,7 @@ class NavigationVoicePresentationTest {
             currentManeuver =
                 NavigationManeuver(
                     type =
-                        ManeuverType.TurnRight,
+                        maneuverType,
 
                     instruction =
                         instruction,
@@ -518,4 +523,88 @@ class NavigationVoicePresentationTest {
             arrived =
                 arrived,
         )
+
+    @Test
+    fun criticalRepeatUsesDistinctVoiceStageOnlyWhenEnabled() {
+        val repeat =
+            NavigationVoicePresentation
+                .cue(
+                    snapshot =
+                        snapshot(
+                            distanceMeters =
+                                15.0,
+
+                            maneuverType =
+                                ManeuverType.Exit,
+                        ),
+
+                    voice =
+                        voice(),
+
+                    navigationPreferences =
+                        NavigationPreferences(
+                            repeatCriticalInstructions =
+                                true
+                        ),
+                )
+
+        val disabled =
+            NavigationVoicePresentation
+                .cue(
+                    snapshot =
+                        snapshot(
+                            distanceMeters =
+                                15.0,
+
+                            maneuverType =
+                                ManeuverType.Exit,
+                        ),
+
+                    voice =
+                        voice(),
+
+                    navigationPreferences =
+                        NavigationPreferences(
+                            repeatCriticalInstructions =
+                                false
+                        ),
+                )
+
+        val ordinary =
+            NavigationVoicePresentation
+                .cue(
+                    snapshot =
+                        snapshot(
+                            distanceMeters =
+                                15.0,
+
+                            maneuverType =
+                                ManeuverType.TurnRight,
+                        ),
+
+                    voice =
+                        voice(),
+
+                    navigationPreferences =
+                        NavigationPreferences(
+                            repeatCriticalInstructions =
+                                true
+                        ),
+                )
+
+        assertEquals(
+            NavigationVoiceCueStage.CriticalRepeat,
+            repeat?.key?.stage,
+        )
+
+        assertEquals(
+            NavigationVoiceCueStage.Now,
+            disabled?.key?.stage,
+        )
+
+        assertEquals(
+            NavigationVoiceCueStage.Now,
+            ordinary?.key?.stage,
+        )
+    }
 }

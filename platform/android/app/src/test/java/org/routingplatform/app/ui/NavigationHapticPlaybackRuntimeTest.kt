@@ -329,6 +329,10 @@ class NavigationHapticPlaybackRuntimeTest {
         endShapeIndex:
             Int? =
             1,
+
+        maneuverType:
+            ManeuverType =
+            ManeuverType.TurnRight,
     ): NavigationUiSnapshot =
         NavigationUiSnapshot(
             sessionId =
@@ -377,7 +381,7 @@ class NavigationHapticPlaybackRuntimeTest {
             currentManeuver =
                 NavigationManeuver(
                     type =
-                        ManeuverType.TurnRight,
+                        maneuverType,
 
                     instruction =
                         "Rechts abbiegen",
@@ -404,4 +408,64 @@ class NavigationHapticPlaybackRuntimeTest {
             arrived =
                 false,
         )
+
+    @Test
+    fun criticalNowAndRepeatAreDeliveredOnceEach() {
+        val sink =
+            RecordingSink()
+
+        val runtime =
+            NavigationHapticPlaybackRuntime(
+                sink
+            )
+
+        val preferences =
+            NavigationPreferences(
+                repeatCriticalInstructions =
+                    true
+            )
+
+        runtime.present(
+            snapshot(
+                distanceMeters =
+                    35.0,
+
+                maneuverType =
+                    ManeuverType.Exit,
+            ),
+            preferences,
+        )
+
+        runtime.present(
+            snapshot(
+                distanceMeters =
+                    15.0,
+
+                maneuverType =
+                    ManeuverType.Exit,
+            ),
+            preferences,
+        )
+
+        runtime.present(
+            snapshot(
+                distanceMeters =
+                    10.0,
+
+                maneuverType =
+                    ManeuverType.Exit,
+            ),
+            preferences,
+        )
+
+        assertEquals(
+            listOf(
+                NavigationHapticCueStage.Now,
+                NavigationHapticCueStage.CriticalRepeat,
+            ),
+            sink.cues.map {
+                it.key.stage
+            },
+        )
+    }
 }

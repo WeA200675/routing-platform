@@ -1113,6 +1113,10 @@ class MainActivity :
                         activeProfile
                             .voice,
 
+                    navigationPreferences =
+                        activeProfile
+                            .navigation,
+
                     personality =
                         activeProfile
                             .personality,

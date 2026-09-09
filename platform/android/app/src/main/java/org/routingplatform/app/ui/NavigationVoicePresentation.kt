@@ -3,6 +3,7 @@ package org.routingplatform.app.ui
 import org.routingplatform.app.navigation.ManeuverType
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationUiSnapshot
+import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoiceGuidanceVerbosity
 import org.routingplatform.app.profile.VoicePreferences
 
@@ -19,6 +20,7 @@ internal enum class NavigationVoiceCueStage {
     Early,
     Prepare,
     Now,
+    CriticalRepeat,
 }
 
 internal data class NavigationVoiceCueKey(
@@ -78,6 +80,10 @@ internal object NavigationVoicePresentation {
 
         voice:
             VoicePreferences,
+
+        navigationPreferences:
+            NavigationPreferences =
+            NavigationPreferences(),
     ): NavigationVoiceCue? {
         if (
             !voice.enabled ||
@@ -102,16 +108,38 @@ internal object NavigationVoicePresentation {
             return null
         }
 
-        val stage =
-            cueStage(
-                distanceMeters =
-                    snapshot
-                        .distanceToCurrentManeuverEndM,
+        val repeatCritical =
+            NavigationCriticalGuidanceRepeatPolicy
+                .shouldRepeat(
+                    enabled =
+                        navigationPreferences
+                            .repeatCriticalInstructions,
 
-                verbosity =
-                    voice.verbosity,
-            )
-                ?: return null
+                    maneuverType =
+                        maneuver.type,
+
+                    distanceMeters =
+                        snapshot
+                            .distanceToCurrentManeuverEndM,
+                )
+
+        val stage =
+            if (
+                repeatCritical
+            ) {
+                NavigationVoiceCueStage
+                    .CriticalRepeat
+            } else {
+                cueStage(
+                    distanceMeters =
+                        snapshot
+                            .distanceToCurrentManeuverEndM,
+
+                    verbosity =
+                        voice.verbosity,
+                )
+                    ?: return null
+            }
 
         return NavigationVoiceCue(
             key =

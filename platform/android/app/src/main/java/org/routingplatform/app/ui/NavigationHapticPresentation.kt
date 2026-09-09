@@ -18,6 +18,7 @@ import org.routingplatform.app.profile.NavigationPreferences
 internal enum class NavigationHapticCueStage {
     Prepare,
     Now,
+    CriticalRepeat,
 }
 
 internal enum class NavigationHapticSignal {
@@ -101,6 +102,13 @@ internal object NavigationHapticPresentation {
                 leadTime =
                     preferences
                         .instructionLeadTime,
+
+                maneuverType =
+                    maneuver.type,
+
+                repeatCriticalInstructions =
+                    preferences
+                        .repeatCriticalInstructions,
             )
                 ?: return null
 
@@ -115,17 +123,16 @@ internal object NavigationHapticPresentation {
 
                 NavigationHapticCueStage
                     .Now ->
-                    when (
-                        maneuver.type
-                    ) {
-                        ManeuverType.Arrive ->
+                    when {
+                        maneuver.type ==
+                            ManeuverType.Arrive ->
                             NavigationHapticSignal
                                 .Arrival
 
-                        ManeuverType.UTurn,
-                        ManeuverType.Exit,
-                        ManeuverType.RoundaboutEnter,
-                        ManeuverType.RoundaboutExit ->
+                        NavigationCriticalGuidanceRepeatPolicy
+                            .isCritical(
+                                maneuver.type
+                            ) ->
                             NavigationHapticSignal
                                 .Critical
 
@@ -133,6 +140,11 @@ internal object NavigationHapticPresentation {
                             NavigationHapticSignal
                                 .Now
                     }
+
+                NavigationHapticCueStage
+                    .CriticalRepeat ->
+                    NavigationHapticSignal
+                        .Critical
             }
 
         return NavigationHapticCue(
@@ -179,7 +191,30 @@ internal object NavigationHapticPresentation {
 
         leadTime:
             InstructionLeadTimePreference,
+
+        maneuverType:
+            ManeuverType,
+
+        repeatCriticalInstructions:
+            Boolean,
     ): NavigationHapticCueStage? {
+        if (
+            NavigationCriticalGuidanceRepeatPolicy
+                .shouldRepeat(
+                    enabled =
+                        repeatCriticalInstructions,
+
+                    maneuverType =
+                        maneuverType,
+
+                    distanceMeters =
+                        distanceMeters,
+                )
+        ) {
+            return NavigationHapticCueStage
+                .CriticalRepeat
+        }
+
         val thresholds =
             when (
                 leadTime

@@ -80,6 +80,18 @@ internal object NavigationUiTestTags {
     const val CameraZoomSave =
         "rp.navigation.camera_zoom_save"
 
+    const val CriticalGuidanceSettingsOpen =
+        "rp.navigation.critical_guidance_settings_open"
+
+    const val CriticalGuidanceSettingsDialog =
+        "rp.navigation.critical_guidance_settings_dialog"
+
+    const val RepeatCriticalToggle =
+        "rp.navigation.repeat_critical_toggle"
+
+    const val CriticalGuidanceSave =
+        "rp.navigation.critical_guidance_save"
+
     const val HapticSettingsOpen =
         "rp.navigation.haptic_settings_open"
 
