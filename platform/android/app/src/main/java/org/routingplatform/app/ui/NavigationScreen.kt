@@ -52,6 +52,7 @@ import org.routingplatform.app.places.FavoriteDestination
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.DisplayPreferences
 import org.routingplatform.app.profile.ExperiencePackCatalog
+import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.NavigationControlSide
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
@@ -228,6 +229,16 @@ fun NavigationScreen(
             )
         }
 
+    val runtimeDisplayPreferences =
+        ExperiencePackRuntimeResolver
+            .resolveDisplayPreferences(
+                base =
+                    displayPreferences,
+
+                personality =
+                    personalityPreferences,
+            )
+
     Column(
         modifier =
             Modifier
@@ -271,7 +282,7 @@ fun NavigationScreen(
                     trustedTravelBearingDegrees,
 
                 displayPreferences =
-                    displayPreferences,
+                    runtimeDisplayPreferences,
 
                 selectedTarget =
                     selectedTripStop
@@ -609,17 +620,22 @@ fun NavigationScreen(
                                     true
                             },
                         ) {
-                            val selectedPack =
-                                ExperiencePackCatalog
-                                    .require(
-                                        personalityPreferences
-                                            .selectedPackId
+                            val activePack =
+                                ExperiencePackRuntimeResolver
+                                    .resolvePackOverride(
+                                        personality =
+                                            personalityPreferences
                                     )
+                                    ?: ExperiencePackCatalog
+                                        .require(
+                                            personalityPreferences
+                                                .selectedPackId
+                                        )
 
                             Text(
                                 text =
                                     "Navi-Stil: " +
-                                        selectedPack
+                                        activePack
                                             .displayName +
                                         if (
                                             personalityPreferences

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import org.routingplatform.app.profile.ExperiencePackCatalog
+import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
 
@@ -50,6 +51,14 @@ internal fun ExperiencePackDialog(
                 preferences
                     .selectedPackId
             )
+
+    val activePack =
+        ExperiencePackRuntimeResolver
+            .resolvePackOverride(
+                personality =
+                    preferences,
+            )
+            ?: selectedPack
 
     Dialog(
         onDismissRequest =
@@ -139,7 +148,7 @@ internal fun ExperiencePackDialog(
 
                 Text(
                     text =
-                        "Aktiv: ${selectedPack.displayName}",
+                        "Aktiv: ${activePack.displayName}",
 
                     style =
                         MaterialTheme
@@ -149,7 +158,7 @@ internal fun ExperiencePackDialog(
 
                 Text(
                     text =
-                        selectedPack.description,
+                        activePack.description,
 
                     style =
                         MaterialTheme
