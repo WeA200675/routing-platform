@@ -119,6 +119,17 @@ object ProfilePersistenceCodec {
                     .showRouteAlternatives
             )
 
+            output.writeBoolean(
+                profile.navigation
+                    .hapticGuidanceEnabled
+            )
+
+            output.writeUTF(
+                profile.navigation
+                    .hapticIntensity
+                    .name
+            )
+
             output.writeUTF(
                 profile.display.appearance.name
             )
@@ -302,23 +313,25 @@ object ProfilePersistenceCodec {
             val persistedSchemaVersion =
                 input.readInt()
 
-            if (
-                persistenceVersion ==
-                    LEGACY_PROFILE_PERSISTENCE_VERSION
-            ) {
-                require(
-                    persistedSchemaVersion ==
+            val expectedSchemaVersion =
+                when (
+                    persistenceVersion
+                ) {
+                    LEGACY_PROFILE_PERSISTENCE_VERSION ->
                         LEGACY_USER_PROFILE_SCHEMA_VERSION
-                ) {
-                    "Legacy profile schema version mismatch."
-                }
-            } else {
-                require(
-                    persistedSchemaVersion ==
+
+                    LEGACY_PROFILE_PERSISTENCE_VERSION_V2 ->
+                        LEGACY_USER_PROFILE_SCHEMA_VERSION_V2
+
+                    else ->
                         USER_PROFILE_SCHEMA_VERSION
-                ) {
-                    "Profile schema version mismatch."
                 }
+
+            require(
+                persistedSchemaVersion ==
+                    expectedSchemaVersion
+            ) {
+                "Profile schema version mismatch."
             }
 
             val profile =
@@ -397,6 +410,29 @@ object ProfilePersistenceCodec {
 
                             showRouteAlternatives =
                                 input.readBoolean(),
+
+                            hapticGuidanceEnabled =
+                                if (
+                                    persistenceVersion >=
+                                        3
+                                ) {
+                                    input.readBoolean()
+                                } else {
+                                    true
+                                },
+
+                            hapticIntensity =
+                                if (
+                                    persistenceVersion >=
+                                        3
+                                ) {
+                                    input.readEnumValue(
+                                        "navigation haptic intensity"
+                                    )
+                                } else {
+                                    NavigationHapticIntensity
+                                        .Standard
+                                },
                         ),
 
                     display =
@@ -560,14 +596,20 @@ private const val PROFILE_PERSISTENCE_MAGIC =
 private const val LEGACY_PROFILE_PERSISTENCE_VERSION =
     1
 
-private const val PROFILE_PERSISTENCE_VERSION =
+private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V2 =
     2
+
+private const val PROFILE_PERSISTENCE_VERSION =
+    3
 
 private const val MIN_SUPPORTED_PROFILE_PERSISTENCE_VERSION =
     LEGACY_PROFILE_PERSISTENCE_VERSION
 
 private const val LEGACY_USER_PROFILE_SCHEMA_VERSION =
     1
+
+private const val LEGACY_USER_PROFILE_SCHEMA_VERSION_V2 =
+    2
 
 private const val MAX_PROFILE_PERSISTENCE_BYTES =
     64 * 1024

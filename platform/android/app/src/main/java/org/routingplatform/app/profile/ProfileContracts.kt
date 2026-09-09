@@ -11,7 +11,7 @@ package org.routingplatform.app.profile
  * safety-critical runtime boundaries.
  */
 const val USER_PROFILE_SCHEMA_VERSION =
-    2
+    3
 
 enum class VoiceGuidanceVerbosity {
     Minimal,
@@ -42,6 +42,12 @@ enum class InstructionLeadTimePreference {
     Late,
     Standard,
     Early,
+}
+
+enum class NavigationHapticIntensity {
+    Gentle,
+    Standard,
+    Strong,
 }
 
 enum class ProfileAppearance {
@@ -202,6 +208,14 @@ data class NavigationPreferences(
     val showRouteAlternatives:
         Boolean =
         true,
+
+    val hapticGuidanceEnabled:
+        Boolean =
+        true,
+
+    val hapticIntensity:
+        NavigationHapticIntensity =
+        NavigationHapticIntensity.Standard,
 )
 
 data class DisplayPreferences(
@@ -391,7 +405,7 @@ data class UserProfile(
             schemaVersion ==
                 USER_PROFILE_SCHEMA_VERSION
         ) {
-            "Only UserProfile schema v2 is supported."
+            "Only UserProfile schema v3 is supported."
         }
 
         require(
