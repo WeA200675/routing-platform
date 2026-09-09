@@ -54,6 +54,7 @@ import org.routingplatform.app.profile.ExperiencePackSelectionSource
 import org.routingplatform.app.ui.NavigationAssistOverlay
 import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NavigationScreen
+import org.routingplatform.app.ui.NavigationVoiceRuntimeEffect
 import org.routingplatform.app.ui.RoutingPlatformTheme
 
 class MainActivity :
@@ -1063,6 +1064,12 @@ class MainActivity :
                 } else {
                     null
                 }
+
+            NavigationVoiceRuntimeEffect(
+                snapshot = snapshot,
+                baseVoice = activeProfile.voice,
+                personality = activeProfile.personality,
+            )
 
             RoutingPlatformTheme {
                 Box(
