@@ -48,6 +48,7 @@ import org.routingplatform.app.navigation.NavigationReliabilityEventKind
 import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.navigation.splitRouteProgressGeometry
 import org.routingplatform.app.profile.DisplayPreferences
+import org.routingplatform.app.profile.ProfileMapStyle
 
 private fun logNavigationMapReliabilityEvent(
     event:
@@ -85,6 +86,10 @@ fun RouteMap(
     displayPreferences:
         DisplayPreferences =
         DisplayPreferences(),
+
+    automaticNightMode:
+        Boolean =
+        false,
 
     observedPosition:
         NavigationObservedPositionPresentation? =
@@ -132,11 +137,18 @@ fun RouteMap(
             )
         }
 
+    val effectiveMapStyle =
+        if (automaticNightMode) {
+            ProfileMapStyle.Night
+        } else {
+            displayPreferences
+                .mapStyle
+        }
+
     val styleDescriptor =
         NavigationMapPresentation
             .styleDescriptor(
-                displayPreferences
-                    .mapStyle
+                effectiveMapStyle
             )
 
     /*

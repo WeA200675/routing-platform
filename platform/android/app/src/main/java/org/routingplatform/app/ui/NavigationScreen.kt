@@ -97,6 +97,19 @@ fun NavigationScreen(
         Double? =
         null,
 
+    nightPresentation:
+        NavigationNightPresentation =
+        NavigationNightPresentation
+            .inactive(),
+
+    onNightBrightnessDarker:
+        () -> Unit =
+        {},
+
+    onNightBrightnessBrighter:
+        () -> Unit =
+        {},
+
     displayPreferences:
         DisplayPreferences =
         DisplayPreferences(),
@@ -283,6 +296,12 @@ fun NavigationScreen(
 
                 displayPreferences =
                     runtimeDisplayPreferences,
+
+                automaticNightMode =
+                    nightPresentation
+                        .active &&
+                        nightPresentation
+                            .nightMode,
 
                 selectedTarget =
                     selectedTripStop
@@ -704,6 +723,88 @@ fun NavigationScreen(
                                     "Automatische Position aktiv"
                                 }
                             )
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    8.dp
+                                )
+                        )
+
+                        Surface(
+                            tonalElevation =
+                                2.dp,
+
+                            shape =
+                                MaterialTheme
+                                    .shapes
+                                    .medium,
+                        ) {
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            horizontal =
+                                                12.dp,
+
+                                            vertical =
+                                                8.dp,
+                                        ),
+                            ) {
+                                Text(
+                                    text =
+                                        nightPresentation
+                                            .statusText(),
+
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodySmall,
+
+                                    fontWeight =
+                                        FontWeight.Medium,
+                                )
+
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth(),
+
+                                    horizontalArrangement =
+                                        Arrangement
+                                            .SpaceBetween,
+                                ) {
+                                    TextButton(
+                                        enabled =
+                                            nightPresentation
+                                                .brightnessCorrection >
+                                                NAVIGATION_BRIGHTNESS_CORRECTION_MIN,
+
+                                        onClick =
+                                            onNightBrightnessDarker,
+                                    ) {
+                                        Text(
+                                            "Dunkler"
+                                        )
+                                    }
+
+                                    TextButton(
+                                        enabled =
+                                            nightPresentation
+                                                .brightnessCorrection <
+                                                NAVIGATION_BRIGHTNESS_CORRECTION_MAX,
+
+                                        onClick =
+                                            onNightBrightnessBrighter,
+                                    ) {
+                                        Text(
+                                            "Heller"
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 

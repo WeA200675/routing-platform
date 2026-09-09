@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,12 +51,16 @@ import org.routingplatform.app.places.DestinationSearchHandle
 import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AndroidUserProfileStore
+import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.ExperiencePackSelectionSource
 import org.routingplatform.app.ui.NavigationAssistOverlay
 import org.routingplatform.app.ui.NavigationObservedPositionPresentation
+import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
+import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
 import org.routingplatform.app.ui.NavigationVoiceRuntimeEffect
 import org.routingplatform.app.ui.RoutingPlatformTheme
+import org.routingplatform.app.ui.rememberNavigationNightAdaptation
 
 class MainActivity :
     ComponentActivity() {
@@ -89,6 +94,13 @@ class MainActivity :
                     mutableStateOf(
                         profileStore
                             .loadActiveProfile()
+                    )
+                }
+
+            var navigationBrightnessCorrection by
+                remember {
+                    mutableIntStateOf(
+                        0
                     )
                 }
 
@@ -1065,13 +1077,49 @@ class MainActivity :
                     null
                 }
 
+            val runtimeDisplayPreferences =
+                ExperiencePackRuntimeResolver
+                    .resolveDisplayPreferences(
+                        base =
+                            activeProfile
+                                .display,
+
+                        personality =
+                            activeProfile
+                                .personality,
+                    )
+
+            val nightPresentation =
+                rememberNavigationNightAdaptation(
+                    activity =
+                        this@MainActivity,
+
+                    navigationActive =
+                        snapshot.state ==
+                            NavigationSessionState
+                                .Navigating,
+
+                    brightnessCorrection =
+                        navigationBrightnessCorrection,
+                )
+
             NavigationVoiceRuntimeEffect(
                 snapshot = snapshot,
                 baseVoice = activeProfile.voice,
                 personality = activeProfile.personality,
             )
 
-            RoutingPlatformTheme {
+            RoutingPlatformTheme(
+                appearance =
+                    runtimeDisplayPreferences
+                        .appearance,
+
+                automaticNight =
+                    nightPresentation
+                        .active &&
+                        nightPresentation
+                            .nightMode,
+            ) {
                 Box(
                     modifier =
                         Modifier.fillMaxSize(),
@@ -1125,6 +1173,31 @@ class MainActivity :
                         trustedTravelBearingDegrees =
                             telemetry
                                 .trustedTravelBearingDegrees,
+
+                        nightPresentation =
+                            nightPresentation,
+
+                        onNightBrightnessDarker = {
+                            navigationBrightnessCorrection =
+                                (
+                                    navigationBrightnessCorrection -
+                                        1
+                                )
+                                    .coerceAtLeast(
+                                        NAVIGATION_BRIGHTNESS_CORRECTION_MIN
+                                    )
+                        },
+
+                        onNightBrightnessBrighter = {
+                            navigationBrightnessCorrection =
+                                (
+                                    navigationBrightnessCorrection +
+                                        1
+                                )
+                                    .coerceAtMost(
+                                        NAVIGATION_BRIGHTNESS_CORRECTION_MAX
+                                    )
+                        },
 
                         displayPreferences =
                             activeProfile
