@@ -62,6 +62,10 @@ class NavigationUiTestTagsTest {
                 NavigationUiTestTags.ExperiencePackOpen,
                 NavigationUiTestTags.ExperiencePackDialog,
                 NavigationUiTestTags.WeeklyDiscoveryToggle,
+                NavigationUiTestTags.VoiceSettingsOpen,
+                NavigationUiTestTags.VoiceSettingsDialog,
+                NavigationUiTestTags.VoicePreview,
+                NavigationUiTestTags.VoiceSave,
             )
 
         assertEquals(
@@ -93,6 +97,25 @@ class NavigationUiTestTagsTest {
             NavigationUiTestTags
                 .weeklyIntensity(
                     "Wild"
+                ),
+        )
+    }
+
+    @Test
+    fun voiceLanguageTagsAreStableAndNamespaced() {
+        assertEquals(
+            "rp.navigation.voice_language.en-GB",
+            NavigationUiTestTags
+                .voiceLanguage(
+                    "en-GB"
+                ),
+        )
+
+        assertEquals(
+            "rp.navigation.voice_language.de-DE",
+            NavigationUiTestTags
+                .voiceLanguage(
+                    "de-DE"
                 ),
         )
     }

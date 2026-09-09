@@ -55,11 +55,12 @@ import org.routingplatform.app.profile.ExperiencePackCatalog
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.NavigationControlSide
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
+import org.routingplatform.app.profile.VoicePreferences
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
 import kotlin.math.roundToInt
 
 @Composable
-fun NavigationScreen(
+internal fun NavigationScreen(
     snapshot: NavigationUiSnapshot,
     onStartNavigation: () -> Unit,
     onStopNavigation: () -> Unit,
@@ -121,6 +122,30 @@ fun NavigationScreen(
     personalityPreferences:
         NavigationPersonalityPreferences =
         NavigationPersonalityPreferences(),
+
+    voicePreferences:
+        VoicePreferences =
+        VoicePreferences(),
+
+    voiceCatalogState:
+        NavigationVoiceCatalogState =
+        NavigationVoiceCatalogState
+            .Initializing,
+
+    onVoiceCatalogRefresh:
+        () -> Unit =
+        {},
+
+    onVoicePreview:
+        (VoicePreferences) ->
+        NavigationVoicePreviewResult = {
+            NavigationVoicePreviewResult
+                .NotReady
+        },
+
+    onVoicePreferencesChanged:
+        (VoicePreferences) -> Unit =
+        {},
 
     onExperiencePackSelected:
         (String) -> Unit =
@@ -222,6 +247,13 @@ fun NavigationScreen(
         }
 
     var experiencePackOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
+    var voiceSettingsOpen by
         remember {
             mutableStateOf(
                 false
@@ -694,6 +726,52 @@ fun NavigationScreen(
                             )
                         }
 
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
+                                            .VoiceSettingsOpen
+                                    ),
+
+                            onClick = {
+                                onVoiceCatalogRefresh()
+
+                                voiceSettingsOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    "Sprachführung: " +
+                                        if (
+                                            voicePreferences
+                                                .enabled
+                                        ) {
+                                            NavigationVoiceCatalog
+                                                .languageDisplayName(
+                                                    voicePreferences
+                                                        .languageTag
+                                                )
+                                        } else {
+                                            "Aus | " +
+                                                NavigationVoiceCatalog
+                                                    .languageDisplayName(
+                                                        voicePreferences
+                                                            .languageTag
+                                                    )
+                                        }
+                            )
+                        }
+
                         if (
                             !navigationStartEnabled &&
                             !navigationUnavailableMessage
@@ -996,6 +1074,34 @@ fun NavigationScreen(
 
             onDismiss = {
                 experiencePackOpen =
+                    false
+            },
+        )
+    }
+
+    if (
+        voiceSettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationVoiceSettingsDialog(
+            preferences =
+                voicePreferences,
+
+            personalityPreferences =
+                personalityPreferences,
+
+            catalogState =
+                voiceCatalogState,
+
+            onPreview =
+                onVoicePreview,
+
+            onSave =
+                onVoicePreferencesChanged,
+
+            onDismiss = {
+                voiceSettingsOpen =
                     false
             },
         )
