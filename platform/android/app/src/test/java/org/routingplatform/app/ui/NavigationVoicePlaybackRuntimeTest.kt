@@ -8,6 +8,7 @@ import org.routingplatform.app.navigation.NavigationManeuver
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.RoutePoint
+import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoiceGuidanceVerbosity
 import org.routingplatform.app.profile.VoicePreferences
 
@@ -333,6 +334,8 @@ class NavigationVoicePlaybackRuntimeTest {
             NavigationSessionState.Navigating,
         distanceMeters: Double,
         withShapeIndices: Boolean = true,
+        maneuverType: ManeuverType =
+            ManeuverType.TurnRight,
     ): NavigationUiSnapshot =
         NavigationUiSnapshot(
             sessionId = sessionId,
@@ -356,7 +359,8 @@ class NavigationVoicePlaybackRuntimeTest {
             remainingDurationS = 60.0,
             currentManeuver =
                 NavigationManeuver(
-                    type = ManeuverType.TurnRight,
+                    type =
+                        maneuverType,
                     instruction =
                         "In 120 Metern rechts abbiegen",
                     distanceM = distanceMeters,
@@ -380,4 +384,67 @@ class NavigationVoicePlaybackRuntimeTest {
             arrived =
                 state == NavigationSessionState.Arrived,
         )
+
+    @Test
+    fun criticalNowAndRepeatAreDeliveredOnceEach() {
+        val speaker =
+            FakeSpeaker()
+
+        val runtime =
+            NavigationVoicePlaybackRuntime(
+                speaker
+            )
+
+        val preferences =
+            NavigationPreferences(
+                repeatCriticalInstructions =
+                    true
+            )
+
+        runtime.present(
+            snapshot(
+                distanceMeters =
+                    35.0,
+
+                maneuverType =
+                    ManeuverType.Exit,
+            ),
+            voice(),
+            preferences,
+        )
+
+        runtime.present(
+            snapshot(
+                distanceMeters =
+                    15.0,
+
+                maneuverType =
+                    ManeuverType.Exit,
+            ),
+            voice(),
+            preferences,
+        )
+
+        runtime.present(
+            snapshot(
+                distanceMeters =
+                    10.0,
+
+                maneuverType =
+                    ManeuverType.Exit,
+            ),
+            voice(),
+            preferences,
+        )
+
+        assertEquals(
+            listOf(
+                NavigationVoiceCueStage.Now,
+                NavigationVoiceCueStage.CriticalRepeat,
+            ),
+            speaker.submitted.map {
+                it.key.stage
+            },
+        )
+    }
 }

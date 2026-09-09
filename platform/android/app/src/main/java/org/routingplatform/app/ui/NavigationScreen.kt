@@ -288,6 +288,13 @@ internal fun NavigationScreen(
             )
         }
 
+    var criticalGuidanceSettingsOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
     var cameraZoomSettingsOpen by
         remember {
             mutableStateOf(
@@ -866,6 +873,41 @@ internal fun NavigationScreen(
                                     .fillMaxWidth()
                                     .testTag(
                                         NavigationUiTestTags
+                                            .CriticalGuidanceSettingsOpen
+                                    ),
+
+                            onClick = {
+                                criticalGuidanceSettingsOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    "Wichtige Hinweise: " +
+                                        if (
+                                            navigationPreferences
+                                                .repeatCriticalInstructions
+                                        ) {
+                                            "Wiederholen"
+                                        } else {
+                                            "Einmal"
+                                        }
+                            )
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
                                             .HapticSettingsOpen
                                     ),
 
@@ -1244,6 +1286,25 @@ internal fun NavigationScreen(
 
             onDismiss = {
                 cameraZoomSettingsOpen =
+                    false
+            },
+        )
+    }
+
+    if (
+        criticalGuidanceSettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationCriticalGuidanceSettingsDialog(
+            preferences =
+                navigationPreferences,
+
+            onSave =
+                onNavigationPreferencesChanged,
+
+            onDismiss = {
+                criticalGuidanceSettingsOpen =
                     false
             },
         )

@@ -3,6 +3,7 @@ package org.routingplatform.app.ui
 import org.routingplatform.app.navigation.ManeuverType
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationUiSnapshot
+import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoicePreferences
 
 /*
@@ -72,6 +73,8 @@ internal class NavigationVoicePlaybackRuntime(
     fun present(
         snapshot: NavigationUiSnapshot,
         voice: VoicePreferences,
+        navigationPreferences: NavigationPreferences =
+            NavigationPreferences(),
     ) {
         if (
             !voice.enabled ||
@@ -96,6 +99,8 @@ internal class NavigationVoicePlaybackRuntime(
             NavigationVoicePresentation.cue(
                 snapshot = snapshot,
                 voice = voice,
+                navigationPreferences =
+                    navigationPreferences,
             )
 
         if (cue == null) {

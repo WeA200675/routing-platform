@@ -15,6 +15,7 @@ import java.util.Locale
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
+import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoicePreferences
 
 internal data class NavigationVoiceRuntimePresentation(
@@ -68,6 +69,9 @@ internal class AndroidNavigationVoiceRuntime(
 
         voice:
             VoicePreferences,
+
+        navigationPreferences:
+            NavigationPreferences,
     ) {
         playback.present(
             snapshot =
@@ -75,6 +79,9 @@ internal class AndroidNavigationVoiceRuntime(
 
             voice =
                 voice,
+
+            navigationPreferences =
+                navigationPreferences,
         )
     }
 
@@ -102,6 +109,9 @@ internal fun rememberNavigationVoiceRuntime(
 
     baseVoice:
         VoicePreferences,
+
+    navigationPreferences:
+        NavigationPreferences,
 
     personality:
         NavigationPersonalityPreferences,
@@ -154,6 +164,7 @@ internal fun rememberNavigationVoiceRuntime(
         runtime,
         snapshot,
         effectiveVoice,
+        navigationPreferences,
     ) {
         runtime.present(
             snapshot =
@@ -161,6 +172,9 @@ internal fun rememberNavigationVoiceRuntime(
 
             voice =
                 effectiveVoice,
+
+            navigationPreferences =
+                navigationPreferences,
         )
     }
 
