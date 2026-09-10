@@ -320,6 +320,13 @@ internal fun NavigationScreen(
             )
         }
 
+    var routeLineScaleSettingsOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
     var searchQuery by
         remember {
             mutableStateOf(
@@ -1005,6 +1012,39 @@ internal fun NavigationScreen(
                                     .fillMaxWidth()
                                     .testTag(
                                         NavigationUiTestTags
+                                            .RouteLineScaleSettingsOpen
+                                    ),
+
+                            onClick = {
+                                routeLineScaleSettingsOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    "Routenlinie: " +
+                                        NavigationRouteLineScalePresentation
+                                            .percent(
+                                                displayPreferences
+                                                    .routeLineScale
+                                            ) +
+                                        " %"
+                            )
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
                                             .CriticalGuidanceSettingsOpen
                                     ),
 
@@ -1456,6 +1496,25 @@ internal fun NavigationScreen(
 
             onDismiss = {
                 informationDensitySettingsOpen =
+                    false
+            },
+        )
+    }
+
+    if (
+        routeLineScaleSettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationRouteLineScaleSettingsDialog(
+            preferences =
+                displayPreferences,
+
+            onSave =
+                onDisplayPreferencesChanged,
+
+            onDismiss = {
+                routeLineScaleSettingsOpen =
                     false
             },
         )
