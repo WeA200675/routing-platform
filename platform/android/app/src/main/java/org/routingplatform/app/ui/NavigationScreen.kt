@@ -117,6 +117,10 @@ internal fun NavigationScreen(
         DisplayPreferences =
         DisplayPreferences(),
 
+    onDisplayPreferencesChanged:
+        (DisplayPreferences) -> Unit =
+        {},
+
     onNavigationControlSideChanged:
         (NavigationControlSide) -> Unit =
         {},
@@ -296,6 +300,13 @@ internal fun NavigationScreen(
         }
 
     var cameraZoomSettingsOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
+    var textScaleSettingsOpen by
         remember {
             mutableStateOf(
                 false
@@ -873,6 +884,39 @@ internal fun NavigationScreen(
                                     .fillMaxWidth()
                                     .testTag(
                                         NavigationUiTestTags
+                                            .TextScaleSettingsOpen
+                                    ),
+
+                            onClick = {
+                                textScaleSettingsOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    "Textgröße: " +
+                                        NavigationTextScalePresentation
+                                            .percent(
+                                                displayPreferences
+                                                    .textScale
+                                            ) +
+                                        " %"
+                            )
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
                                             .CriticalGuidanceSettingsOpen
                                     ),
 
@@ -1286,6 +1330,25 @@ internal fun NavigationScreen(
 
             onDismiss = {
                 cameraZoomSettingsOpen =
+                    false
+            },
+        )
+    }
+
+    if (
+        textScaleSettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationTextScaleSettingsDialog(
+            preferences =
+                displayPreferences,
+
+            onSave =
+                onDisplayPreferencesChanged,
+
+            onDismiss = {
+                textScaleSettingsOpen =
                     false
             },
         )

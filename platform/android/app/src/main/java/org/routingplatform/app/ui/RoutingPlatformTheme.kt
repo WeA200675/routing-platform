@@ -5,6 +5,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import org.routingplatform.app.profile.ProfileAppearance
 
 @Composable
@@ -16,6 +19,10 @@ fun RoutingPlatformTheme(
     automaticNight:
         Boolean =
         false,
+
+    textScale:
+        Double =
+        1.0,
 
     content:
         @Composable () -> Unit,
@@ -35,18 +42,45 @@ fun RoutingPlatformTheme(
                 true
         }
 
-    MaterialTheme(
-        colorScheme =
-            if (
-                automaticNight ||
-                profileDark
-            ) {
-                darkColorScheme()
-            } else {
-                lightColorScheme()
-            },
+    val baseDensity =
+        LocalDensity.current
 
-        content =
-            content,
-    )
+    val effectiveFontScale =
+        NavigationTextScalePresentation
+            .resolve(
+                systemFontScale =
+                    baseDensity.fontScale,
+
+                profileTextScale =
+                    textScale,
+            )
+
+    val presentationDensity =
+        Density(
+            density =
+                baseDensity.density,
+
+            fontScale =
+                effectiveFontScale,
+        )
+
+    CompositionLocalProvider(
+        LocalDensity provides
+            presentationDensity,
+    ) {
+        MaterialTheme(
+            colorScheme =
+                if (
+                    automaticNight ||
+                    profileDark
+                ) {
+                    darkColorScheme()
+                } else {
+                    lightColorScheme()
+                },
+
+            content =
+                content,
+        )
+    }
 }
