@@ -1142,6 +1142,10 @@ class MainActivity :
                         .active &&
                         nightPresentation
                             .nightMode,
+
+                textScale =
+                    runtimeDisplayPreferences
+                        .textScale,
             ) {
                 Box(
                     modifier =
@@ -1590,6 +1594,28 @@ class MainActivity :
                                     error.message
                                         ?: "Zwischenziel konnte nicht verschoben werden."
                             }
+                        },
+
+                        onDisplayPreferencesChanged = {
+                                updatedDisplay ->
+
+                            val updated =
+                                activeProfile.copy(
+                                    display =
+                                        updatedDisplay
+                                )
+
+                            check(
+                                profileStore
+                                    .saveAndActivate(
+                                        updated
+                                    )
+                            ) {
+                                "Could not persist active profile."
+                            }
+
+                            activeProfile =
+                                updated
                         },
 
                         onNavigationControlSideChanged = {

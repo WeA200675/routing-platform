@@ -80,6 +80,15 @@ internal object NavigationUiTestTags {
     const val CameraZoomSave =
         "rp.navigation.camera_zoom_save"
 
+    const val TextScaleSettingsOpen =
+        "rp.navigation.text_scale_settings_open"
+
+    const val TextScaleSettingsDialog =
+        "rp.navigation.text_scale_settings_dialog"
+
+    const val TextScaleSave =
+        "rp.navigation.text_scale_save"
+
     const val CriticalGuidanceSettingsOpen =
         "rp.navigation.critical_guidance_settings_open"
 
@@ -103,6 +112,19 @@ internal object NavigationUiTestTags {
 
     const val HapticSave =
         "rp.navigation.haptic_save"
+
+    fun textScalePreset(
+        percent:
+            Int,
+    ): String {
+        require(
+            percent in
+                80..150
+        )
+
+        return "rp.navigation.text_scale_preset." +
+            percent
+    }
 
     fun hapticIntensity(
         intensityName:
