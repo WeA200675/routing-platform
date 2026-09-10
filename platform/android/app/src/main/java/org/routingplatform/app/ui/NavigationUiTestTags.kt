@@ -83,6 +83,15 @@ internal object NavigationUiTestTags {
     const val CameraZoomSave =
         "rp.navigation.camera_zoom_save"
 
+    const val MapOrientationSettingsOpen =
+        "rp.navigation.map_orientation_settings_open"
+
+    const val MapOrientationSettingsDialog =
+        "rp.navigation.map_orientation_settings_dialog"
+
+    const val MapOrientationSave =
+        "rp.navigation.map_orientation_save"
+
     const val TextScaleSettingsOpen =
         "rp.navigation.text_scale_settings_open"
 
@@ -150,6 +159,21 @@ internal object NavigationUiTestTags {
             sideName
     }
 
+    fun mapOrientationOption(
+        orientationName:
+            String,
+    ): String {
+        require(
+            orientationName in
+                setOf(
+                    "HeadingUp",
+                    "NorthUp",
+                )
+        )
+
+        return "rp.navigation.map_orientation_option." +
+            orientationName
+    }
     fun routeLineScalePreset(
         percent:
             Int,

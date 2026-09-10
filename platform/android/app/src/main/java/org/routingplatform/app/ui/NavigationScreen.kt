@@ -306,6 +306,13 @@ internal fun NavigationScreen(
             )
         }
 
+    var mapOrientationSettingsOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
     var textScaleSettingsOpen by
         remember {
             mutableStateOf(
@@ -947,6 +954,36 @@ internal fun NavigationScreen(
                                     .fillMaxWidth()
                                     .testTag(
                                         NavigationUiTestTags
+                                            .MapOrientationSettingsOpen
+                                    ),
+
+                            onClick = {
+                                mapOrientationSettingsOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    "Kartenausrichtung: " +
+                                        navigationMapOrientationLabel(
+                                            displayPreferences
+                                                .mapOrientation
+                                        )
+                            )
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
                                             .TextScaleSettingsOpen
                                     ),
 
@@ -1463,6 +1500,24 @@ internal fun NavigationScreen(
         )
     }
 
+    if (
+        mapOrientationSettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationMapOrientationSettingsDialog(
+            preferences =
+                displayPreferences,
+
+            onSave =
+                onDisplayPreferencesChanged,
+
+            onDismiss = {
+                mapOrientationSettingsOpen =
+                    false
+            },
+        )
+    }
     if (
         textScaleSettingsOpen &&
         snapshot.state ==
