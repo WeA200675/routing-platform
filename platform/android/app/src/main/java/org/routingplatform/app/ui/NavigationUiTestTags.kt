@@ -98,6 +98,15 @@ internal object NavigationUiTestTags {
     const val InformationDensitySave =
         "rp.navigation.information_density_save"
 
+    const val RouteLineScaleSettingsOpen =
+        "rp.navigation.route_line_scale_settings_open"
+
+    const val RouteLineScaleSettingsDialog =
+        "rp.navigation.route_line_scale_settings_dialog"
+
+    const val RouteLineScaleSave =
+        "rp.navigation.route_line_scale_save"
+
     const val CriticalGuidanceSettingsOpen =
         "rp.navigation.critical_guidance_settings_open"
 
@@ -121,6 +130,26 @@ internal object NavigationUiTestTags {
 
     const val HapticSave =
         "rp.navigation.haptic_save"
+
+    fun routeLineScalePreset(
+        percent:
+            Int,
+    ): String {
+        require(
+            percent in
+                setOf(
+                    75,
+                    100,
+                    125,
+                    150,
+                    175,
+                    200,
+                )
+        )
+
+        return "rp.navigation.route_line_scale_preset." +
+            percent
+    }
 
     fun informationDensityOption(
         preferenceName:

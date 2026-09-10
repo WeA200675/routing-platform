@@ -48,19 +48,19 @@ internal object NavigationMapPresentation {
         preferences:
             DisplayPreferences,
     ): Float =
-        (
-            6.0 *
+        NavigationRouteLineScalePresentation
+            .previewWidth(
                 preferences.routeLineScale
-        ).toFloat()
+            )
 
     fun activeRouteLineWidth(
         preferences:
             DisplayPreferences,
     ): Float =
-        (
-            7.0 *
+        NavigationRouteLineScalePresentation
+            .activeWidth(
                 preferences.routeLineScale
-        ).toFloat()
+            )
 
     fun mapStatusText(
         state:
