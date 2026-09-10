@@ -23,6 +23,9 @@ internal object NavigationUiTestTags {
     const val PrimaryAction =
         "rp.navigation.primary_action"
 
+    const val PrimaryControlMoveSide =
+        "rp.navigation.primary_control_move_side"
+
     const val PlannerOpen =
         "rp.navigation.planner_open"
 
@@ -130,6 +133,22 @@ internal object NavigationUiTestTags {
 
     const val HapticSave =
         "rp.navigation.haptic_save"
+
+    fun primaryControlSide(
+        sideName:
+            String,
+    ): String {
+        require(
+            sideName in
+                setOf(
+                    "Left",
+                    "Right",
+                )
+        )
+
+        return "rp.navigation.primary_control_side." +
+            sideName
+    }
 
     fun routeLineScalePreset(
         percent:

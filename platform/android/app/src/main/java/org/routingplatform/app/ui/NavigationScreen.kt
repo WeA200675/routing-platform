@@ -2373,7 +2373,14 @@ private fun NavigationPrimaryControl(
 ) {
     Row(
         modifier =
-            Modifier.fillMaxWidth(),
+            Modifier
+                .fillMaxWidth()
+                .testTag(
+                    NavigationUiTestTags
+                        .primaryControlSide(
+                            presentation.side.name
+                        )
+                ),
 
         horizontalArrangement =
             when (
@@ -2448,6 +2455,12 @@ private fun NavigationPrimaryControl(
                 presentation.enabled
             ) {
                 TextButton(
+                    modifier =
+                        Modifier.testTag(
+                            NavigationUiTestTags
+                                .PrimaryControlMoveSide
+                        ),
+
                     onClick =
                         onMoveToOtherSide,
                 ) {
