@@ -89,6 +89,15 @@ internal object NavigationUiTestTags {
     const val TextScaleSave =
         "rp.navigation.text_scale_save"
 
+    const val InformationDensitySettingsOpen =
+        "rp.navigation.information_density_settings_open"
+
+    const val InformationDensitySettingsDialog =
+        "rp.navigation.information_density_settings_dialog"
+
+    const val InformationDensitySave =
+        "rp.navigation.information_density_save"
+
     const val CriticalGuidanceSettingsOpen =
         "rp.navigation.critical_guidance_settings_open"
 
@@ -112,6 +121,23 @@ internal object NavigationUiTestTags {
 
     const val HapticSave =
         "rp.navigation.haptic_save"
+
+    fun informationDensityOption(
+        preferenceName:
+            String,
+    ): String {
+        require(
+            preferenceName in
+                setOf(
+                    "Minimal",
+                    "Standard",
+                    "Detailed",
+                )
+        )
+
+        return "rp.navigation.information_density_option." +
+            preferenceName
+    }
 
     fun textScalePreset(
         percent:

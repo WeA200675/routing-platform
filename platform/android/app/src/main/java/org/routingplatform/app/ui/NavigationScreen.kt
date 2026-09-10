@@ -313,6 +313,13 @@ internal fun NavigationScreen(
             )
         }
 
+    var informationDensitySettingsOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
+
     var searchQuery by
         remember {
             mutableStateOf(
@@ -343,6 +350,13 @@ internal fun NavigationScreen(
 
                 personality =
                     personalityPreferences,
+            )
+
+    val informationDensityPresentation =
+        NavigationInformationDensityPresentation
+            .create(
+                runtimeDisplayPreferences
+                    .informationDensity
             )
 
     Column(
@@ -628,32 +642,74 @@ internal fun NavigationScreen(
                                 ),
                     )
 
-                    InfoValue(
-                        label =
-                            "Restzeit",
+                    if (
+                        informationDensityPresentation
+                            .showRemainingDuration
+                    ) {
+                        InfoValue(
+                            label =
+                                "Restzeit",
 
-                        value =
-                            NavigationFormatter
-                                .duration(
+                            value =
+                                NavigationFormatter
+                                    .duration(
+                                        snapshot
+                                            .remainingDurationS
+                                    ),
+                        )
+                    }
+
+                    if (
+                        informationDensityPresentation
+                            .showProgress
+                    ) {
+                        InfoValue(
+                            label =
+                                "Fortschritt",
+
+                            value =
+                                (
                                     snapshot
-                                        .remainingDurationS
-                                ),
-                    )
+                                        .progressFraction *
+                                        100.0
+                                )
+                                    .roundToInt()
+                                    .toString() +
+                                    " %",
+                        )
+                    }
+                }
 
-                    InfoValue(
-                        label =
-                            "Fortschritt",
+                if (
+                    informationDensityPresentation
+                        .showManeuverDistance
+                ) {
+                    snapshot
+                        .distanceToCurrentManeuverEndM
+                        .let {
+                                maneuverDistanceM ->
 
-                        value =
-                            (
-                                snapshot
-                                    .progressFraction *
-                                    100.0
+                            Text(
+                                text =
+                                    "Nächstes Manöver: " +
+                                        NavigationFormatter
+                                            .distance(
+                                                maneuverDistanceM
+                                            ),
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodySmall,
                             )
-                                .roundToInt()
-                                .toString() +
-                                " %",
-                    )
+
+                            Spacer(
+                                modifier =
+                                    Modifier.height(
+                                        8.dp
+                                    )
+                            )
+                        }
                 }
 
                 Spacer(
@@ -901,6 +957,38 @@ internal fun NavigationScreen(
                                                     .textScale
                                             ) +
                                         " %"
+                            )
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(
+                                    6.dp
+                                )
+                        )
+
+                        TextButton(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(
+                                        NavigationUiTestTags
+                                            .InformationDensitySettingsOpen
+                                    ),
+
+                            onClick = {
+                                informationDensitySettingsOpen =
+                                    true
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    "Informationsdichte: " +
+                                        NavigationInformationDensityPresentation
+                                            .label(
+                                                displayPreferences
+                                                    .informationDensity
+                                            )
                             )
                         }
 
@@ -1349,6 +1437,25 @@ internal fun NavigationScreen(
 
             onDismiss = {
                 textScaleSettingsOpen =
+                    false
+            },
+        )
+    }
+
+    if (
+        informationDensitySettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationInformationDensitySettingsDialog(
+            preferences =
+                displayPreferences,
+
+            onSave =
+                onDisplayPreferencesChanged,
+
+            onDismiss = {
+                informationDensitySettingsOpen =
                     false
             },
         )
