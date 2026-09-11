@@ -88,6 +88,8 @@ class ProfilePersistenceCodecTest {
 
                             navigationControlSide =
                                 NavigationControlSide.Left,
+                            accentColor =
+                                ProfileAccentColor.Teal,
                         ),
 
                     ai =
@@ -168,6 +170,11 @@ class ProfilePersistenceCodecTest {
             "legacy-driver",
             decoded.profileId,
         )
+        assertEquals(
+            ProfileAccentColor.Standard,
+            decoded.display
+                .accentColor,
+        )
 
         assertEquals(
             ExperiencePackCatalog
@@ -198,6 +205,31 @@ class ProfilePersistenceCodecTest {
     }
 
     @Test
+    fun legacyV3PayloadMigratesAccentColorToStandard() {
+        val decoded =
+            ProfilePersistenceCodec
+                .decode(
+                    legacyV3ProfilePayload()
+                )
+
+        assertEquals(
+            USER_PROFILE_SCHEMA_VERSION,
+            decoded.schemaVersion,
+        )
+
+        assertEquals(
+            "legacy-v3-driver",
+            decoded.profileId,
+        )
+
+        assertEquals(
+            ProfileAccentColor.Standard,
+            decoded.display
+                .accentColor,
+        )
+    }
+
+    @Test
     fun invalidPayloadFailsClosed() {
         assertThrows(
             IllegalArgumentException::class.java
@@ -207,6 +239,226 @@ class ProfilePersistenceCodecTest {
                     "not-a-profile!"
                 )
         }
+    }
+
+    private fun legacyV3ProfilePayload():
+        String {
+
+        val buffer =
+            ByteArrayOutputStream()
+
+        DataOutputStream(
+            buffer
+        ).use {
+                output ->
+
+            output.writeInt(
+                0x52504631
+            )
+
+            output.writeInt(
+                3
+            )
+
+            output.writeInt(
+                3
+            )
+
+            output.writeUTF(
+                "legacy-v3-driver"
+            )
+
+            output.writeUTF(
+                "Legacy V3 Driver"
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeUTF(
+                "de-DE"
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeDouble(
+                1.0
+            )
+
+            output.writeUTF(
+                VoiceGuidanceVerbosity
+                    .Standard
+                    .name
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeUTF(
+                DrivingStylePreference
+                    .Balanced
+                    .name
+            )
+
+            output.writeUTF(
+                RouteStylePreference
+                    .Balanced
+                    .name
+            )
+
+            output.writeUTF(
+                RouteStabilityPreference
+                    .Balanced
+                    .name
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeUTF(
+                InstructionLeadTimePreference
+                    .Standard
+                    .name
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeUTF(
+                NavigationHapticIntensity
+                    .Standard
+                    .name
+            )
+
+            output.writeUTF(
+                ProfileAppearance
+                    .System
+                    .name
+            )
+
+            output.writeUTF(
+                ProfileMapStyle
+                    .Standard
+                    .name
+            )
+
+            output.writeUTF(
+                ProfileMapOrientation
+                    .HeadingUp
+                    .name
+            )
+
+            output.writeDouble(
+                45.0
+            )
+
+            output.writeDouble(
+                16.0
+            )
+
+            output.writeUTF(
+                InformationDensityPreference
+                    .Standard
+                    .name
+            )
+
+            output.writeDouble(
+                1.0
+            )
+
+            output.writeDouble(
+                1.0
+            )
+
+            output.writeUTF(
+                NavigationControlSide
+                    .Right
+                    .name
+            )
+
+            output.writeBoolean(
+                true
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeUTF(
+                AssistantStylePreference
+                    .Standard
+                    .name
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeUTF(
+                ExperiencePackCatalog
+                    .CLASSIC_PACK_ID
+            )
+
+            output.writeUTF(
+                ExperiencePackSelectionSource
+                    .Default
+                    .name
+            )
+
+            output.writeBoolean(
+                false
+            )
+
+            output.writeUTF(
+                WeeklyDiscoveryIntensity
+                    .Creative
+                    .name
+            )
+        }
+
+        return Base64
+            .getEncoder()
+            .encodeToString(
+                buffer.toByteArray()
+            )
     }
 
     private fun legacyV1ProfilePayload():

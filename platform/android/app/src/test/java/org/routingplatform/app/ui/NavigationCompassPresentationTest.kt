@@ -2,6 +2,7 @@ package org.routingplatform.app.ui
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.routingplatform.app.profile.ProfileMapOrientation
@@ -41,7 +42,7 @@ class NavigationCompassPresentationTest {
 
         assertEquals(
             "90°",
-            presentation.label,
+            presentation.headingLabel,
         )
     }
 
@@ -75,6 +76,11 @@ class NavigationCompassPresentationTest {
             presentation.compassNorthRotationDegrees,
             0.001,
         )
+
+        assertEquals(
+            "123°",
+            presentation.headingLabel,
+        )
     }
 
     @Test
@@ -101,10 +107,15 @@ class NavigationCompassPresentationTest {
             presentation.mapBearingDegrees,
             0.001,
         )
+
+        assertEquals(
+            "215°",
+            presentation.headingLabel,
+        )
     }
 
     @Test
-    fun missingHeadingFallsBackToNorthUp() {
+    fun missingHeadingFallsBackToNorthUpWithoutDuplicateCardinalLabel() {
         val presentation =
             NavigationCompassPresentation
                 .create(
@@ -128,9 +139,8 @@ class NavigationCompassPresentationTest {
             0.001,
         )
 
-        assertEquals(
-            "N",
-            presentation.label,
+        assertNull(
+            presentation.headingLabel
         )
     }
 
