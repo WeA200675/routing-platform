@@ -11,7 +11,7 @@ package org.routingplatform.app.profile
  * safety-critical runtime boundaries.
  */
 const val USER_PROFILE_SCHEMA_VERSION =
-    3
+    4
 
 enum class VoiceGuidanceVerbosity {
     Minimal,
@@ -54,6 +54,19 @@ enum class ProfileAppearance {
     System,
     Light,
     Dark,
+}
+
+enum class ProfileAccentColor {
+    Standard,
+    Blue,
+    Teal,
+    Green,
+    Yellow,
+    Orange,
+    Red,
+    Pink,
+    Purple,
+    Rainbow,
 }
 
 enum class ProfileMapStyle {
@@ -222,6 +235,9 @@ data class DisplayPreferences(
     val appearance:
         ProfileAppearance =
         ProfileAppearance.System,
+    val accentColor:
+        ProfileAccentColor =
+        ProfileAccentColor.Standard,
 
     val mapStyle:
         ProfileMapStyle =

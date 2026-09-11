@@ -91,6 +91,14 @@ internal object NavigationUiTestTags {
 
     const val MapOrientationSave =
         "rp.navigation.map_orientation_save"
+    const val AccentColorSettingsOpen =
+        "rp.navigation.accent_color_settings_open"
+
+    const val AccentColorSettingsDialog =
+        "rp.navigation.accent_color_settings_dialog"
+
+    const val AccentColorSave =
+        "rp.navigation.accent_color_save"
 
     const val TextScaleSettingsOpen =
         "rp.navigation.text_scale_settings_open"
@@ -157,6 +165,30 @@ internal object NavigationUiTestTags {
 
         return "rp.navigation.primary_control_side." +
             sideName
+    }
+
+    fun accentColorOption(
+        colorName:
+            String,
+    ): String {
+        require(
+            colorName in
+                setOf(
+                    "Standard",
+                    "Blue",
+                    "Teal",
+                    "Green",
+                    "Yellow",
+                    "Orange",
+                    "Red",
+                    "Pink",
+                    "Purple",
+                    "Rainbow",
+                )
+        )
+
+        return "rp.navigation.accent_color_option." +
+            colorName
     }
 
     fun mapOrientationOption(

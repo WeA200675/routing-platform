@@ -312,6 +312,12 @@ internal fun NavigationScreen(
                 false
             )
         }
+    var accentColorSettingsOpen by
+        remember {
+            mutableStateOf(
+                false
+            )
+        }
 
     var textScaleSettingsOpen by
         remember {
@@ -818,333 +824,270 @@ internal fun NavigationScreen(
                                 )
                         )
 
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .ExperiencePackOpen
-                                    ),
-
-                            onClick = {
-                                experiencePackOpen =
-                                    true
-                            },
-                        ) {
-                            val activePack =
-                                ExperiencePackRuntimeResolver
-                                    .resolvePackOverride(
-                                        personality =
-                                            personalityPreferences
-                                    )
-                                    ?: ExperiencePackCatalog
-                                        .require(
-                                            personalityPreferences
-                                                .selectedPackId
-                                        )
-
-                            Text(
-                                text =
-                                    "Navi-Stil: " +
-                                        activePack
-                                            .displayName +
-                                        if (
-                                            personalityPreferences
-                                                .weeklyDiscoveryEnabled
-                                        ) {
-                                            " · Überraschung an"
-                                        } else {
-                                            ""
-                                        }
-                            )
-                        }
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    6.dp
+                        val activePack =
+                            ExperiencePackRuntimeResolver
+                                .resolvePackOverride(
+                                    personality =
+                                        personalityPreferences
                                 )
-                        )
+                                ?: ExperiencePackCatalog
+                                    .require(
+                                        personalityPreferences
+                                            .selectedPackId
+                                    )
 
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .VoiceSettingsOpen
+                        NavigationSettingsGrid(
+                            accentColor =
+                                displayPreferences
+                                    .accentColor,
+
+                            items =
+                                listOf(
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .ExperiencePackOpen,
+
+                                        title =
+                                            "Navi-Stil",
+
+                                        value =
+                                            activePack
+                                                .displayName +
+                                                if (
+                                                    personalityPreferences
+                                                        .weeklyDiscoveryEnabled
+                                                ) {
+                                                    " · Überraschung an"
+                                                } else {
+                                                    ""
+                                                },
+
+                                        onClick = {
+                                            experiencePackOpen =
+                                                true
+                                        },
                                     ),
 
-                            onClick = {
-                                onVoiceCatalogRefresh()
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .VoiceSettingsOpen,
 
-                                voiceSettingsOpen =
-                                    true
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    "Sprachführung: " +
-                                        if (
-                                            voicePreferences
-                                                .enabled
-                                        ) {
-                                            NavigationVoiceCatalog
-                                                .languageDisplayName(
-                                                    voicePreferences
-                                                        .languageTag
-                                                )
-                                        } else {
-                                            "Aus | " +
+                                        title =
+                                            "Sprachführung",
+
+                                        value =
+                                            if (
+                                                voicePreferences
+                                                    .enabled
+                                            ) {
                                                 NavigationVoiceCatalog
                                                     .languageDisplayName(
                                                         voicePreferences
                                                             .languageTag
                                                     )
-                                        }
-                            )
-                        }
+                                            } else {
+                                                "Aus | " +
+                                                    NavigationVoiceCatalog
+                                                        .languageDisplayName(
+                                                            voicePreferences
+                                                                .languageTag
+                                                        )
+                                            },
 
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    6.dp
-                                )
-                        )
+                                        onClick = {
+                                            onVoiceCatalogRefresh()
 
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .CameraZoomSettingsOpen
+                                            voiceSettingsOpen =
+                                                true
+                                        },
                                     ),
 
-                            onClick = {
-                                cameraZoomSettingsOpen =
-                                    true
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    "Kartenzoom: " +
-                                        if (
-                                            navigationPreferences
-                                                .automaticMapZoom
-                                        ) {
-                                            "Automatisch"
-                                        } else {
-                                            "Fest"
-                                        }
-                            )
-                        }
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .CameraZoomSettingsOpen,
 
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    6.dp
-                                )
-                        )
+                                        title =
+                                            "Kartenzoom",
 
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .MapOrientationSettingsOpen
-                                    ),
-
-                            onClick = {
-                                mapOrientationSettingsOpen =
-                                    true
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    "Kartenausrichtung: " +
-                                        navigationMapOrientationLabel(
-                                            displayPreferences
-                                                .mapOrientation
-                                        )
-                            )
-                        }
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    6.dp
-                                )
-                        )
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .TextScaleSettingsOpen
-                                    ),
-
-                            onClick = {
-                                textScaleSettingsOpen =
-                                    true
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    "Textgröße: " +
-                                        NavigationTextScalePresentation
-                                            .percent(
-                                                displayPreferences
-                                                    .textScale
-                                            ) +
-                                        " %"
-                            )
-                        }
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    6.dp
-                                )
-                        )
-
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .InformationDensitySettingsOpen
-                                    ),
-
-                            onClick = {
-                                informationDensitySettingsOpen =
-                                    true
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    "Informationsdichte: " +
-                                        NavigationInformationDensityPresentation
-                                            .label(
-                                                displayPreferences
-                                                    .informationDensity
-                                            )
-                            )
-                        }
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    6.dp
-                                )
-                        )
-
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .RouteLineScaleSettingsOpen
-                                    ),
-
-                            onClick = {
-                                routeLineScaleSettingsOpen =
-                                    true
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    "Routenlinie: " +
-                                        NavigationRouteLineScalePresentation
-                                            .percent(
-                                                displayPreferences
-                                                    .routeLineScale
-                                            ) +
-                                        " %"
-                            )
-                        }
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    6.dp
-                                )
-                        )
-
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .CriticalGuidanceSettingsOpen
-                                    ),
-
-                            onClick = {
-                                criticalGuidanceSettingsOpen =
-                                    true
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    "Wichtige Hinweise: " +
-                                        if (
-                                            navigationPreferences
-                                                .repeatCriticalInstructions
-                                        ) {
-                                            "Wiederholen"
-                                        } else {
-                                            "Einmal"
-                                        }
-                            )
-                        }
-
-                        Spacer(
-                            modifier =
-                                Modifier.height(
-                                    6.dp
-                                )
-                        )
-
-                        TextButton(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .testTag(
-                                        NavigationUiTestTags
-                                            .HapticSettingsOpen
-                                    ),
-
-                            onClick = {
-                                hapticSettingsOpen =
-                                    true
-                            },
-                        ) {
-                            Text(
-                                text =
-                                    "Haptik: " +
-                                        if (
-                                            navigationPreferences
-                                                .hapticGuidanceEnabled
-                                        ) {
-                                            navigationHapticIntensityLabel(
+                                        value =
+                                            if (
                                                 navigationPreferences
-                                                    .hapticIntensity
-                                            )
-                                        } else {
-                                            "Aus | " +
+                                                    .automaticMapZoom
+                                            ) {
+                                                "Automatisch"
+                                            } else {
+                                                "Fest"
+                                            },
+
+                                        onClick = {
+                                            cameraZoomSettingsOpen =
+                                                true
+                                        },
+                                    ),
+
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .MapOrientationSettingsOpen,
+
+                                        title =
+                                            "Kartenausrichtung",
+
+                                        value =
+                                            navigationMapOrientationLabel(
+                                                displayPreferences
+                                                    .mapOrientation
+                                            ),
+
+                                        onClick = {
+                                            mapOrientationSettingsOpen =
+                                                true
+                                        },
+                                    ),
+
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .TextScaleSettingsOpen,
+
+                                        title =
+                                            "Textgröße",
+
+                                        value =
+                                            NavigationTextScalePresentation
+                                                .percent(
+                                                    displayPreferences
+                                                        .textScale
+                                                ).toString() + " %",
+
+                                        onClick = {
+                                            textScaleSettingsOpen =
+                                                true
+                                        },
+                                    ),
+
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .InformationDensitySettingsOpen,
+
+                                        title =
+                                            "Informationsdichte",
+
+                                        value =
+                                            NavigationInformationDensityPresentation
+                                                .label(
+                                                    displayPreferences
+                                                        .informationDensity
+                                                ),
+
+                                        onClick = {
+                                            informationDensitySettingsOpen =
+                                                true
+                                        },
+                                    ),
+
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .RouteLineScaleSettingsOpen,
+
+                                        title =
+                                            "Routenlinie",
+
+                                        value =
+                                            NavigationRouteLineScalePresentation
+                                                .percent(
+                                                    displayPreferences
+                                                        .routeLineScale
+                                                ).toString() + " %",
+
+                                        onClick = {
+                                            routeLineScaleSettingsOpen =
+                                                true
+                                        },
+                                    ),
+
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .CriticalGuidanceSettingsOpen,
+
+                                        title =
+                                            "Wichtige Hinweise",
+
+                                        value =
+                                            if (
+                                                navigationPreferences
+                                                    .repeatCriticalInstructions
+                                            ) {
+                                                "Wiederholen"
+                                            } else {
+                                                "Einmal"
+                                            },
+
+                                        onClick = {
+                                            criticalGuidanceSettingsOpen =
+                                                true
+                                        },
+                                    ),
+
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .HapticSettingsOpen,
+
+                                        title =
+                                            "Haptik",
+
+                                        value =
+                                            if (
+                                                navigationPreferences
+                                                    .hapticGuidanceEnabled
+                                            ) {
                                                 navigationHapticIntensityLabel(
                                                     navigationPreferences
                                                         .hapticIntensity
                                                 )
-                                        }
-                            )
-                        }
+                                            } else {
+                                                "Aus | " +
+                                                    navigationHapticIntensityLabel(
+                                                        navigationPreferences
+                                                            .hapticIntensity
+                                                    )
+                                            },
+
+                                        onClick = {
+                                            hapticSettingsOpen =
+                                                true
+                                        },
+                                    ),
+
+                                    NavigationSettingTile(
+                                        testTag =
+                                            NavigationUiTestTags
+                                                .AccentColorSettingsOpen,
+
+                                        title =
+                                            "Akzentfarbe",
+
+                                        value =
+                                            NavigationAccentColorPresentation
+                                                .label(
+                                                    displayPreferences
+                                                        .accentColor
+                                                ),
+
+                                        onClick = {
+                                            accentColorSettingsOpen =
+                                                true
+                                        },
+                                    ),
+                                ),
+                        )
 
                         if (
                             !navigationStartEnabled &&
@@ -1154,7 +1097,7 @@ internal fun NavigationScreen(
                             Spacer(
                                 modifier =
                                     Modifier.height(
-                                        8.dp
+                                        6.dp
                                     )
                             )
 
@@ -1518,6 +1461,25 @@ internal fun NavigationScreen(
             },
         )
     }
+    if (
+        accentColorSettingsOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        NavigationAccentColorSettingsDialog(
+            preferences =
+                displayPreferences,
+
+            onSave =
+                onDisplayPreferencesChanged,
+
+            onDismiss = {
+                accentColorSettingsOpen =
+                    false
+            },
+        )
+    }
+
     if (
         textScaleSettingsOpen &&
         snapshot.state ==

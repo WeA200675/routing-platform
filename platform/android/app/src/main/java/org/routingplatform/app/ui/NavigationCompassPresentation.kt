@@ -25,8 +25,14 @@ data class NavigationCompassPresentation(
     val headingUpActive:
         Boolean,
 
-    val label:
-        String,
+    /*
+     * Screen-aligned heading information.
+     *
+     * Cardinal N/S markers belong to the compass rose itself and are
+     * therefore deliberately not encoded into this label.
+     */
+    val headingLabel:
+        String?,
 ) {
     companion object {
 
@@ -77,21 +83,19 @@ data class NavigationCompassPresentation(
             /*
              * MapLibre rotates the map by mapBearingDegrees.
              * The North indicator therefore rotates by the inverse
-             * angle so it continues to point toward geographic north
-             * on the screen.
+             * angle so it continues to point toward geographic north.
              */
             val compassNorthRotation =
                 normalizeSignedDegrees(
                     -mapBearing
                 )
 
-            val label =
+            val headingLabel =
                 trustedBearing
                     ?.roundToInt()
                     ?.let {
                         "$it°"
                     }
-                    ?: "N"
 
             return NavigationCompassPresentation(
                 trustedTravelBearingDegrees =
@@ -106,8 +110,8 @@ data class NavigationCompassPresentation(
                 headingUpActive =
                     headingUp,
 
-                label =
-                    label,
+                headingLabel =
+                    headingLabel,
             )
         }
 
@@ -121,7 +125,8 @@ data class NavigationCompassPresentation(
                     FULL_TURN_DEGREES
 
             return if (
-                remainder < 0.0
+                remainder <
+                    0.0
             ) {
                 remainder +
                     FULL_TURN_DEGREES

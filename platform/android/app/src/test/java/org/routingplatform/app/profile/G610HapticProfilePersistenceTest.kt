@@ -14,7 +14,7 @@ class G610HapticProfilePersistenceTest {
             ProfileDefaults.guest()
 
         assertEquals(
-            3,
+            USER_PROFILE_SCHEMA_VERSION,
             profile.schemaVersion,
         )
 
@@ -101,6 +101,11 @@ class G610HapticProfilePersistenceTest {
             NavigationHapticIntensity.Standard,
             decoded.navigation
                 .hapticIntensity,
+        )
+        assertEquals(
+            ProfileAccentColor.Standard,
+            decoded.display
+                .accentColor,
         )
 
         assertEquals(

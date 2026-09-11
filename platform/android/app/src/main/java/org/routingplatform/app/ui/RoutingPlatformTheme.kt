@@ -2,12 +2,11 @@ package org.routingplatform.app.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import org.routingplatform.app.profile.ProfileAccentColor
 import org.routingplatform.app.profile.ProfileAppearance
 
 @Composable
@@ -15,6 +14,10 @@ fun RoutingPlatformTheme(
     appearance:
         ProfileAppearance =
         ProfileAppearance.System,
+
+    accentColor:
+        ProfileAccentColor =
+        ProfileAccentColor.Standard,
 
     automaticNight:
         Boolean =
@@ -41,6 +44,10 @@ fun RoutingPlatformTheme(
             ProfileAppearance.Dark ->
                 true
         }
+
+    val useDarkScheme =
+        automaticNight ||
+            profileDark
 
     val baseDensity =
         LocalDensity.current
@@ -70,14 +77,14 @@ fun RoutingPlatformTheme(
     ) {
         MaterialTheme(
             colorScheme =
-                if (
-                    automaticNight ||
-                    profileDark
-                ) {
-                    darkColorScheme()
-                } else {
-                    lightColorScheme()
-                },
+                NavigationAccentColorPresentation
+                    .colorScheme(
+                        preference =
+                            accentColor,
+
+                        dark =
+                            useDarkScheme,
+                    ),
 
             content =
                 content,

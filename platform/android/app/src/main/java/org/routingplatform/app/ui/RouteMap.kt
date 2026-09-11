@@ -1256,15 +1256,15 @@ private fun NavigationCompass(
         Box(
             modifier =
                 Modifier.size(
-                    56.dp
+                    64.dp
                 ),
 
             contentAlignment =
                 Alignment.Center,
         ) {
             /*
-             * The complete North rose rotates around the center.
-             * The degree label stays screen-aligned for readability.
+             * N and S are part of one rotating compass rose.
+             * The numeric travel heading remains screen-aligned.
              */
             Box(
                 modifier =
@@ -1301,6 +1301,29 @@ private fun NavigationCompass(
 
                 Text(
                     text =
+                        "S",
+
+                    modifier =
+                        Modifier
+                            .align(
+                                Alignment.BottomCenter
+                            )
+                            .padding(
+                                bottom =
+                                    3.dp
+                            ),
+
+                    fontWeight =
+                        FontWeight.Bold,
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .labelMedium,
+                )
+
+                Text(
+                    text =
                         "▲",
 
                     modifier =
@@ -1318,26 +1341,31 @@ private fun NavigationCompass(
                 )
             }
 
-            Text(
-                text =
-                    presentation
-                        .label,
+            presentation
+                .headingLabel
+                ?.let {
+                        headingLabel ->
 
-                modifier =
-                    Modifier
-                        .align(
-                            Alignment.BottomCenter
-                        )
-                        .padding(
-                            bottom =
-                                3.dp
-                        ),
+                    Text(
+                        text =
+                            headingLabel,
 
-                style =
-                    MaterialTheme
-                        .typography
-                        .labelSmall,
-            )
+                        modifier =
+                            Modifier
+                                .align(
+                                    Alignment.CenterEnd
+                                )
+                                .padding(
+                                    end =
+                                        3.dp
+                                ),
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .labelSmall,
+                    )
+                }
         }
     }
 }

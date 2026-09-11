@@ -169,6 +169,11 @@ object ProfilePersistenceCodec {
                     .navigationControlSide
                     .name
             )
+            output.writeUTF(
+                profile.display
+                    .accentColor
+                    .name
+            )
 
             output.writeBoolean(
                 profile.ai
@@ -322,6 +327,8 @@ object ProfilePersistenceCodec {
 
                     LEGACY_PROFILE_PERSISTENCE_VERSION_V2 ->
                         LEGACY_USER_PROFILE_SCHEMA_VERSION_V2
+                    LEGACY_PROFILE_PERSISTENCE_VERSION_V3 ->
+                        LEGACY_USER_PROFILE_SCHEMA_VERSION_V3
 
                     else ->
                         USER_PROFILE_SCHEMA_VERSION
@@ -473,6 +480,17 @@ object ProfilePersistenceCodec {
                                 input.readEnumValue(
                                     "navigation control side"
                                 ),
+                            accentColor =
+                                if (
+                                    persistenceVersion >=
+                                        4
+                                ) {
+                                    input.readEnumValue(
+                                        "accent color"
+                                    )
+                                } else {
+                                    ProfileAccentColor.Standard
+                                },
                         ),
 
                     ai =
@@ -598,9 +616,11 @@ private const val LEGACY_PROFILE_PERSISTENCE_VERSION =
 
 private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V2 =
     2
+private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V3 =
+    3
 
 private const val PROFILE_PERSISTENCE_VERSION =
-    3
+    4
 
 private const val MIN_SUPPORTED_PROFILE_PERSISTENCE_VERSION =
     LEGACY_PROFILE_PERSISTENCE_VERSION
@@ -610,6 +630,8 @@ private const val LEGACY_USER_PROFILE_SCHEMA_VERSION =
 
 private const val LEGACY_USER_PROFILE_SCHEMA_VERSION_V2 =
     2
+private const val LEGACY_USER_PROFILE_SCHEMA_VERSION_V3 =
+    3
 
 private const val MAX_PROFILE_PERSISTENCE_BYTES =
     64 * 1024

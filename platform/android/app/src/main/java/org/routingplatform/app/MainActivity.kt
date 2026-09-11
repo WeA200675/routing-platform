@@ -1136,6 +1136,9 @@ class MainActivity :
                 appearance =
                     runtimeDisplayPreferences
                         .appearance,
+                accentColor =
+                    runtimeDisplayPreferences
+                        .accentColor,
 
                 automaticNight =
                     nightPresentation
