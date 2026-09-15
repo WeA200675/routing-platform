@@ -1,0 +1,34 @@
+name: Core CI
+
+on:
+  push:
+    branches:
+      - main
+      - g6.19/social-neural-ai
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DROUTING_PLATFORM_BUILD_TESTS=ON
+          -DROUTING_PLATFORM_WITH_VALHALLA=OFF
+
+      - name: Build Core
+        run: cmake --build build --parallel 2
+
+      - name: Run Core Tests
+        run: ctest --test-dir build --output-on-failure
