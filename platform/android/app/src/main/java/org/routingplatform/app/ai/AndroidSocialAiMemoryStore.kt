@@ -4,14 +4,14 @@ import android.content.Context
 
 class AndroidSocialAiMemoryStore(
     context: Context,
-) {
+) : SocialAiMemoryPersistence {
     private val preferences =
         context.applicationContext.getSharedPreferences(
             PREFERENCES_NAME,
             Context.MODE_PRIVATE,
         )
 
-    fun load(
+    override fun load(
         storeId: String,
     ): List<SocialAiKnowledge> {
         val encoded =
@@ -23,7 +23,7 @@ class AndroidSocialAiMemoryStore(
         return SocialAiMemoryCodec.decode(encoded)
     }
 
-    fun save(
+    override fun save(
         storeId: String,
         knowledge: List<SocialAiKnowledge>,
     ): Boolean =
@@ -35,7 +35,7 @@ class AndroidSocialAiMemoryStore(
             )
             .commit()
 
-    fun clear(
+    override fun clear(
         storeId: String,
     ): Boolean =
         preferences
@@ -45,7 +45,7 @@ class AndroidSocialAiMemoryStore(
             )
             .commit()
 
-    fun exists(
+    override fun exists(
         storeId: String,
     ): Boolean =
         preferences.contains(
