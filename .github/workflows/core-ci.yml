@@ -4,17 +4,24 @@ on:
   push:
     branches:
       - main
-      - g6.19/social-neural-ai
+      - "g6.*/*"
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: core-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
+    name: Configure, build and test Core
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
