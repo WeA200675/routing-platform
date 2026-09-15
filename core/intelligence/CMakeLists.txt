@@ -14,6 +14,8 @@ target_sources(
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/remediation_proposal.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/remediation_approval_shadow_validation.cpp
         ${PROJECT_SOURCE_DIR}/core/src/intelligence/learning_memory.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/neural_social_model.cpp
+        ${PROJECT_SOURCE_DIR}/core/src/intelligence/social_response_planner.cpp
 )
 
 if(ROUTING_PLATFORM_BUILD_TESTS)
@@ -184,6 +186,16 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
         routing_learning_memory_test
         tests/unit/learning_memory_test.cpp
     )
+
+    add_routing_intelligence_test(
+        routing_neural_social_model_test
+        tests/unit/neural_social_model_test.cpp
+    )
+
+    add_routing_intelligence_test(
+        routing_social_response_planner_test
+        tests/unit/social_response_planner_test.cpp
+    )
 endif()
 
 # BEGIN evidence-learning-intelligence
@@ -227,4 +239,3 @@ if(ROUTING_PLATFORM_BUILD_TESTS)
     )
 endif()
 # END post-drive-shadow-intelligence
-
