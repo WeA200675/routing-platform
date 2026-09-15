@@ -16,218 +16,112 @@ import java.util.Base64
 object ProfilePersistenceCodec {
 
     fun encode(
-        profile:
-            UserProfile,
+        profile: UserProfile,
     ): String {
-
         val buffer =
             ByteArrayOutputStream()
 
-        DataOutputStream(
-            buffer
-        ).use {
-                output ->
+        DataOutputStream(buffer).use { output ->
+            output.writeInt(PROFILE_PERSISTENCE_MAGIC)
+            output.writeInt(PROFILE_PERSISTENCE_VERSION)
+            output.writeInt(profile.schemaVersion)
 
-            output.writeInt(
-                PROFILE_PERSISTENCE_MAGIC
+            output.writeUTF(profile.profileId)
+            output.writeUTF(profile.displayName)
+
+            output.writeBoolean(profile.voice.enabled)
+            output.writeUTF(profile.voice.languageTag)
+            output.writeOptionalString(profile.voice.voiceId)
+            output.writeDouble(profile.voice.speechRate)
+            output.writeUTF(profile.voice.verbosity.name)
+            output.writeOptionalString(
+                profile.voice.preferredSpokenName
             )
 
-            output.writeInt(
-                PROFILE_PERSISTENCE_VERSION
-            )
-
-            output.writeInt(
-                profile.schemaVersion
-            )
+            output.writeUTF(profile.driving.style.name)
+            output.writeUTF(profile.driving.routeStyle.name)
+            output.writeUTF(profile.driving.routeStability.name)
+            output.writeBoolean(profile.driving.preferMajorRoads)
+            output.writeBoolean(profile.driving.avoidComplexTurns)
 
             output.writeUTF(
-                profile.profileId
+                profile.navigation.instructionLeadTime.name
+            )
+            output.writeBoolean(
+                profile.navigation.repeatCriticalInstructions
+            )
+            output.writeBoolean(
+                profile.navigation.automaticMapZoom
+            )
+            output.writeBoolean(
+                profile.navigation.showLaneGuidance
+            )
+            output.writeBoolean(
+                profile.navigation.showRouteAlternatives
+            )
+            output.writeBoolean(
+                profile.navigation.hapticGuidanceEnabled
+            )
+            output.writeUTF(
+                profile.navigation.hapticIntensity.name
             )
 
+            output.writeUTF(profile.display.appearance.name)
+            output.writeUTF(profile.display.mapStyle.name)
+            output.writeUTF(profile.display.mapOrientation.name)
+            output.writeDouble(profile.display.mapTiltDegrees)
+            output.writeDouble(profile.display.defaultZoom)
             output.writeUTF(
-                profile.displayName
+                profile.display.informationDensity.name
             )
+            output.writeDouble(profile.display.textScale)
+            output.writeDouble(profile.display.routeLineScale)
+            output.writeUTF(
+                profile.display.navigationControlSide.name
+            )
+            output.writeUTF(profile.display.accentColor.name)
 
             output.writeBoolean(
-                profile.voice.enabled
+                profile.ai.personalizationEnabled
             )
+            output.writeBoolean(profile.ai.learningEnabled)
+            output.writeBoolean(
+                profile.ai.useTripHistoryForPersonalization
+            )
+            output.writeUTF(profile.ai.assistantStyle.name)
 
-            output.writeUTF(
-                profile.voice.languageTag
+            // Added in persistence/schema v5.
+            output.writeBoolean(
+                profile.ai.socialAdaptationEnabled
             )
+            output.writeInt(profile.ai.humorLevel)
+            output.writeInt(profile.ai.charmLevel)
+            output.writeInt(profile.ai.playfulnessLevel)
+            output.writeInt(profile.ai.proactivityLevel)
+            output.writeInt(profile.ai.flirtLevel)
+            output.writeBoolean(profile.ai.adultFlirtOptIn)
 
             output.writeOptionalString(
-                profile.voice.voiceId
+                profile.dataReferences.learnedPreferencesStoreId
             )
-
-            output.writeDouble(
-                profile.voice.speechRate
-            )
-
-            output.writeUTF(
-                profile.voice.verbosity.name
-            )
-
             output.writeOptionalString(
-                profile.voice
-                    .preferredSpokenName
+                profile.dataReferences.tripHistoryStoreId
             )
-
-            output.writeUTF(
-                profile.driving.style.name
-            )
-
-            output.writeUTF(
-                profile.driving.routeStyle.name
-            )
-
-            output.writeUTF(
-                profile.driving.routeStability.name
-            )
-
-            output.writeBoolean(
-                profile.driving.preferMajorRoads
-            )
-
-            output.writeBoolean(
-                profile.driving.avoidComplexTurns
-            )
-
-            output.writeUTF(
-                profile.navigation
-                    .instructionLeadTime
-                    .name
-            )
-
-            output.writeBoolean(
-                profile.navigation
-                    .repeatCriticalInstructions
-            )
-
-            output.writeBoolean(
-                profile.navigation
-                    .automaticMapZoom
-            )
-
-            output.writeBoolean(
-                profile.navigation
-                    .showLaneGuidance
-            )
-
-            output.writeBoolean(
-                profile.navigation
-                    .showRouteAlternatives
-            )
-
-            output.writeBoolean(
-                profile.navigation
-                    .hapticGuidanceEnabled
-            )
-
-            output.writeUTF(
-                profile.navigation
-                    .hapticIntensity
-                    .name
-            )
-
-            output.writeUTF(
-                profile.display.appearance.name
-            )
-
-            output.writeUTF(
-                profile.display.mapStyle.name
-            )
-
-            output.writeUTF(
-                profile.display.mapOrientation.name
-            )
-
-            output.writeDouble(
-                profile.display.mapTiltDegrees
-            )
-
-            output.writeDouble(
-                profile.display.defaultZoom
-            )
-
-            output.writeUTF(
-                profile.display
-                    .informationDensity
-                    .name
-            )
-
-            output.writeDouble(
-                profile.display.textScale
-            )
-
-            output.writeDouble(
-                profile.display.routeLineScale
-            )
-
-            output.writeUTF(
-                profile.display
-                    .navigationControlSide
-                    .name
-            )
-            output.writeUTF(
-                profile.display
-                    .accentColor
-                    .name
-            )
-
-            output.writeBoolean(
-                profile.ai
-                    .personalizationEnabled
-            )
-
-            output.writeBoolean(
-                profile.ai.learningEnabled
-            )
-
-            output.writeBoolean(
-                profile.ai
-                    .useTripHistoryForPersonalization
-            )
-
-            output.writeUTF(
-                profile.ai.assistantStyle.name
-            )
-
             output.writeOptionalString(
-                profile.dataReferences
-                    .learnedPreferencesStoreId
-            )
-
-            output.writeOptionalString(
-                profile.dataReferences
-                    .tripHistoryStoreId
-            )
-
-            output.writeOptionalString(
-                profile.dataReferences
-                    .aiContextStoreId
+                profile.dataReferences.aiContextStoreId
             )
 
             output.writeUTF(
-                profile.personality
-                    .selectedPackId
+                profile.personality.selectedPackId
             )
-
             output.writeUTF(
-                profile.personality
-                    .selectionSource
-                    .name
+                profile.personality.selectionSource.name
             )
-
             output.writeBoolean(
-                profile.personality
-                    .weeklyDiscoveryEnabled
+                profile.personality.weeklyDiscoveryEnabled
             )
-
             output.writeUTF(
-                profile.personality
-                    .weeklyDiscoveryIntensity
-                    .name
+                profile.personality.weeklyDiscoveryIntensity.name
             )
         }
 
@@ -243,19 +137,13 @@ object ProfilePersistenceCodec {
 
         return Base64
             .getEncoder()
-            .encodeToString(
-                bytes
-            )
+            .encodeToString(bytes)
     }
 
     fun decode(
-        encoded:
-            String,
+        encoded: String,
     ): UserProfile {
-
-        require(
-            encoded.isNotBlank()
-        ) {
+        require(encoded.isNotBlank()) {
             "Encoded profile must not be blank."
         }
 
@@ -270,12 +158,9 @@ object ProfilePersistenceCodec {
             try {
                 Base64
                     .getDecoder()
-                    .decode(
-                        encoded
-                    )
+                    .decode(encoded)
             } catch (
-                error:
-                    IllegalArgumentException
+                error: IllegalArgumentException
             ) {
                 throw IllegalArgumentException(
                     "Encoded profile is not valid Base64.",
@@ -291,12 +176,8 @@ object ProfilePersistenceCodec {
         }
 
         return DataInputStream(
-            ByteArrayInputStream(
-                bytes
-            )
-        ).use {
-                input ->
-
+            ByteArrayInputStream(bytes)
+        ).use { input ->
             require(
                 input.readInt() ==
                     PROFILE_PERSISTENCE_MAGIC
@@ -319,16 +200,18 @@ object ProfilePersistenceCodec {
                 input.readInt()
 
             val expectedSchemaVersion =
-                when (
-                    persistenceVersion
-                ) {
+                when (persistenceVersion) {
                     LEGACY_PROFILE_PERSISTENCE_VERSION ->
                         LEGACY_USER_PROFILE_SCHEMA_VERSION
 
                     LEGACY_PROFILE_PERSISTENCE_VERSION_V2 ->
                         LEGACY_USER_PROFILE_SCHEMA_VERSION_V2
+
                     LEGACY_PROFILE_PERSISTENCE_VERSION_V3 ->
                         LEGACY_USER_PROFILE_SCHEMA_VERSION_V3
+
+                    LEGACY_PROFILE_PERSISTENCE_VERSION_V4 ->
+                        LEGACY_USER_PROFILE_SCHEMA_VERSION_V4
 
                     else ->
                         USER_PROFILE_SCHEMA_VERSION
@@ -341,212 +224,240 @@ object ProfilePersistenceCodec {
                 "Profile schema version mismatch."
             }
 
+            val profileId =
+                input.readUTF()
+
+            val displayName =
+                input.readUTF()
+
+            val voice =
+                VoicePreferences(
+                    enabled =
+                        input.readBoolean(),
+                    languageTag =
+                        input.readUTF(),
+                    voiceId =
+                        input.readOptionalString(),
+                    speechRate =
+                        input.readDouble(),
+                    verbosity =
+                        input.readEnumValue(
+                            "voice verbosity"
+                        ),
+                    preferredSpokenName =
+                        input.readOptionalString(),
+                )
+
+            val driving =
+                DrivingPreferences(
+                    style =
+                        input.readEnumValue(
+                            "driving style"
+                        ),
+                    routeStyle =
+                        input.readEnumValue(
+                            "route style"
+                        ),
+                    routeStability =
+                        input.readEnumValue(
+                            "route stability"
+                        ),
+                    preferMajorRoads =
+                        input.readBoolean(),
+                    avoidComplexTurns =
+                        input.readBoolean(),
+                )
+
+            val navigation =
+                NavigationPreferences(
+                    instructionLeadTime =
+                        input.readEnumValue(
+                            "instruction lead time"
+                        ),
+                    repeatCriticalInstructions =
+                        input.readBoolean(),
+                    automaticMapZoom =
+                        input.readBoolean(),
+                    showLaneGuidance =
+                        input.readBoolean(),
+                    showRouteAlternatives =
+                        input.readBoolean(),
+                    hapticGuidanceEnabled =
+                        if (
+                            persistenceVersion >=
+                                LEGACY_PROFILE_PERSISTENCE_VERSION_V3
+                        ) {
+                            input.readBoolean()
+                        } else {
+                            true
+                        },
+                    hapticIntensity =
+                        if (
+                            persistenceVersion >=
+                                LEGACY_PROFILE_PERSISTENCE_VERSION_V3
+                        ) {
+                            input.readEnumValue(
+                                "navigation haptic intensity"
+                            )
+                        } else {
+                            NavigationHapticIntensity.Standard
+                        },
+                )
+
+            val display =
+                DisplayPreferences(
+                    appearance =
+                        input.readEnumValue(
+                            "appearance"
+                        ),
+                    mapStyle =
+                        input.readEnumValue(
+                            "map style"
+                        ),
+                    mapOrientation =
+                        input.readEnumValue(
+                            "map orientation"
+                        ),
+                    mapTiltDegrees =
+                        input.readDouble(),
+                    defaultZoom =
+                        input.readDouble(),
+                    informationDensity =
+                        input.readEnumValue(
+                            "information density"
+                        ),
+                    textScale =
+                        input.readDouble(),
+                    routeLineScale =
+                        input.readDouble(),
+                    navigationControlSide =
+                        input.readEnumValue(
+                            "navigation control side"
+                        ),
+                    accentColor =
+                        if (
+                            persistenceVersion >=
+                                LEGACY_PROFILE_PERSISTENCE_VERSION_V4
+                        ) {
+                            input.readEnumValue(
+                                "accent color"
+                            )
+                        } else {
+                            ProfileAccentColor.Standard
+                        },
+                )
+
+            val personalizationEnabled =
+                input.readBoolean()
+
+            val learningEnabled =
+                input.readBoolean()
+
+            val useTripHistoryForPersonalization =
+                input.readBoolean()
+
+            val assistantStyle =
+                input.readEnumValue<AssistantStylePreference>(
+                    "assistant style"
+                )
+
+            val ai =
+                if (
+                    persistenceVersion >=
+                        PROFILE_PERSISTENCE_VERSION
+                ) {
+                    AiPreferences(
+                        personalizationEnabled =
+                            personalizationEnabled,
+                        learningEnabled =
+                            learningEnabled,
+                        useTripHistoryForPersonalization =
+                            useTripHistoryForPersonalization,
+                        assistantStyle =
+                            assistantStyle,
+                        socialAdaptationEnabled =
+                            input.readBoolean(),
+                        humorLevel =
+                            input.readInt(),
+                        charmLevel =
+                            input.readInt(),
+                        playfulnessLevel =
+                            input.readInt(),
+                        proactivityLevel =
+                            input.readInt(),
+                        flirtLevel =
+                            input.readInt(),
+                        adultFlirtOptIn =
+                            input.readBoolean(),
+                    )
+                } else {
+                    AiPreferences(
+                        personalizationEnabled =
+                            personalizationEnabled,
+                        learningEnabled =
+                            learningEnabled,
+                        useTripHistoryForPersonalization =
+                            useTripHistoryForPersonalization,
+                        assistantStyle =
+                            assistantStyle,
+                    )
+                }
+
+            val dataReferences =
+                ProfileDataReferences(
+                    learnedPreferencesStoreId =
+                        input.readOptionalString(),
+                    tripHistoryStoreId =
+                        input.readOptionalString(),
+                    aiContextStoreId =
+                        input.readOptionalString(),
+                )
+
+            val personality =
+                if (
+                    persistenceVersion >=
+                        LEGACY_PROFILE_PERSISTENCE_VERSION_V2
+                ) {
+                    NavigationPersonalityPreferences(
+                        selectedPackId =
+                            input.readUTF(),
+                        selectionSource =
+                            input.readEnumValue(
+                                "experience pack selection source"
+                            ),
+                        weeklyDiscoveryEnabled =
+                            input.readBoolean(),
+                        weeklyDiscoveryIntensity =
+                            input.readEnumValue(
+                                "weekly discovery intensity"
+                            ),
+                    )
+                } else {
+                    NavigationPersonalityPreferences()
+                }
+
             val profile =
                 UserProfile(
                     schemaVersion =
                         USER_PROFILE_SCHEMA_VERSION,
-
                     profileId =
-                        input.readUTF(),
-
+                        profileId,
                     displayName =
-                        input.readUTF(),
-
+                        displayName,
                     voice =
-                        VoicePreferences(
-                            enabled =
-                                input.readBoolean(),
-
-                            languageTag =
-                                input.readUTF(),
-
-                            voiceId =
-                                input.readOptionalString(),
-
-                            speechRate =
-                                input.readDouble(),
-
-                            verbosity =
-                                input.readEnumValue(
-                                    "voice verbosity"
-                                ),
-
-                            preferredSpokenName =
-                                input.readOptionalString(),
-                        ),
-
+                        voice,
                     driving =
-                        DrivingPreferences(
-                            style =
-                                input.readEnumValue(
-                                    "driving style"
-                                ),
-
-                            routeStyle =
-                                input.readEnumValue(
-                                    "route style"
-                                ),
-
-                            routeStability =
-                                input.readEnumValue(
-                                    "route stability"
-                                ),
-
-                            preferMajorRoads =
-                                input.readBoolean(),
-
-                            avoidComplexTurns =
-                                input.readBoolean(),
-                        ),
-
+                        driving,
                     navigation =
-                        NavigationPreferences(
-                            instructionLeadTime =
-                                input.readEnumValue(
-                                    "instruction lead time"
-                                ),
-
-                            repeatCriticalInstructions =
-                                input.readBoolean(),
-
-                            automaticMapZoom =
-                                input.readBoolean(),
-
-                            showLaneGuidance =
-                                input.readBoolean(),
-
-                            showRouteAlternatives =
-                                input.readBoolean(),
-
-                            hapticGuidanceEnabled =
-                                if (
-                                    persistenceVersion >=
-                                        3
-                                ) {
-                                    input.readBoolean()
-                                } else {
-                                    true
-                                },
-
-                            hapticIntensity =
-                                if (
-                                    persistenceVersion >=
-                                        3
-                                ) {
-                                    input.readEnumValue(
-                                        "navigation haptic intensity"
-                                    )
-                                } else {
-                                    NavigationHapticIntensity
-                                        .Standard
-                                },
-                        ),
-
+                        navigation,
                     display =
-                        DisplayPreferences(
-                            appearance =
-                                input.readEnumValue(
-                                    "appearance"
-                                ),
-
-                            mapStyle =
-                                input.readEnumValue(
-                                    "map style"
-                                ),
-
-                            mapOrientation =
-                                input.readEnumValue(
-                                    "map orientation"
-                                ),
-
-                            mapTiltDegrees =
-                                input.readDouble(),
-
-                            defaultZoom =
-                                input.readDouble(),
-
-                            informationDensity =
-                                input.readEnumValue(
-                                    "information density"
-                                ),
-
-                            textScale =
-                                input.readDouble(),
-
-                            routeLineScale =
-                                input.readDouble(),
-
-                            navigationControlSide =
-                                input.readEnumValue(
-                                    "navigation control side"
-                                ),
-                            accentColor =
-                                if (
-                                    persistenceVersion >=
-                                        4
-                                ) {
-                                    input.readEnumValue(
-                                        "accent color"
-                                    )
-                                } else {
-                                    ProfileAccentColor.Standard
-                                },
-                        ),
-
+                        display,
                     ai =
-                        AiPreferences(
-                            personalizationEnabled =
-                                input.readBoolean(),
-
-                            learningEnabled =
-                                input.readBoolean(),
-
-                            useTripHistoryForPersonalization =
-                                input.readBoolean(),
-
-                            assistantStyle =
-                                input.readEnumValue(
-                                    "assistant style"
-                                ),
-                        ),
-
+                        ai,
                     dataReferences =
-                        ProfileDataReferences(
-                            learnedPreferencesStoreId =
-                                input.readOptionalString(),
-
-                            tripHistoryStoreId =
-                                input.readOptionalString(),
-
-                            aiContextStoreId =
-                                input.readOptionalString(),
-                        ),
-
+                        dataReferences,
                     personality =
-                        if (
-                            persistenceVersion >=
-                                2
-                        ) {
-                            NavigationPersonalityPreferences(
-                                selectedPackId =
-                                    input.readUTF(),
-
-                                selectionSource =
-                                    input.readEnumValue(
-                                        "experience pack selection source"
-                                    ),
-
-                                weeklyDiscoveryEnabled =
-                                    input.readBoolean(),
-
-                                weeklyDiscoveryIntensity =
-                                    input.readEnumValue(
-                                        "weekly discovery intensity"
-                                    ),
-                            )
-                        } else {
-                            NavigationPersonalityPreferences()
-                        },
+                        personality,
                 )
 
             require(
@@ -562,8 +473,7 @@ object ProfilePersistenceCodec {
 }
 
 private fun DataOutputStream.writeOptionalString(
-    value:
-        String?,
+    value: String?,
 ) {
     writeBoolean(
         value !=
@@ -572,9 +482,7 @@ private fun DataOutputStream.writeOptionalString(
 
     value
         ?.let {
-            writeUTF(
-                it
-            )
+            writeUTF(it)
         }
 }
 
@@ -589,11 +497,9 @@ private fun DataInputStream.readOptionalString():
     }
 
 private inline fun <
-    reified T :
-        Enum<T>
+    reified T : Enum<T>
 > DataInputStream.readEnumValue(
-    fieldName:
-        String,
+    fieldName: String,
 ): T {
     val value =
         readUTF()
@@ -616,11 +522,15 @@ private const val LEGACY_PROFILE_PERSISTENCE_VERSION =
 
 private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V2 =
     2
+
 private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V3 =
     3
 
-private const val PROFILE_PERSISTENCE_VERSION =
+private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V4 =
     4
+
+private const val PROFILE_PERSISTENCE_VERSION =
+    5
 
 private const val MIN_SUPPORTED_PROFILE_PERSISTENCE_VERSION =
     LEGACY_PROFILE_PERSISTENCE_VERSION
@@ -630,8 +540,12 @@ private const val LEGACY_USER_PROFILE_SCHEMA_VERSION =
 
 private const val LEGACY_USER_PROFILE_SCHEMA_VERSION_V2 =
     2
+
 private const val LEGACY_USER_PROFILE_SCHEMA_VERSION_V3 =
     3
+
+private const val LEGACY_USER_PROFILE_SCHEMA_VERSION_V4 =
+    4
 
 private const val MAX_PROFILE_PERSISTENCE_BYTES =
     64 * 1024
