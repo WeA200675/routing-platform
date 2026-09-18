@@ -11,7 +11,7 @@ package org.routingplatform.app.profile
  * safety-critical runtime boundaries.
  */
 const val USER_PROFILE_SCHEMA_VERSION =
-    4
+    5
 
 enum class VoiceGuidanceVerbosity {
     Minimal,
@@ -235,6 +235,7 @@ data class DisplayPreferences(
     val appearance:
         ProfileAppearance =
         ProfileAppearance.System,
+
     val accentColor:
         ProfileAccentColor =
         ProfileAccentColor.Standard,
@@ -328,7 +329,77 @@ data class AiPreferences(
     val assistantStyle:
         AssistantStylePreference =
         AssistantStylePreference.Standard,
-)
+
+    /*
+     * Social AI settings are explicit user choices.
+     * Learned social preferences live in the separate AI memory store.
+     */
+    val socialAdaptationEnabled:
+        Boolean =
+        true,
+
+    val humorLevel:
+        Int =
+        35,
+
+    val charmLevel:
+        Int =
+        20,
+
+    val playfulnessLevel:
+        Int =
+        25,
+
+    val proactivityLevel:
+        Int =
+        25,
+
+    val flirtLevel:
+        Int =
+        0,
+
+    val adultFlirtOptIn:
+        Boolean =
+        false,
+) {
+    init {
+        requireSocialLevel(
+            humorLevel,
+            "humorLevel",
+        )
+
+        requireSocialLevel(
+            charmLevel,
+            "charmLevel",
+        )
+
+        requireSocialLevel(
+            playfulnessLevel,
+            "playfulnessLevel",
+        )
+
+        requireSocialLevel(
+            proactivityLevel,
+            "proactivityLevel",
+        )
+
+        requireSocialLevel(
+            flirtLevel,
+            "flirtLevel",
+        )
+    }
+
+    val effectiveFlirtLevel:
+        Int
+        get() =
+            if (
+                adultFlirtOptIn
+            ) {
+                flirtLevel
+            } else {
+                0
+            }
+}
 
 data class ProfileDataReferences(
     /*
@@ -421,7 +492,7 @@ data class UserProfile(
             schemaVersion ==
                 USER_PROFILE_SCHEMA_VERSION
         ) {
-            "Only UserProfile schema v3 is supported."
+            "Only UserProfile schema $USER_PROFILE_SCHEMA_VERSION is supported."
         }
 
         require(
@@ -535,4 +606,19 @@ private fun validateOptionalStoreId(
                 "$fieldName must contain 1-64 safe identifier characters."
             }
         }
+}
+
+private fun requireSocialLevel(
+    value:
+        Int,
+
+    fieldName:
+        String,
+) {
+    require(
+        value in
+            0..100
+    ) {
+        "$fieldName must be in [0, 100]."
+    }
 }

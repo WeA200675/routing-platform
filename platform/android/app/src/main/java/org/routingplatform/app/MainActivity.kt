@@ -1237,6 +1237,32 @@ class MainActivity :
                             activeProfile
                                 .personality,
 
+                        aiPreferences =
+                            activeProfile
+                                .ai,
+
+                        onAiPreferencesChanged = {
+                                updatedAi ->
+
+                            val updated =
+                                activeProfile.copy(
+                                    ai =
+                                        updatedAi
+                                )
+
+                            check(
+                                profileStore
+                                    .saveAndActivate(
+                                        updated
+                                    )
+                            ) {
+                                "Could not persist active profile."
+                            }
+
+                            activeProfile =
+                                updated
+                        },
+
                         voicePreferences =
                             activeProfile
                                 .voice,

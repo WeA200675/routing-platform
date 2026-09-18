@@ -1,0 +1,41 @@
+name: Core CI
+
+on:
+  push:
+    branches:
+      - main
+      - "g6.*/*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Configure, build and test Core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DROUTING_PLATFORM_BUILD_TESTS=ON
+          -DROUTING_PLATFORM_WITH_VALHALLA=OFF
+
+      - name: Build Core
+        run: cmake --build build --parallel 2
+
+      - name: Run Core Tests
+        run: ctest --test-dir build --output-on-failure

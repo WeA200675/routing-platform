@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import org.routingplatform.app.profile.AiPreferences
 import org.routingplatform.app.profile.ExperiencePackCatalog
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
@@ -32,6 +33,12 @@ import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
 internal fun ExperiencePackDialog(
     preferences:
         NavigationPersonalityPreferences,
+
+    aiPreferences:
+        AiPreferences,
+
+    onAiPreferencesChanged:
+        (AiPreferences) -> Unit,
 
     onSelectPack:
         (String) -> Unit,
@@ -366,6 +373,21 @@ internal fun ExperiencePackDialog(
                         MaterialTheme
                             .typography
                             .bodySmall,
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.height(
+                            18.dp
+                        )
+                )
+
+                SocialAiSettingsSection(
+                    preferences =
+                        aiPreferences,
+
+                    onChanged =
+                        onAiPreferencesChanged,
                 )
             }
         }
