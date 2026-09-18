@@ -50,6 +50,7 @@ import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestination
 import org.routingplatform.app.places.FavoriteDestinationCollection
+import org.routingplatform.app.profile.AiPreferences
 import org.routingplatform.app.profile.DisplayPreferences
 import org.routingplatform.app.profile.ExperiencePackCatalog
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
@@ -128,6 +129,14 @@ internal fun NavigationScreen(
     personalityPreferences:
         NavigationPersonalityPreferences =
         NavigationPersonalityPreferences(),
+
+    aiPreferences:
+        AiPreferences =
+        AiPreferences(),
+
+    onAiPreferencesChanged:
+        (AiPreferences) -> Unit =
+        {},
 
     voicePreferences:
         VoicePreferences =
@@ -1379,6 +1388,12 @@ internal fun NavigationScreen(
         ExperiencePackDialog(
             preferences =
                 personalityPreferences,
+
+            aiPreferences =
+                aiPreferences,
+
+            onAiPreferencesChanged =
+                onAiPreferencesChanged,
 
             onSelectPack =
                 onExperiencePackSelected,
