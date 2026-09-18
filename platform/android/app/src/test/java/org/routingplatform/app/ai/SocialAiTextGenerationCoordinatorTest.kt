@@ -12,7 +12,7 @@ class SocialAiTextGenerationCoordinatorTest {
 
         assertNull(
             coordinator.generateOrNull(
-                input = SocialAiRuntimeInput(),
+                input = SocialAiRuntimeInput(settings = SocialAiPersonalitySettings()),
                 userText = "Hallo",
             )
         )
