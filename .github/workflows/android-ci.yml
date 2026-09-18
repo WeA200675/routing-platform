@@ -66,4 +66,5 @@ jobs:
             --stacktrace \
             :app:testDebugUnitTest \
             :app:lintDebug \
-            :app:compileReleaseKotlin
+            :app:compileReleaseKotlin \
+            :app:assembleDebugAndroidTest
