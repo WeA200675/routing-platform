@@ -11,9 +11,14 @@ class SocialAiRuntimeSession(
     private val backend: ManagedLocalSocialAiBackend,
     private val lifecycle: SocialAiModelLifecycle,
     private val circuitBreaker: SocialAiRuntimeCircuitBreaker = SocialAiRuntimeCircuitBreaker(),
+    private val leases: SocialAiModelLeaseRegistry = SocialAiModelLeaseRegistry(),
 ) {
     @Volatile
     var state: SocialAiRuntimeState = SocialAiRuntimeState.Unloaded
+        private set
+
+    @Volatile
+    var modelLease: SocialAiModelLease? = null
         private set
 
     @Synchronized
@@ -27,6 +32,7 @@ class SocialAiRuntimeSession(
             lifecycle.load(request)
         } catch (error: RuntimeException) {
             backend.unload()
+            revokeLease()
             circuitBreaker.recordFailure()
             state = SocialAiRuntimeState.Failed("Local runtime load failed.")
             return SocialAiModelLoadResult.Rejected("Local runtime load failed.")
@@ -34,9 +40,13 @@ class SocialAiRuntimeSession(
         state = when (result) {
             is SocialAiModelLoadResult.Loaded -> {
                 circuitBreaker.recordSuccess()
+                modelLease = leases.activate(request.metadata)
                 SocialAiRuntimeState.Ready(result.modelId)
             }
-            is SocialAiModelLoadResult.Rejected -> SocialAiRuntimeState.Failed(result.reason)
+            is SocialAiModelLoadResult.Rejected -> {
+                revokeLease()
+                SocialAiRuntimeState.Failed(result.reason)
+            }
         }
         return result
     }
@@ -46,8 +56,14 @@ class SocialAiRuntimeSession(
 
     private fun unload(resetCircuitBreaker: Boolean) {
         lifecycle.unload()
+        revokeLease()
         if (resetCircuitBreaker) circuitBreaker.reset()
         state = SocialAiRuntimeState.Unloaded
+    }
+
+    private fun revokeLease() {
+        leases.revoke()
+        modelLease = null
     }
 
     @Synchronized
@@ -56,6 +72,13 @@ class SocialAiRuntimeSession(
         resources: SocialAiRuntimeResources = SocialAiRuntimeResources(Long.MAX_VALUE),
     ): SocialAiTextGenerationResult {
         check(state is SocialAiRuntimeState.Ready) { "Local runtime is not ready." }
+        val lease = checkNotNull(modelLease) { "Local runtime has no verified model lease." }
+        leases.requireActive(lease)
+        check(lease.modelId == backend.modelMetadata.modelId &&
+            lease.revision == backend.modelMetadata.revision &&
+            lease.sha256 == backend.modelMetadata.sha256.lowercase()) {
+            "Loaded model provenance no longer matches backend metadata."
+        }
         check(circuitBreaker.allowAttempt()) { "Local runtime circuit breaker is open." }
         val admission = SocialAiRuntimeResourceGovernor.admit(
             requestedOutputTokens = request.maximumOutputTokens,
@@ -67,9 +90,15 @@ class SocialAiRuntimeSession(
             request.copy(maximumOutputTokens = allowed.maximumOutputTokens)
         )
         return try {
-            backend.generate(admitted).also { circuitBreaker.recordSuccess() }
+            backend.generate(admitted).also { result ->
+                check(result.localInference) { "Runtime result must report local inference." }
+                check(result.backendId == backend.backendId) { "Runtime backend identity mismatch." }
+                leases.requireActive(lease)
+                circuitBreaker.recordSuccess()
+            }
         } catch (error: RuntimeException) {
             backend.unload()
+            revokeLease()
             circuitBreaker.recordFailure()
             state = SocialAiRuntimeState.Failed("Local runtime generation failed.")
             throw IllegalStateException("Local runtime generation failed closed.", error)
