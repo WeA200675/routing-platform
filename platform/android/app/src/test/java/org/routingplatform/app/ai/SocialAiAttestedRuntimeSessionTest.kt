@@ -88,6 +88,7 @@ class SocialAiAttestedRuntimeSessionTest {
             attestation,
             "arm64-v8a",
             evidence(setOf("arm64-v8a")),
+            manifest(setOf("arm64-v8a")),
         )
         val file = File.createTempFile("model", ".gguf")
         val result = session.load(SocialAiModelLoadRequest(file, model, Long.MAX_VALUE))
@@ -108,6 +109,7 @@ class SocialAiAttestedRuntimeSessionTest {
             attestation,
             deviceAbi,
             evidence(abis),
+            manifest(abis),
         )
     }
 
@@ -118,6 +120,16 @@ class SocialAiAttestedRuntimeSessionTest {
         buildArguments = listOf("-DGGML_OPENMP=OFF", "-DCMAKE_BUILD_TYPE=Release"),
         sbomSha256 = "d".repeat(64),
         sbomComponents = setOf("runtime", "model"),
+    )
+
+    private fun manifest(abis: Set<String>) = SocialAiRuntimeReleaseManifest(
+        runtimeComponentId = runtime.componentId,
+        runtimeRevision = runtime.revision,
+        modelId = model.modelId,
+        modelRevision = model.revision,
+        modelSha256 = model.sha256,
+        runtimeArtifactSha256ByAbi = abis.associateWith { "c".repeat(64) },
+        sbomSha256 = "d".repeat(64),
     )
 
     private inner class FakeBackend(
