@@ -39,6 +39,34 @@ class SocialAiAttestedRuntimeSessionTest {
         file.delete()
     }
 
+    @Test
+    fun mismatchedNativeBuildFailsBeforeNativeLoad() {
+        val backend = FakeBackend(runtimeBuildId = "unexpected-build")
+        val session = session(backend, setOf("arm64-v8a"), "arm64-v8a")
+        val file = File.createTempFile("model", ".gguf")
+        val result = session.load(SocialAiModelLoadRequest(file, model, Long.MAX_VALUE))
+        assertTrue(result is SocialAiModelLoadResult.Rejected)
+        assertFalse(backend.loadCalled)
+        file.delete()
+    }
+
+    @Test
+    fun backendWithoutBuildIdentityFailsBeforeNativeLoad() {
+        val backend = UnidentifiedBackend()
+        val attestation = SocialAiRuntimeAttestation(provenance, "build-1", setOf("arm64-v8a"))
+        val session = SocialAiAttestedRuntimeSession(
+            backend,
+            SocialAiModelLifecycle(backend, SocialAiRuntimeLimits(minimumAvailableMemoryBytes = 0)),
+            attestation,
+            "arm64-v8a",
+        )
+        val file = File.createTempFile("model", ".gguf")
+        val result = session.load(SocialAiModelLoadRequest(file, model, Long.MAX_VALUE))
+        assertTrue(result is SocialAiModelLoadResult.Rejected)
+        assertFalse(backend.loadCalled)
+        file.delete()
+    }
+
     private fun session(
         backend: FakeBackend,
         abis: Set<String>,
@@ -53,7 +81,28 @@ class SocialAiAttestedRuntimeSessionTest {
         )
     }
 
-    private inner class FakeBackend : ManagedLocalSocialAiBackend {
+    private inner class FakeBackend(
+        override val runtimeBuildId: String = "build-1",
+    ) : ManagedLocalSocialAiBackend, SocialAiRuntimeBuildIdentified {
+        override val backendId = "local"
+        override val runtimeMetadata = runtime
+        override val modelMetadata = model
+        override var isLoaded = false
+        var loadCalled = false
+
+        override fun load(request: SocialAiModelLoadRequest): SocialAiModelLoadResult {
+            loadCalled = true
+            isLoaded = true
+            return SocialAiModelLoadResult.Loaded(model.modelId)
+        }
+
+        override fun unload() { isLoaded = false }
+
+        override fun generate(request: SocialAiTextGenerationRequest) =
+            SocialAiTextGenerationResult("local", backendId, true)
+    }
+
+    private inner class UnidentifiedBackend : ManagedLocalSocialAiBackend {
         override val backendId = "local"
         override val runtimeMetadata = runtime
         override val modelMetadata = model
