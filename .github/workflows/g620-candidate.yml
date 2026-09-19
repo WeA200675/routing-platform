@@ -67,14 +67,7 @@ jobs:
           cp "$APK" "$RUNNER_TEMP/g620/build/g620-release.apk"
           APK_SHA="$(sha256sum "$RUNNER_TEMP/g620/build/g620-release.apk" | awk '{print $1}')"
           echo "$APK_SHA  g620-release.apk" > "$RUNNER_TEMP/g620/build/g620-release.apk.sha256"
-          python3 - "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json" "$APK_SHA" <<'PY'
-import json, sys
-from pathlib import Path
-path = Path(sys.argv[1])
-data = json.loads(path.read_text())
-data["releaseApkSha256"] = sys.argv[2].lower()
-path.write_text(json.dumps(data, indent=2, sort_keys=True) + chr(10))
-PY
+          python3 -c 'import json,sys; from pathlib import Path; p=Path(sys.argv[1]); d=json.loads(p.read_text()); d["releaseApkSha256"]=sys.argv[2].lower(); p.write_text(json.dumps(d,indent=2,sort_keys=True)+chr(10))' "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json" "$APK_SHA"
           python3 tools/g620/verify_release_apk.py "$RUNNER_TEMP/g620/build/g620-release.apk" --release-manifest "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
       - name: Upload candidate evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
