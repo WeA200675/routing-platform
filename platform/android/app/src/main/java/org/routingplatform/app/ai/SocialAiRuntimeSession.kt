@@ -67,6 +67,17 @@ class SocialAiRuntimeSession(
     }
 
     @Synchronized
+    fun onResourcePressure(resources: SocialAiRuntimeResources): SocialAiRuntimePressureAction {
+        val action = SocialAiRuntimePressurePolicy.evaluate(resources)
+        if (action is SocialAiRuntimePressureAction.Unload && state is SocialAiRuntimeState.Ready) {
+            lifecycle.unload()
+            revokeLease()
+            state = SocialAiRuntimeState.Unloaded
+        }
+        return action
+    }
+
+    @Synchronized
     fun generate(
         request: SocialAiTextGenerationRequest,
         resources: SocialAiRuntimeResources = SocialAiRuntimeResources(Long.MAX_VALUE),
