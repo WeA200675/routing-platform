@@ -91,6 +91,10 @@ jobs:
         shell: bash
         run: python3 ../../tools/g620/test_verify_captured_candidate.py
 
+      - name: Test native artifact evidence capture
+        shell: bash
+        run: python3 ../../tools/g620/test_capture_native_artifact.py
+
       - name: Verify release APK contains no unreviewed LLM native runtime
         shell: bash
         run: |
