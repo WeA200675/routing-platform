@@ -68,6 +68,24 @@ class SocialAiAttestedRuntimeSessionTest {
     }
 
     @Test
+    fun missingReleaseManifestFailsBeforeNativeLoad() {
+        val backend = FakeBackend()
+        val attestation = SocialAiRuntimeAttestation(provenance, "build-1", setOf("arm64-v8a"))
+        val session = SocialAiAttestedRuntimeSession(
+            backend,
+            SocialAiModelLifecycle(backend, SocialAiRuntimeLimits(minimumAvailableMemoryBytes = 0)),
+            attestation,
+            "arm64-v8a",
+            evidence(setOf("arm64-v8a")),
+        )
+        val file = File.createTempFile("model", ".gguf")
+        val result = session.load(SocialAiModelLoadRequest(file, model, Long.MAX_VALUE))
+        assertTrue(result is SocialAiModelLoadResult.Rejected)
+        assertFalse(backend.loadCalled)
+        file.delete()
+    }
+
+    @Test
     fun mismatchedNativeArtifactHashFailsBeforeNativeLoad() {
         val backend = FakeBackend(runtimeArtifactSha256 = "e".repeat(64))
         val session = session(backend, setOf("arm64-v8a"), "arm64-v8a")
