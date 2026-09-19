@@ -6,6 +6,12 @@ import org.junit.Test
 
 class SocialAiOfflineArchitecturePolicyTest {
     @Test
+    fun guardRejectsNetworkImportsWithoutMatchingItsOwnRules() {
+        assertTrue(SocialAiOfflineArchitecturePolicy.violations("import java.net.URL").isNotEmpty())
+        assertTrue(SocialAiOfflineArchitecturePolicy.violations("val label = \"URL(\"").isEmpty())
+    }
+
+    @Test
     fun productionAiSourcesContainNoNetworkTransportDependency() {
         val roots = sequenceOf(
             File("src/main/java/org/routingplatform/app/ai"),
