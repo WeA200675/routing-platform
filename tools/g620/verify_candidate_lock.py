@@ -31,8 +31,8 @@ if lock["MODEL_REPOSITORY"] != "https://huggingface.co/unsloth/SmolLM2-360M-Inst
     raise SystemExit("model repository differs from the selected integration candidate")
 if lock["MODEL_ARTIFACT"] != "SmolLM2-360M-Instruct-Q4_K_M.gguf":
     raise SystemExit("model artifact differs from the selected integration candidate")
-if not re.fullmatch(r"[0-9a-f]{7,64}", lock["MODEL_REVISION"]):
-    raise SystemExit("model revision must be an immutable hexadecimal revision")
+if not re.fullmatch(r"[0-9a-f]{40}", lock["MODEL_REVISION"]):
+    raise SystemExit("model revision must be a full immutable 40-character Git SHA")
 if not re.fullmatch(r"[0-9a-f]{64}", lock["MODEL_SHA256"]):
     raise SystemExit("model SHA-256 must be exact")
 if int(lock["MODEL_BYTES"]) <= 0:
