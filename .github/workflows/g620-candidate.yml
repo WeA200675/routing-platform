@@ -73,7 +73,7 @@ from pathlib import Path
 path = Path(sys.argv[1])
 data = json.loads(path.read_text())
 data["releaseApkSha256"] = sys.argv[2].lower()
-path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\\n")
+path.write_text(json.dumps(data, indent=2, sort_keys=True) + chr(10))
 PY
           python3 tools/g620/verify_release_apk.py "$RUNNER_TEMP/g620/build/g620-release.apk" --release-manifest "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
       - name: Upload candidate evidence
