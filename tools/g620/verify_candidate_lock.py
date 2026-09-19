@@ -13,8 +13,9 @@ for raw in Path(__file__).with_name("candidate.lock").read_text().splitlines():
 
 required = {
     "RUNTIME_REPOSITORY", "RUNTIME_REVISION", "RUNTIME_LICENSE",
-    "MODEL_FAMILY", "MODEL_REPOSITORY", "MODEL_ARTIFACT", "MODEL_FORMAT", "MODEL_QUANTIZATION", "MODEL_LICENSE",
-    "ANDROID_NDK", "CMAKE_VERSION",
+    "MODEL_FAMILY", "MODEL_REPOSITORY", "MODEL_REVISION", "MODEL_ARTIFACT",
+    "MODEL_SHA256", "MODEL_BYTES", "MODEL_FORMAT", "MODEL_QUANTIZATION",
+    "MODEL_LICENSE", "ANDROID_NDK", "CMAKE_VERSION",
 }
 missing = required - lock.keys()
 if missing:
@@ -26,10 +27,16 @@ if lock["RUNTIME_REPOSITORY"] != "https://github.com/ggml-org/llama.cpp":
     raise SystemExit("runtime repository differs from the reviewed candidate")
 if lock["MODEL_FAMILY"] != "SmolLM2-360M-Instruct":
     raise SystemExit("model family differs from the selected integration candidate")
-if lock["MODEL_REPOSITORY"] != "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF":
+if lock["MODEL_REPOSITORY"] != "https://huggingface.co/unsloth/SmolLM2-360M-Instruct-GGUF":
     raise SystemExit("model repository differs from the selected integration candidate")
-if lock["MODEL_ARTIFACT"] != "smollm2-360m-instruct-q4_k_m.gguf":
+if lock["MODEL_ARTIFACT"] != "SmolLM2-360M-Instruct-Q4_K_M.gguf":
     raise SystemExit("model artifact differs from the selected integration candidate")
+if not re.fullmatch(r"[0-9a-f]{7,64}", lock["MODEL_REVISION"]):
+    raise SystemExit("model revision must be an immutable hexadecimal revision")
+if not re.fullmatch(r"[0-9a-f]{64}", lock["MODEL_SHA256"]):
+    raise SystemExit("model SHA-256 must be exact")
+if int(lock["MODEL_BYTES"]) <= 0:
+    raise SystemExit("model byte size must be positive")
 if lock["RUNTIME_LICENSE"] != "MIT" or lock["MODEL_LICENSE"] != "Apache-2.0":
     raise SystemExit("candidate licenses differ from the reviewed permissive set")
 if lock["MODEL_FORMAT"] != "GGUF" or lock["MODEL_QUANTIZATION"] != "Q4_K_M":
