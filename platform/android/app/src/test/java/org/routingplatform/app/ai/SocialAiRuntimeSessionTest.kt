@@ -34,6 +34,32 @@ class SocialAiRuntimeSessionTest {
     }
 
     @Test
+    fun criticalMemoryPressureUnloadsModelAndRevokesLease() {
+        val fixture = fixture(failGeneration = false)
+        assertTrue(fixture.session.load(fixture.request) is SocialAiModelLoadResult.Loaded)
+        val action = fixture.session.onResourcePressure(
+            SocialAiRuntimeResources(availableMemoryBytes = 128L * 1024 * 1024)
+        )
+        assertTrue(action is SocialAiRuntimePressureAction.Unload)
+        assertFalse(fixture.backend.isLoaded)
+        assertNull(fixture.session.modelLease)
+        assertTrue(fixture.session.state is SocialAiRuntimeState.Unloaded)
+        fixture.file.delete()
+    }
+
+    @Test
+    fun recoveryNeverReloadsModelAutomatically() {
+        val fixture = fixture(failGeneration = false)
+        assertTrue(fixture.session.load(fixture.request) is SocialAiModelLoadResult.Loaded)
+        fixture.session.onResourcePressure(SocialAiRuntimeResources(128L * 1024 * 1024))
+        val action = fixture.session.onResourcePressure(SocialAiRuntimeResources(Long.MAX_VALUE))
+        assertTrue(action is SocialAiRuntimePressureAction.Recoverable)
+        assertFalse(fixture.backend.isLoaded)
+        assertTrue(fixture.session.state is SocialAiRuntimeState.Unloaded)
+        fixture.file.delete()
+    }
+
+    @Test
     fun generationBeforeLoadIsRejected() {
         val metadata = LocalModelArtifactMetadata(
             "test/model", "immutable", "MIT", "a".repeat(64), "https://example.invalid/model"
