@@ -82,6 +82,10 @@ jobs:
         shell: bash
         run: python3 ../../tools/g620/test_build_llama_android.py
 
+      - name: Test captured candidate lock binding
+        shell: bash
+        run: python3 ../../tools/g620/test_verify_captured_candidate.py
+
       - name: Verify release APK contains no unreviewed LLM native runtime
         shell: bash
         run: |
