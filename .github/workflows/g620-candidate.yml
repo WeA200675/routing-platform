@@ -18,8 +18,7 @@ jobs:
         uses: android-actions/setup-android@v4
       - name: Install pinned NDK and CMake
         shell: bash
-        run: |
-          sdkmanager "ndk;28.2.13676358" "cmake;3.22.1"
+        run: sdkmanager "ndk;28.2.13676358" "cmake;3.22.1"
       - name: Run real pinned candidate pipeline
         shell: bash
         run: |
@@ -30,14 +29,23 @@ jobs:
         run: |
           SO="$(find "$RUNNER_TEMP/g620/build/llama-android" -type f -name libllama.so -print -quit)"
           test -n "$SO"
-          python3 tools/g620/capture_native_artifact.py --runtime-commit b23701f77d47dad9de834d59ebfcbe25c9e8b46f --ndk-version 28.2.13676358 --cmake-version 3.22.1 --abi arm64-v8a --artifact "$SO" --output "$RUNNER_TEMP/g620/build/native-capture.json"
+          cp "$SO" "$RUNNER_TEMP/g620/build/libsocial_ai_llama.so"
+          python3 tools/g620/capture_native_artifact.py --runtime-commit b23701f77d47dad9de834d59ebfcbe25c9e8b46f --ndk-version 28.2.13676358 --cmake-version 3.22.1 --abi arm64-v8a --artifact "$RUNNER_TEMP/g620/build/libsocial_ai_llama.so" --output "$RUNNER_TEMP/g620/build/native-capture.json"
+      - name: Capture pinned runtime source digest
+        shell: bash
+        run: |
+          git -C "$RUNNER_TEMP/g620/inputs/llama.cpp" archive --format=tar HEAD | sha256sum | awk '{print $1}' > "$RUNNER_TEMP/g620/build/runtime-source.sha256"
+      - name: Create deterministic release evidence
+        shell: bash
+        run: |
+          python3 tools/g620/create_release_evidence.py --candidate-lock tools/g620/candidate.lock --model-capture "$RUNNER_TEMP/g620/build/model-capture.json" --native-capture "$RUNNER_TEMP/g620/build/native-capture.json" --source-sha256 "$(cat "$RUNNER_TEMP/g620/build/runtime-source.sha256")" --output-dir "$RUNNER_TEMP/g620/build/evidence"
       - name: Show immutable evidence hashes
         shell: bash
         run: |
-          sha256sum "$RUNNER_TEMP/g620/build/model-capture.json"
-          sha256sum "$RUNNER_TEMP/g620/build/native-capture.json"
+          sha256sum "$RUNNER_TEMP/g620/build/model-capture.json" "$RUNNER_TEMP/g620/build/native-capture.json" "$RUNNER_TEMP/g620/build/evidence/g620-sbom.spdx.json" "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
           cat "$RUNNER_TEMP/g620/build/model-capture.json"
           cat "$RUNNER_TEMP/g620/build/native-capture.json"
+          cat "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
       - name: Upload candidate evidence
         uses: actions/upload-artifact@v6
         with:
@@ -47,3 +55,6 @@ jobs:
           path: |
             ${{ runner.temp }}/g620/build/model-capture.json
             ${{ runner.temp }}/g620/build/native-capture.json
+            ${{ runner.temp }}/g620/build/runtime-source.sha256
+            ${{ runner.temp }}/g620/build/evidence/g620-sbom.spdx.json
+            ${{ runner.temp }}/g620/build/evidence/g620-release-manifest.json
