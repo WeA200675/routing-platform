@@ -13,9 +13,11 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Verify immutable workflow action revisions
+        run: python3 tools/g620/verify_workflow_action_pins.py
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
       - name: Install pinned NDK and CMake
         shell: bash
         run: sdkmanager "ndk;28.2.13676358" "cmake;3.22.1"
@@ -47,7 +49,7 @@ jobs:
           cat "$RUNNER_TEMP/g620/build/native-capture.json"
           cat "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
       - name: Upload candidate evidence
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: g620-candidate-evidence
           if-no-files-found: error
