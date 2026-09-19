@@ -95,6 +95,10 @@ jobs:
         shell: bash
         run: python3 ../../tools/g620/test_capture_native_artifact.py
 
+      - name: Test pinned release input acquisition contract
+        shell: bash
+        run: python3 ../../tools/g620/test_fetch_pinned_sources.py
+
       - name: Test real candidate preparation contract
         shell: bash
         run: python3 ../../tools/g620/test_prepare_candidate_artifacts.py
