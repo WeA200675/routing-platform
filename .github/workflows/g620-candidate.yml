@@ -2,6 +2,12 @@ name: G6.20 Real Candidate
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - g6.20/local-open-source-llm
+    paths:
+      - .github/workflows/g620-candidate.yml
+      - tools/g620/**
 
 permissions:
   contents: read
