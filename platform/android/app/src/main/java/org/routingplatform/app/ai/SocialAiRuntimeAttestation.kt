@@ -37,5 +37,12 @@ object SocialAiRuntimeAttestationGate {
         require(deviceAbi in attestation.supportedAbis) {
             "Current device ABI is not covered by the runtime attestation."
         }
+        val identifiedBackend = backend as? SocialAiRuntimeBuildIdentified
+            ?: throw IllegalArgumentException(
+                "Local runtime backend does not expose an immutable native build identity."
+            )
+        require(identifiedBackend.runtimeBuildId == attestation.buildId) {
+            "Loaded native runtime build does not match the reviewed attestation build."
+        }
     }
 }
