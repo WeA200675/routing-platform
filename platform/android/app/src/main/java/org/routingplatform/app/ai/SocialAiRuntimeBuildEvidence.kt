@@ -10,6 +10,8 @@ data class SocialAiRuntimeBuildEvidence(
     val toolchain: Map<String, String>,
     val buildArguments: List<String>,
     val sbomSha256: String,
+    val sbomFormat: String = "SPDX-2.3",
+    val sbomComponents: Set<String> = emptySet(),
 ) {
     init {
         require(SHA256_HEX_PATTERN.matches(sourceSha256)) { "Runtime source SHA-256 is required." }
@@ -24,6 +26,11 @@ data class SocialAiRuntimeBuildEvidence(
         require(buildArguments.isNotEmpty()) { "Reproducible build arguments are required." }
         require(buildArguments.all { it.isNotBlank() && it.length <= 256 })
         require(SHA256_HEX_PATTERN.matches(sbomSha256)) { "SBOM SHA-256 is required." }
+        require(sbomFormat in setOf("SPDX-2.3", "CycloneDX-1.6")) {
+            "SBOM format must be an explicitly reviewed schema."
+        }
+        require(sbomComponents.isNotEmpty()) { "SBOM component coverage is required." }
+        require(sbomComponents.all { it.isNotBlank() && it.length <= 160 })
     }
 }
 
@@ -33,6 +40,12 @@ object SocialAiRuntimeDistributionGate {
         evidence: SocialAiRuntimeBuildEvidence,
     ) {
         SocialAiOpenSourceAdmission.requireAdmitted(attestation.provenance)
+        require(evidence.sbomComponents.contains(attestation.provenance.runtime.componentId)) {
+            "SBOM does not cover the attested runtime component."
+        }
+        require(evidence.sbomComponents.contains(attestation.provenance.model.modelId)) {
+            "SBOM does not cover the attested model artifact."
+        }
         require(evidence.artifactSha256ByAbi.keys == attestation.supportedAbis) {
             "Runtime artifact hashes must cover exactly the attested Android ABIs."
         }
