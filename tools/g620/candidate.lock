@@ -2,7 +2,9 @@
 RUNTIME_REPOSITORY=https://github.com/ggml-org/llama.cpp
 RUNTIME_REVISION=b23701f77d47dad9de834d59ebfcbe25c9e8b46f
 RUNTIME_LICENSE=MIT
-MODEL_FAMILY=SmolLM2-1.7B-Instruct
+MODEL_FAMILY=SmolLM2-360M-Instruct
+MODEL_REPOSITORY=https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF
+MODEL_ARTIFACT=smollm2-360m-instruct-q4_k_m.gguf
 MODEL_FORMAT=GGUF
 MODEL_QUANTIZATION=Q4_K_M
 MODEL_LICENSE=Apache-2.0
