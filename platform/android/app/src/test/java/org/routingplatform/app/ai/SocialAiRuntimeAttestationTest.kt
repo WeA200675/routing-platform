@@ -5,7 +5,7 @@ import org.junit.Test
 
 class SocialAiRuntimeAttestationTest {
     private val runtime = OpenSourceComponentMetadata(
-        "runtime", "runtime-commit-123", "MIT", "https://example.invalid/runtime"
+        "runtime", "1".repeat(40), "MIT", "https://example.invalid/runtime"
     )
     private val model = LocalModelArtifactMetadata(
         "model", "model-revision-123", "Apache-2.0", "a".repeat(64),
