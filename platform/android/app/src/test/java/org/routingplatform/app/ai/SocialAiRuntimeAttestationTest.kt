@@ -63,7 +63,8 @@ class SocialAiRuntimeAttestationTest {
         runtimeMetadata: OpenSourceComponentMetadata,
         modelMetadata: LocalModelArtifactMetadata,
     ) = object : LocalSocialAiTextGenerationBackend, SocialAiRuntimeBuildIdentified {
-        override val backendId = "local"\n        override val runtimeBuildId = "build-123"
+        override val backendId = "local"
+        override val runtimeBuildId = "build-123"
         override val runtimeMetadata = runtimeMetadata
         override val modelMetadata = modelMetadata
         override fun generate(request: SocialAiTextGenerationRequest) =
