@@ -13,6 +13,7 @@ class SocialAiAttestedRuntimeSession(
     private val attestation: SocialAiRuntimeAttestation,
     private val deviceAbi: String,
     private val buildEvidence: SocialAiRuntimeBuildEvidence? = null,
+    private val releaseManifest: SocialAiRuntimeReleaseManifest? = null,
 ) {
     private val session = SocialAiRuntimeSession(backend, lifecycle)
 
@@ -67,6 +68,10 @@ class SocialAiAttestedRuntimeSession(
             "Reviewed reproducible runtime build evidence is required before native model load."
         }
         SocialAiRuntimeDistributionGate.requireAdmitted(attestation, evidence)
+        val manifest = requireNotNull(releaseManifest) {
+            "Reviewed immutable release manifest is required before native model load."
+        }
+        SocialAiRuntimeReleaseGate.requireAdmitted(manifest, attestation, evidence)
         val identifiedArtifact = backend as? SocialAiRuntimeArtifactIdentified
             ?: throw IllegalArgumentException(
                 "Local runtime backend does not expose the reviewed native artifact identity."
