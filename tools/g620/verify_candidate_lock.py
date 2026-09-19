@@ -24,7 +24,13 @@ if not re.fullmatch(r"[0-9a-f]{40}", lock["RUNTIME_REVISION"]):
     raise SystemExit("runtime revision must be an immutable 40-character Git SHA")
 if lock["RUNTIME_REPOSITORY"] != "https://github.com/ggml-org/llama.cpp":
     raise SystemExit("runtime repository differs from the reviewed candidate")
-if lock["MODEL_FAMILY"] != "SmolLM2-360M-Instruct":\n    raise SystemExit("model family differs from the selected integration candidate")\nif lock["MODEL_REPOSITORY"] != "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF":\n    raise SystemExit("model repository differs from the selected integration candidate")\nif lock["MODEL_ARTIFACT"] != "smollm2-360m-instruct-q4_k_m.gguf":\n    raise SystemExit("model artifact differs from the selected integration candidate")\nif lock["RUNTIME_LICENSE"] != "MIT" or lock["MODEL_LICENSE"] != "Apache-2.0":
+if lock["MODEL_FAMILY"] != "SmolLM2-360M-Instruct":
+    raise SystemExit("model family differs from the selected integration candidate")
+if lock["MODEL_REPOSITORY"] != "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF":
+    raise SystemExit("model repository differs from the selected integration candidate")
+if lock["MODEL_ARTIFACT"] != "smollm2-360m-instruct-q4_k_m.gguf":
+    raise SystemExit("model artifact differs from the selected integration candidate")
+if lock["RUNTIME_LICENSE"] != "MIT" or lock["MODEL_LICENSE"] != "Apache-2.0":
     raise SystemExit("candidate licenses differ from the reviewed permissive set")
 if lock["MODEL_FORMAT"] != "GGUF" or lock["MODEL_QUANTIZATION"] != "Q4_K_M":
     raise SystemExit("model packaging differs from the reviewed candidate")
