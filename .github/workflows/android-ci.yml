@@ -74,6 +74,10 @@ jobs:
             :app:assembleRelease \
             :app:assembleDebugAndroidTest
 
+      - name: Test release artifact capture tooling
+        shell: bash
+        run: python3 ../../tools/g620/test_capture_candidate_artifact.py
+
       - name: Verify release APK contains no unreviewed LLM native runtime
         shell: bash
         run: |
