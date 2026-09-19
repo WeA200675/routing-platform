@@ -7,6 +7,8 @@ package org.routingplatform.app.ai
 interface SocialAiNativeEngine {
     /** Immutable identifier of the reviewed native runtime build. */
     val engineId: String
+    /** SHA-256 of the exact reviewed native runtime artifact loaded in this process. */
+    val artifactSha256: String
     fun loadModel(localPath: String, contextTokens: Int): Boolean
     fun unloadModel()
     fun generate(prompt: String, maximumOutputTokens: Int): String
@@ -17,15 +19,23 @@ interface SocialAiRuntimeBuildIdentified {
     val runtimeBuildId: String
 }
 
+/** Binds the active native runtime binary to reviewed distribution evidence. */
+interface SocialAiRuntimeArtifactIdentified {
+    val runtimeArtifactSha256: String
+}
+
 class VerifiedGgufLocalBackend(
     override val backendId: String,
     override val runtimeMetadata: OpenSourceComponentMetadata,
     override val modelMetadata: LocalModelArtifactMetadata,
     private val engine: SocialAiNativeEngine,
     private val contextTokens: Int = 4_096,
-) : ManagedLocalSocialAiBackend, SocialAiRuntimeBuildIdentified {
+) : ManagedLocalSocialAiBackend, SocialAiRuntimeBuildIdentified, SocialAiRuntimeArtifactIdentified {
     override val runtimeBuildId: String
         get() = engine.engineId
+
+    override val runtimeArtifactSha256: String
+        get() = engine.artifactSha256.lowercase()
 
     @Volatile
     override var isLoaded: Boolean = false
