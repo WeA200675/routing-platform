@@ -5,10 +5,16 @@ package org.routingplatform.app.ai
  * API and receives only a verified local model path.
  */
 interface SocialAiNativeEngine {
+    /** Immutable identifier of the reviewed native runtime build. */
     val engineId: String
     fun loadModel(localPath: String, contextTokens: Int): Boolean
     fun unloadModel()
     fun generate(prompt: String, maximumOutputTokens: Int): String
+}
+
+/** Exposes the immutable native build identity at the Kotlin admission boundary. */
+interface SocialAiRuntimeBuildIdentified {
+    val runtimeBuildId: String
 }
 
 class VerifiedGgufLocalBackend(
@@ -17,7 +23,10 @@ class VerifiedGgufLocalBackend(
     override val modelMetadata: LocalModelArtifactMetadata,
     private val engine: SocialAiNativeEngine,
     private val contextTokens: Int = 4_096,
-) : ManagedLocalSocialAiBackend {
+) : ManagedLocalSocialAiBackend, SocialAiRuntimeBuildIdentified {
+    override val runtimeBuildId: String
+        get() = engine.engineId
+
     @Volatile
     override var isLoaded: Boolean = false
         private set
