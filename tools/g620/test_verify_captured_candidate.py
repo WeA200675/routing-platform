@@ -1,15 +1,38 @@
 #!/usr/bin/env python3
-import json, subprocess, sys, tempfile
+import json
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
-root=Path(__file__).resolve().parent
-lock={}
-for raw in (root/"candidate.lock").read_text().splitlines():
-    line=raw.strip()
+
+root = Path(__file__).resolve().parent
+lock = {}
+for raw in (root / "candidate.lock").read_text().splitlines():
+    line = raw.strip()
     if line and not line.startswith("#"):
-        k,v=line.split("=",1); lock[k]=v
-record={"runtimeCommitSha":lock["RUNTIME_REVISION"],"modelRevision":"model-revision-123","modelSha256":"1"*64,"modelBytes":123,"ggufFilename":lock["MODEL_ARTIFACT"]}
-with tempfile.TemporaryDirectory() as d:
-    p=Path(d)/"record.json"; p.write_text(json.dumps(record))
-    subprocess.run([sys.executable,str(root/"verify_captured_candidate.py"),str(p)],check=True)
-    record["ggufFilename"]="substituted.gguf"; p.write_text(json.dumps(record))
-    assert subprocess.run([sys.executable,str(root/"verify_captured_candidate.py"),str(p)]).returncode != 0
+        key, value = line.split("=", 1)
+        lock[key] = value
+
+record = {
+    "runtimeCommitSha": lock["RUNTIME_REVISION"],
+    "modelRevision": lock["MODEL_REVISION"],
+    "modelSha256": lock["MODEL_SHA256"],
+    "modelBytes": int(lock["MODEL_BYTES"]),
+    "ggufFilename": lock["MODEL_ARTIFACT"],
+}
+with tempfile.TemporaryDirectory() as directory:
+    path = Path(directory) / "record.json"
+    path.write_text(json.dumps(record))
+    subprocess.run([sys.executable, str(root / "verify_captured_candidate.py"), str(path)], check=True)
+
+    for key, bad in [
+        ("ggufFilename", "substituted.gguf"),
+        ("modelSha256", "0" * 64),
+        ("modelRevision", "deadbee"),
+        ("modelBytes", 1),
+    ]:
+        changed = dict(record)
+        changed[key] = bad
+        path.write_text(json.dumps(changed))
+        result = subprocess.run([sys.executable, str(root / "verify_captured_candidate.py"), str(path)])
+        assert result.returncode != 0, key
