@@ -67,5 +67,13 @@ class SocialAiAttestedRuntimeSession(
             "Reviewed reproducible runtime build evidence is required before native model load."
         }
         SocialAiRuntimeDistributionGate.requireAdmitted(attestation, evidence)
+        val identifiedArtifact = backend as? SocialAiRuntimeArtifactIdentified
+            ?: throw IllegalArgumentException(
+                "Local runtime backend does not expose the reviewed native artifact identity."
+            )
+        require(identifiedArtifact.runtimeArtifactSha256 ==
+            evidence.artifactSha256ByAbi.getValue(deviceAbi).lowercase()) {
+            "Native runtime artifact SHA-256 does not match reviewed distribution evidence."
+        }
     }
 }
