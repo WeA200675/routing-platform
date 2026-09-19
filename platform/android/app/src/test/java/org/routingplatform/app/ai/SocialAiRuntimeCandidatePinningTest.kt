@@ -13,7 +13,7 @@ class SocialAiRuntimeCandidatePinningTest {
             candidate, "1".repeat(40), "model-revision-123",
             "0123456789abcdef".repeat(4), 271_000_000, 768L * 1024 * 1024,
         )
-        assertEquals("GGUF", result.format)
+        assertEquals("GGUF", result.modelFormat)
         assertEquals("Q4_K_M", result.quantization)
     }
 
