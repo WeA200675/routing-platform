@@ -5,7 +5,7 @@ import org.junit.Test
 
 class SocialAiRuntimeBuildEvidenceTest {
     private val provenance = SocialAiArtifactProvenance(
-        OpenSourceComponentMetadata("runtime", "commit-123", "MIT", "https://example.invalid/runtime"),
+        OpenSourceComponentMetadata("runtime", "1".repeat(40), "MIT", "https://example.invalid/runtime"),
         LocalModelArtifactMetadata("model", "revision-123", "Apache-2.0", "a".repeat(64), "https://example.invalid/model"),
         "GGUF", "Q4_K_M", 1024, 2048,
     )
