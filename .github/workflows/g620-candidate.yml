@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           export PATH="$ANDROID_HOME/cmake/3.22.1/bin:$PATH"
-          tools/g620/run_real_candidate_pipeline.sh "$RUNNER_TEMP/g620" "$ANDROID_HOME/ndk/28.2.13676358"
+          bash tools/g620/run_real_candidate_pipeline.sh "$RUNNER_TEMP/g620" "$ANDROID_HOME/ndk/28.2.13676358"
       - name: Capture native artifact
         shell: bash
         run: |
