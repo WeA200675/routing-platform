@@ -25,6 +25,7 @@ object SocialAiReleaseAcceptanceGate {
         physicalEvidence: SocialAiPhysicalDeviceGateEvidence?,
         deviceAbi: String,
     ): SocialAiReleaseAcceptance {
+        SocialAiReleaseCandidateGate.requireRealCandidate(attestation, buildEvidence, manifest)
         SocialAiRuntimeDistributionGate.requireAdmitted(attestation, buildEvidence)
         SocialAiRuntimeReleaseGate.requireAdmitted(manifest, attestation, buildEvidence)
         SocialAiPackagedNativeArtifactGate.requireAdmitted(packagedArtifacts, manifest)
