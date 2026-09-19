@@ -56,6 +56,7 @@ class VerifiedGgufLocalBackendTest {
 
     private class FakeEngine : SocialAiNativeEngine {
         override val engineId = "fake"
+        override val artifactSha256 = "f".repeat(64)
         var generated = false
         override fun loadModel(localPath: String, contextTokens: Int) = true
         override fun unloadModel() = Unit
