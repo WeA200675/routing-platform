@@ -17,6 +17,11 @@ data class SocialAiArtifactProvenance(
 }
 
 object SocialAiOpenSourceAdmission {
+    private val immutableGitRevision = Regex("[a-fA-F0-9]{40}")
+    private val immutableModelRevision = Regex("[A-Za-z0-9][A-Za-z0-9._+-]{6,127}")
+    private val forbiddenFloatingRevisions = setOf(
+        "main", "master", "head", "latest", "stable", "dev", "develop", "nightly", "snapshot"
+    )
     private val allowedRuntimeLicenses = setOf("MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause")
     private val allowedModelLicenses = setOf("MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause")
 
@@ -28,12 +33,17 @@ object SocialAiOpenSourceAdmission {
         if (provenance.model.licenseSpdx !in allowedModelLicenses) {
             violations += "Model license is not in the reviewed permissive set."
         }
-        if (provenance.runtime.revision.equals("main", true) ||
-            provenance.runtime.revision.equals("master", true) ||
-            provenance.model.revision.equals("main", true) ||
-            provenance.model.revision.equals("master", true)
+        val runtimeRevision = provenance.runtime.revision.trim()
+        val modelRevision = provenance.model.revision.trim()
+        if (runtimeRevision.lowercase() in forbiddenFloatingRevisions ||
+            !immutableGitRevision.matches(runtimeRevision)
         ) {
-            violations += "Floating revisions are forbidden."
+            violations += "Runtime revision must be an immutable 40-character Git commit SHA."
+        }
+        if (modelRevision.lowercase() in forbiddenFloatingRevisions ||
+            !immutableModelRevision.matches(modelRevision)
+        ) {
+            violations += "Model revision must be an explicit immutable revision identifier."
         }
         return violations
     }
