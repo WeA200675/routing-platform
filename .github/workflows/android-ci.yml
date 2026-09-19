@@ -78,7 +78,11 @@ jobs:
         shell: bash
         run: python3 ../../tools/g620/test_capture_candidate_artifact.py
 
-      - name: Test pinned llama Android build recipe\n        shell: bash\n        run: python3 ../../tools/g620/test_build_llama_android.py\n\n      - name: Verify release APK contains no unreviewed LLM native runtime
+      - name: Test pinned llama Android build recipe
+        shell: bash
+        run: python3 ../../tools/g620/test_build_llama_android.py
+
+      - name: Verify release APK contains no unreviewed LLM native runtime
         shell: bash
         run: |
           python3 ../../tools/g620/verify_release_apk.py \
