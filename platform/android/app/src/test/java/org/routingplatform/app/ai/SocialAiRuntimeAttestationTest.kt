@@ -48,6 +48,30 @@ class SocialAiRuntimeAttestationTest {
     }
 
     @Test
+    fun nonCommitRuntimeRevisionIsRejected() {
+        val mutable = provenance.copy(runtime = runtime.copy(revision = "v1.2.3"))
+        assertThrows(IllegalArgumentException::class.java) {
+            SocialAiRuntimeAttestationGate.requireAdmitted(
+                SocialAiRuntimeAttestation(mutable, "build-123", setOf("arm64-v8a")),
+                backend(mutable.runtime, model),
+                "arm64-v8a",
+            )
+        }
+    }
+
+    @Test
+    fun latestModelRevisionIsRejected() {
+        val floating = provenance.copy(model = model.copy(revision = "latest"))
+        assertThrows(IllegalArgumentException::class.java) {
+            SocialAiRuntimeAttestationGate.requireAdmitted(
+                SocialAiRuntimeAttestation(floating, "build-123", setOf("arm64-v8a")),
+                backend(runtime, floating.model),
+                "arm64-v8a",
+            )
+        }
+    }
+
+    @Test
     fun floatingRevisionRemainsRejected() {
         val floating = provenance.copy(runtime = runtime.copy(revision = "main"))
         assertThrows(IllegalArgumentException::class.java) {
