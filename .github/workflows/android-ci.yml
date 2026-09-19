@@ -103,6 +103,10 @@ jobs:
         shell: bash
         run: python3 ../../tools/g620/test_create_release_evidence.py
 
+      - name: Test release APK runtime evidence gate
+        shell: bash
+        run: python3 ../../tools/g620/test_verify_release_apk.py
+
       - name: Verify release APK contains no unreviewed LLM native runtime
         shell: bash
         run: |
