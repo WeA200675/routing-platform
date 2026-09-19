@@ -117,6 +117,7 @@ class SocialAiAttestedRuntimeSessionTest {
         toolchain = mapOf("ndk" to "28.2.13676358", "cmake" to "3.22.1"),
         buildArguments = listOf("-DGGML_OPENMP=OFF", "-DCMAKE_BUILD_TYPE=Release"),
         sbomSha256 = "d".repeat(64),
+        sbomComponents = setOf("runtime", "model"),
     )
 
     private inner class FakeBackend(
