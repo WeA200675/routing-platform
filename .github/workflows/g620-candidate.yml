@@ -60,7 +60,8 @@ jobs:
           JNI_DIR="platform/android/app/src/main/jniLibs/arm64-v8a"
           mkdir -p "$JNI_DIR"
           cp "$RUNNER_TEMP/g620/build/libsocial_ai_llama.so" "$JNI_DIR/libsocial_ai_llama.so"
-          ./gradlew -p platform/android :app:assembleRelease
+          chmod +x platform/android/gradlew
+          platform/android/gradlew -p platform/android --no-daemon :app:assembleRelease
           APK="$(find platform/android/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
           test -n "$APK"
           python3 tools/g620/verify_release_apk.py "$APK" --release-manifest "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
