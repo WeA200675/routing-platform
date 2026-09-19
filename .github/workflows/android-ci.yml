@@ -103,6 +103,10 @@ jobs:
         shell: bash
         run: python3 ../../tools/g620/test_prepare_candidate_artifacts.py
 
+      - name: Test real candidate pipeline contract
+        shell: bash
+        run: python3 ../../tools/g620/test_run_real_candidate_pipeline.py
+
       - name: Test deterministic release evidence generation
         shell: bash
         run: python3 ../../tools/g620/test_create_release_evidence.py
