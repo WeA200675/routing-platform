@@ -34,6 +34,23 @@ class SocialAiRuntimeBuildEvidenceTest {
     }
 
     @Test
+    fun missingModelSbomCoverageFailsClosed() {
+        assertThrows(IllegalArgumentException::class.java) {
+            SocialAiRuntimeDistributionGate.requireAdmitted(
+                attestation,
+                evidence().copy(sbomComponents = setOf("runtime")),
+            )
+        }
+    }
+
+    @Test
+    fun unsupportedSbomSchemaIsRejected() {
+        assertThrows(IllegalArgumentException::class.java) {
+            evidence().copy(sbomFormat = "unreviewed")
+        }
+    }
+
+    @Test
     fun malformedSbomDigestIsRejected() {
         assertThrows(IllegalArgumentException::class.java) {
             evidence(sbomSha256 = "unchecked")
@@ -49,5 +66,6 @@ class SocialAiRuntimeBuildEvidenceTest {
         toolchain = toolchain,
         buildArguments = listOf("-DGGML_OPENMP=OFF", "-DCMAKE_BUILD_TYPE=Release"),
         sbomSha256 = sbomSha256,
+        sbomComponents = setOf("runtime", "model"),
     )
 }
