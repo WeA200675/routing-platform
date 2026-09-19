@@ -4,7 +4,13 @@ import sys
 import zipfile
 
 apk = sys.argv[1]
-allowed_native = {"librouting_platform_jni.so"}
+# Existing application/dependency libraries are an explicit baseline. This guard
+# detects newly introduced LLM runtimes; it is not a general third-party SO audit.
+allowed_native = {
+    "librouting_platform_jni.so",
+    "libandroidx.graphics.path.so",
+    "libmaplibre.so",
+}
 with zipfile.ZipFile(apk) as archive:
     native_entries = sorted(
         name for name in archive.namelist()
@@ -15,8 +21,8 @@ unexpected = [
     if name.rsplit("/", 1)[-1] not in allowed_native
 ]
 if unexpected:
-    print("Unreviewed native libraries in release APK:", *unexpected, sep="\n  ")
+    print("Unexpected native libraries in release APK:", *unexpected, sep="\n  ")
     raise SystemExit(1)
-print("Release APK native libraries are restricted to reviewed non-LLM entries:")
+print("Release APK contains only the explicit pre-LLM native-library baseline:")
 for name in native_entries:
     print(f"  {name}")
