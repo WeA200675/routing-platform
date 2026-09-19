@@ -51,6 +51,23 @@ class SocialAiAttestedRuntimeSessionTest {
     }
 
     @Test
+    fun missingBuildEvidenceFailsBeforeNativeLoad() {
+        val backend = FakeBackend()
+        val attestation = SocialAiRuntimeAttestation(provenance, "build-1", setOf("arm64-v8a"))
+        val session = SocialAiAttestedRuntimeSession(
+            backend,
+            SocialAiModelLifecycle(backend, SocialAiRuntimeLimits(minimumAvailableMemoryBytes = 0)),
+            attestation,
+            "arm64-v8a",
+        )
+        val file = File.createTempFile("model", ".gguf")
+        val result = session.load(SocialAiModelLoadRequest(file, model, Long.MAX_VALUE))
+        assertTrue(result is SocialAiModelLoadResult.Rejected)
+        assertFalse(backend.loadCalled)
+        file.delete()
+    }
+
+    @Test
     fun backendWithoutBuildIdentityFailsBeforeNativeLoad() {
         val backend = UnidentifiedBackend()
         val attestation = SocialAiRuntimeAttestation(provenance, "build-1", setOf("arm64-v8a"))
@@ -59,6 +76,7 @@ class SocialAiAttestedRuntimeSessionTest {
             SocialAiModelLifecycle(backend, SocialAiRuntimeLimits(minimumAvailableMemoryBytes = 0)),
             attestation,
             "arm64-v8a",
+            evidence(setOf("arm64-v8a")),
         )
         val file = File.createTempFile("model", ".gguf")
         val result = session.load(SocialAiModelLoadRequest(file, model, Long.MAX_VALUE))
@@ -78,8 +96,17 @@ class SocialAiAttestedRuntimeSessionTest {
             SocialAiModelLifecycle(backend, SocialAiRuntimeLimits(minimumAvailableMemoryBytes = 0)),
             attestation,
             deviceAbi,
+            evidence(abis),
         )
     }
+
+    private fun evidence(abis: Set<String>) = SocialAiRuntimeBuildEvidence(
+        sourceSha256 = "b".repeat(64),
+        artifactSha256ByAbi = abis.associateWith { "c".repeat(64) },
+        toolchain = mapOf("ndk" to "28.2.13676358", "cmake" to "3.22.1"),
+        buildArguments = listOf("-DGGML_OPENMP=OFF", "-DCMAKE_BUILD_TYPE=Release"),
+        sbomSha256 = "d".repeat(64),
+    )
 
     private inner class FakeBackend(
         override val runtimeBuildId: String = "build-1",
