@@ -32,10 +32,10 @@ object SocialAiRuntimeCandidatePinning {
                 modelSha256,
                 candidate.modelSourceUrl,
             ),
-            format = "GGUF",
+            modelFormat = "GGUF",
             quantization = candidate.quantization,
-            expectedArtifactBytes = expectedArtifactBytes,
-            minimumAvailableMemoryBytes = minimumAvailableMemoryBytes,
+            expectedModelBytes = expectedArtifactBytes,
+            minimumRamBytes = minimumAvailableMemoryBytes,
         ).also(SocialAiOpenSourceAdmission::requireAdmitted)
     }
 }
