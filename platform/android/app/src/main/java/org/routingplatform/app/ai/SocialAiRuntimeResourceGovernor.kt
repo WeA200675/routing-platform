@@ -22,12 +22,16 @@ data class SocialAiRuntimeResourcePolicy(
     val criticalThermalStatus: Int = 4,
     val minimumBatteryPercent: Int = 5,
     val outputTokensInPowerSave: Int = 96,
+    val recoveryMemoryBytes: Long = 768L * 1024 * 1024,
+    val recoveryThermalStatus: Int = 2,
 ) {
     init {
         require(minimumGenerationMemoryBytes >= 0)
         require(criticalThermalStatus > 0)
         require(minimumBatteryPercent in 0..100)
         require(outputTokensInPowerSave in 1..2_048)
+        require(recoveryMemoryBytes >= minimumGenerationMemoryBytes)
+        require(recoveryThermalStatus in 0 until criticalThermalStatus)
     }
 }
 
@@ -57,5 +61,37 @@ object SocialAiRuntimeResourceGovernor {
             if (resources.powerSaveMode) bounded.coerceAtMost(policy.outputTokensInPowerSave)
             else bounded
         )
+    }
+}
+
+
+sealed interface SocialAiRuntimePressureAction {
+    data object KeepLoaded : SocialAiRuntimePressureAction
+    data class Unload(val reason: String) : SocialAiRuntimePressureAction
+    data object Recoverable : SocialAiRuntimePressureAction
+}
+
+/**
+ * Deterministic lifecycle policy for Android memory/thermal pressure.
+ * Once a loaded model crosses a critical boundary it is unloaded; recovery only
+ * permits a later explicit reload and never reloads model bytes automatically.
+ */
+object SocialAiRuntimePressurePolicy {
+    fun evaluate(
+        resources: SocialAiRuntimeResources,
+        policy: SocialAiRuntimeResourcePolicy = SocialAiRuntimeResourcePolicy(),
+    ): SocialAiRuntimePressureAction {
+        if (resources.availableMemoryBytes < policy.minimumGenerationMemoryBytes) {
+            return SocialAiRuntimePressureAction.Unload("Memory pressure requires local model unload.")
+        }
+        if (resources.thermalStatus >= policy.criticalThermalStatus) {
+            return SocialAiRuntimePressureAction.Unload("Thermal pressure requires local model unload.")
+        }
+        if (resources.availableMemoryBytes >= policy.recoveryMemoryBytes &&
+            resources.thermalStatus <= policy.recoveryThermalStatus
+        ) {
+            return SocialAiRuntimePressureAction.Recoverable
+        }
+        return SocialAiRuntimePressureAction.KeepLoaded
     }
 }
