@@ -27,8 +27,8 @@ import java.io.File
 import java.security.MessageDigest
 
 class SocialAiDeviceTestActivity : ComponentActivity() {
-    @Volatile private var status by mutableStateOf("Bereit. Der Test läuft vollständig lokal auf dem Gerät.")
-    @Volatile private var running by mutableStateOf(false)
+    private var status by mutableStateOf("Bereit. Der Test läuft vollständig lokal auf dem Gerät.")
+    private var running by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
