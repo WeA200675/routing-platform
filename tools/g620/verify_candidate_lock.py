@@ -25,11 +25,11 @@ if not re.fullmatch(r"[0-9a-f]{40}", lock["RUNTIME_REVISION"]):
     raise SystemExit("runtime revision must be an immutable 40-character Git SHA")
 if lock["RUNTIME_REPOSITORY"] != "https://github.com/ggml-org/llama.cpp":
     raise SystemExit("runtime repository differs from the reviewed candidate")
-if lock["MODEL_FAMILY"] != "SmolLM2-360M-Instruct":
+if lock["MODEL_FAMILY"] != "Qwen2.5-1.5B-Instruct":
     raise SystemExit("model family differs from the selected integration candidate")
-if lock["MODEL_REPOSITORY"] != "https://huggingface.co/unsloth/SmolLM2-360M-Instruct-GGUF":
+if lock["MODEL_REPOSITORY"] != "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF":
     raise SystemExit("model repository differs from the selected integration candidate")
-if lock["MODEL_ARTIFACT"] != "SmolLM2-360M-Instruct-Q4_K_M.gguf":
+if lock["MODEL_ARTIFACT"] != "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf":
     raise SystemExit("model artifact differs from the selected integration candidate")
 if not re.fullmatch(r"[0-9a-f]{40}", lock["MODEL_REVISION"]):
     raise SystemExit("model revision must be a full immutable 40-character Git SHA")
@@ -48,4 +48,4 @@ for value in lock.values():
     if value.lower() in {"main", "master", "head", "latest", "stable", "nightly", "snapshot"}:
         raise SystemExit("floating candidate input rejected")
 
-print("G6.20 candidate lock is immutable and matches the reviewed candidate envelope.")
+print("G6.20 candidate lock is immutable and matches the reviewed Qwen benchmark candidate envelope.")
