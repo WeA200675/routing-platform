@@ -27,7 +27,7 @@ import java.io.File
 import java.security.MessageDigest
 
 class SocialAiDeviceTestActivity : ComponentActivity() {
-    private var status by mutableStateOf("Bereit. Der Test läuft vollständig lokal auf dem Gerät.")
+    private var status by mutableStateOf("Bereit für den Qwen2.5-1.5B On-Device-Benchmark.")
     private var running by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,16 +38,16 @@ class SocialAiDeviceTestActivity : ComponentActivity() {
                     Column(
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)
                     ) {
-                        Text("G6.20 Local AI Device Test", style = MaterialTheme.typography.headlineSmall)
+                        Text("G6.20 Qwen 1.5B Benchmark", style = MaterialTheme.typography.headlineSmall)
                         Spacer(Modifier.height(12.dp))
-                        Text("Prüft Modell-Hash, native Runtime, Modell-Laden und echte lokale Textgenerierung.")
+                        Text("Qwen2.5-1.5B-Instruct Q4_K_M · vollständig lokal · kein Netzwerk-Fallback")
                         Spacer(Modifier.height(20.dp))
                         Button(
                             enabled = !running,
                             onClick = { runDeviceTest() },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (running) "Test läuft …" else "Local AI Test starten")
+                            Text(if (running) "Test läuft …" else "Qwen Benchmark starten")
                         }
                         Spacer(Modifier.height(20.dp))
                         Text(status)
@@ -71,13 +71,13 @@ class SocialAiDeviceTestActivity : ComponentActivity() {
                     (getSystemService(ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it)
                 }
                 update("3/4 Runtime geladen. Modell wird initialisiert …\nVerfügbarer RAM: ${memory.availMem / (1024 * 1024)} MiB")
-                check(engine.loadModel(model.absolutePath, 2048)) { "Native Runtime hat das Modell abgelehnt." }
+                check(engine.loadModel(model.absolutePath, 4096)) { "Native Runtime hat das Modell abgelehnt." }
                 try {
                     update("4/4 Modell geladen. Lokale Inferenz läuft …")
                     val inferenceStart = SystemClock.elapsedRealtime()
                     val answer = engine.generate(
-                        "You are a concise offline navigation assistant. Answer in German.\n\nUSER:\nSag in einem kurzen Satz, dass die lokale KI auf diesem Pixel funktioniert.\nASSISTANT:\n",
-                        48
+                        "<|im_start|>system\nDu bist der lokale Offline-Assistent einer Routing-App. Antworte präzise auf Deutsch.<|im_end|>\n<|im_start|>user\nEin Fahrer sagt: Fahr mich nach Hause, vermeide Autobahnen und halte vorher an einem Supermarkt. Fasse Ziel, Vermeidung und Zwischenstopp knapp zusammen.<|im_end|>\n<|im_start|>assistant\n",
+                        128
                     ).trim()
                     val inferenceMs = SystemClock.elapsedRealtime() - inferenceStart
                     check(answer.isNotBlank()) { "Die Runtime lieferte eine leere Antwort." }
@@ -105,7 +105,7 @@ class SocialAiDeviceTestActivity : ComponentActivity() {
             assets.open(MODEL_ASSET).use { input ->
                 tmp.outputStream().buffered().use { output -> input.copyTo(output) }
             }
-            check(sha256(tmp) == MODEL_SHA256) { "Modell-SHA-256 stimmt nicht mit candidate.lock überein." }
+            check(sha256(tmp) == MODEL_SHA256) { "Qwen-Modell-SHA-256 stimmt nicht mit candidate.lock überein." }
             if (target.exists()) check(target.delete())
             check(tmp.renameTo(target)) { "Verifiziertes Modell konnte nicht aktiviert werden." }
         }
@@ -127,8 +127,8 @@ class SocialAiDeviceTestActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val MODEL_ASSET = "g620/SmolLM2-360M-Instruct-Q4_K_M.gguf"
-        private const val MODEL_FILE = "g620-smollm2-360m-q4_k_m.gguf"
-        private const val MODEL_SHA256 = "16c7f1667fea34bacad196a57b548effcb37614db4ab5677a20c8c7b823b9e63"
+        private const val MODEL_ASSET = "g620/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
+        private const val MODEL_FILE = "g620-qwen2.5-1.5b-q4_k_m.gguf"
+        private const val MODEL_SHA256 = "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370"
     }
 }
