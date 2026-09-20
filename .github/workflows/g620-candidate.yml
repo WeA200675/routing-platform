@@ -66,7 +66,19 @@ jobs:
           APK="$(find platform/android/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
           test -n "$APK"
           python3 tools/g620/verify_release_apk.py "$APK" --release-manifest "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
-          cp "$APK" "$RUNNER_TEMP/g620/build/g620-release.apk"
+          # assembleRelease is intentionally unsigned unless a production signing
+          # configuration is supplied. Sign the RC deterministically with the
+          # Android SDK debug key so the exact reviewed candidate is installable
+          # on physical test devices without introducing repository secrets.
+          DEBUG_KEYSTORE="$HOME/.android/debug.keystore"
+          if [ ! -f "$DEBUG_KEYSTORE" ]; then
+            mkdir -p "$(dirname "$DEBUG_KEYSTORE")"
+            keytool -genkeypair -v -keystore "$DEBUG_KEYSTORE" -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+          fi
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" sign --ks "$DEBUG_KEYSTORE" --ks-pass pass:android --key-pass pass:android --ks-key-alias androiddebugkey --out "$RUNNER_TEMP/g620/build/g620-release.apk" "$APK"
+          "$APKSIGNER" verify --verbose --print-certs "$RUNNER_TEMP/g620/build/g620-release.apk"
           APK_SHA="$(sha256sum "$RUNNER_TEMP/g620/build/g620-release.apk" | awk '{print $1}')"
           echo "$APK_SHA  g620-release.apk" > "$RUNNER_TEMP/g620/build/g620-release.apk.sha256"
           python3 -c 'import json,sys; from pathlib import Path; p=Path(sys.argv[1]); d=json.loads(p.read_text()); d["releaseApkSha256"]=sys.argv[2].lower(); p.write_text(json.dumps(d,indent=2,sort_keys=True)+chr(10))' "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json" "$APK_SHA"
