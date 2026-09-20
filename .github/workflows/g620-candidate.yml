@@ -33,10 +33,17 @@ jobs:
         run: |
           export PATH="$ANDROID_HOME/cmake/3.22.1/bin:$PATH"
           bash tools/g620/run_real_candidate_pipeline.sh "$RUNNER_TEMP/g620" "$ANDROID_HOME/ndk/28.2.13676358"
-      - name: Capture native artifact
+      - name: Build and capture JNI-enabled device runtime
         shell: bash
         run: |
-          SO="$(find "$RUNNER_TEMP/g620/build/llama-android" -type f -name libllama.so -print -quit)"
+          SOURCE_SHA="$(git -C "$RUNNER_TEMP/g620/inputs/llama.cpp" archive --format=tar HEAD | sha256sum | awk '{print $1}')"
+          python3 tools/g620/build_social_ai_device_runtime.py \
+            --source "$RUNNER_TEMP/g620/inputs/llama.cpp" \
+            --commit b23701f77d47dad9de834d59ebfcbe25c9e8b46f \
+            --ndk "$ANDROID_HOME/ndk/28.2.13676358" \
+            --build-dir "$RUNNER_TEMP/g620/build/social-ai-device" \
+            --source-sha256 "$SOURCE_SHA"
+          SO="$(find "$RUNNER_TEMP/g620/build/social-ai-device" -type f -name libsocial_ai_llama.so -print -quit)"
           test -n "$SO"
           cp "$SO" "$RUNNER_TEMP/g620/build/libsocial_ai_llama.so"
           python3 tools/g620/capture_native_artifact.py --runtime-commit b23701f77d47dad9de834d59ebfcbe25c9e8b46f --ndk-version 28.2.13676358 --cmake-version 3.22.1 --abi arm64-v8a --artifact "$RUNNER_TEMP/g620/build/libsocial_ai_llama.so" --output "$RUNNER_TEMP/g620/build/native-capture.json"
@@ -59,8 +66,10 @@ jobs:
         shell: bash
         run: |
           JNI_DIR="platform/android/app/src/main/jniLibs/arm64-v8a"
-          mkdir -p "$JNI_DIR"
+          MODEL_DIR="platform/android/app/src/main/assets/g620"
+          mkdir -p "$JNI_DIR" "$MODEL_DIR"
           cp "$RUNNER_TEMP/g620/build/libsocial_ai_llama.so" "$JNI_DIR/libsocial_ai_llama.so"
+          cp "$RUNNER_TEMP/g620/inputs/SmolLM2-360M-Instruct-Q4_K_M.gguf" "$MODEL_DIR/SmolLM2-360M-Instruct-Q4_K_M.gguf"
           chmod +x platform/android/gradlew
           platform/android/gradlew -p platform/android --no-daemon :app:assembleRelease
           APK="$(find platform/android/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
