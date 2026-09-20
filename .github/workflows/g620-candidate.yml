@@ -9,6 +9,7 @@ on:
       - .github/workflows/g620-candidate.yml
       - tools/g620/**
       - platform/android/app/build.gradle.kts
+      - platform/android/app/src/main/java/org/routingplatform/app/ai/**
 
 permissions:
   contents: read
@@ -69,7 +70,7 @@ jobs:
           MODEL_DIR="platform/android/app/src/main/assets/g620"
           mkdir -p "$JNI_DIR" "$MODEL_DIR"
           cp "$RUNNER_TEMP/g620/build/libsocial_ai_llama.so" "$JNI_DIR/libsocial_ai_llama.so"
-          cp "$RUNNER_TEMP/g620/inputs/SmolLM2-360M-Instruct-Q4_K_M.gguf" "$MODEL_DIR/SmolLM2-360M-Instruct-Q4_K_M.gguf"
+          cp "$RUNNER_TEMP/g620/inputs/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf" "$MODEL_DIR/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
           chmod +x platform/android/gradlew
           platform/android/gradlew -p platform/android --no-daemon :app:assembleRelease
           APK="$(find platform/android/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
