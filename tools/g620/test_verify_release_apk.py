@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory() as directory:
     with zipfile.ZipFile(apk, "w") as z:
         z.writestr("lib/arm64-v8a/librouting_platform_jni.so", b"nav")
         z.writestr("lib/arm64-v8a/libsocial_ai_llama.so", payload)
-        z.writestr("assets/g620/SmolLM2-360M-Instruct-Q4_K_M.gguf", model)
+        z.writestr("assets/g620/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf", model)
     manifest.write_text(json.dumps({
         "runtimeArtifactSha256ByAbi": {
             "arm64-v8a": hashlib.sha256(payload).hexdigest()
