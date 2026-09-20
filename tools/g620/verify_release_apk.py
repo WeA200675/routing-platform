@@ -22,7 +22,7 @@ if a.release_manifest:
     manifest = json.loads(Path(a.release_manifest).read_text())
 
 with zipfile.ZipFile(a.apk) as archive:
-    model_asset = "assets/g620/SmolLM2-360M-Instruct-Q4_K_M.gguf"
+    model_asset = "assets/g620/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
     if manifest is not None:
         if model_asset not in archive.namelist():
             raise SystemExit("release APK lacks the pinned G6.20 model asset")
