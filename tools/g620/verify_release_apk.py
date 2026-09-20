@@ -22,6 +22,14 @@ if a.release_manifest:
     manifest = json.loads(Path(a.release_manifest).read_text())
 
 with zipfile.ZipFile(a.apk) as archive:
+    model_asset = "assets/g620/SmolLM2-360M-Instruct-Q4_K_M.gguf"
+    if manifest is not None:
+        if model_asset not in archive.namelist():
+            raise SystemExit("release APK lacks the pinned G6.20 model asset")
+        model_expected = manifest.get("modelSha256")
+        model_actual = hashlib.sha256(archive.read(model_asset)).hexdigest()
+        if not model_expected or model_actual.lower() != model_expected.lower():
+            raise SystemExit("packaged G6.20 model hash does not match release manifest")
     native_entries = sorted(
         name for name in archive.namelist()
         if name.startswith("lib/") and name.endswith(".so")
@@ -46,4 +54,4 @@ unexpected = [
 if unexpected:
     print("Unexpected native libraries in release APK:", *unexpected, sep="\n  ")
     raise SystemExit(1)
-print("Release APK native libraries satisfy the reviewed baseline/evidence policy.")
+print("Release APK native runtime and model satisfy the reviewed evidence policy.")
