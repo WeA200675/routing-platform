@@ -51,6 +51,13 @@ android {
             excludes +=
                 "/META-INF/{AL2.0,LGPL2.1}"
         }
+
+        jniLibs {
+            // G6.20 release evidence hashes the exact reviewed runtime binary.
+            // Do not let AGP mutate that artifact after admission.
+            keepDebugSymbols +=
+                "**/libsocial_ai_llama.so"
+        }
     }
 
     lint {
