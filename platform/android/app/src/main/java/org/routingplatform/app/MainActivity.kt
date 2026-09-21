@@ -189,6 +189,21 @@ class MainActivity :
                     mutableStateOf(false)
                 }
 
+            var pendingSocialAiCommand by
+                remember {
+                    mutableStateOf<String?>(null)
+                }
+
+            var pendingSocialAiCategory by
+                remember {
+                    mutableStateOf<String?>(null)
+                }
+
+            var pendingSocialAiOrigin by
+                remember {
+                    mutableStateOf<org.routingplatform.app.navigation.RoutePoint?>(null)
+                }
+
             DisposableEffect(
                 destinationSearchSource,
                 planningLocationController,
@@ -547,6 +562,49 @@ class MainActivity :
                                             destinationSearchResults =
                                                 results
 
+                                            val pendingCommand = pendingSocialAiCommand
+                                            val pendingCategory = pendingSocialAiCategory
+                                            val pendingOrigin = pendingSocialAiOrigin
+                                            if (pendingCommand != null && pendingCategory != null && pendingOrigin != null) {
+                                                pendingSocialAiCommand = null
+                                                pendingSocialAiCategory = null
+                                                pendingSocialAiOrigin = null
+                                                if (results.size == 1) {
+                                                    socialAiBusy = true
+                                                    Thread {
+                                                        val resolved = runCatching {
+                                                            socialAiProductRuntime.routing().interpret(
+                                                                userText = pendingCommand,
+                                                                origin = pendingOrigin,
+                                                                favorites = favoriteDestinations,
+                                                                categoryResults = mapOf(pendingCategory to results),
+                                                            )
+                                                        }
+                                                        runOnUiThread {
+                                                            socialAiBusy = false
+                                                            val ready = resolved.getOrNull() as? SocialAiProductionRoutingResult.Ready
+                                                            if (ready == null) {
+                                                                socialAiMessage = (resolved.getOrNull() as? SocialAiProductionRoutingResult.ClarificationRequired)?.reason
+                                                                    ?: resolved.exceptionOrNull()?.message
+                                                                    ?: "Zwischenstopp konnte nicht eindeutig validiert werden."
+                                                            } else {
+                                                                socialAiMessage = "Intent und Zwischenstopp lokal validiert. Routenvorschau wird berechnet …"
+                                                                routeLifecycleController?.loadInitial(
+                                                                    request = ready.request,
+                                                                    snapshotProvider = { snapshot },
+                                                                    onSnapshot = { updated -> snapshot = updated },
+                                                                    onTelemetry = { updated -> routeAcquisitionTelemetry = updated },
+                                                                )
+                                                            }
+                                                        }
+                                                    }.start()
+                                                } else {
+                                                    socialAiMessage =
+                                                        if (results.isEmpty()) "Kein eindeutiger Zwischenstopp gefunden."
+                                                        else "Mehrere Zwischenstopps gefunden. Bitte einen Treffer auswählen."
+                                                }
+                                            }
+
                                             destinationPlannerMessage =
                                                 if (
                                                     results.isEmpty()
@@ -632,7 +690,10 @@ class MainActivity :
                                                         }
                                                     }
                                                     is SocialAiProductionRoutingResult.CategoryLookupRequired -> {
-                                                        socialAiMessage = "Zwischenstopp „${interpreted.category}“ muss eindeutig ausgewählt werden."
+                                                        pendingSocialAiCommand = command
+                                                        pendingSocialAiCategory = interpreted.category
+                                                        pendingSocialAiOrigin = planningLocation.position
+                                                        socialAiMessage = "Zwischenstopp „${interpreted.category}“ wird deterministisch gesucht …"
                                                         searchDestination(interpreted.category)
                                                     }
                                                     is SocialAiProductionRoutingResult.ClarificationRequired ->
