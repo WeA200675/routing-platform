@@ -5,6 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.places.FavoriteDestinationCollection
+import org.routingplatform.app.places.DestinationSearchResult
 
 class SocialAiProductionRoutingTest {
     @Test
@@ -22,6 +23,23 @@ class SocialAiProductionRoutingTest {
         val favorites = FavoriteDestinationCollection.empty("profile").withHome(RoutePoint(48.1, 11.5))
         val result = routing.interpret("Nach Hause über Supermarkt", RoutePoint(48.2, 11.6), favorites)
         assertEquals(SocialAiProductionRoutingResult.CategoryLookupRequired("supermarket"), result)
+    }
+
+    @Test
+    fun multipleViaMatchesRequireClarification() {
+        val routing = SocialAiProductionRouting(engine("DESTINATION=home\nAVOID=\nVIA=supermarket"))
+        val favorites = FavoriteDestinationCollection.empty("profile").withHome(RoutePoint(48.1, 11.5))
+        val matches = listOf(
+            DestinationSearchResult("a", "Markt A", null, RoutePoint(48.11, 11.51)),
+            DestinationSearchResult("b", "Markt B", null, RoutePoint(48.12, 11.52)),
+        )
+        val result = routing.interpret(
+            "Nach Hause über Supermarkt",
+            RoutePoint(48.2, 11.6),
+            favorites,
+            mapOf("supermarket" to matches),
+        )
+        assertTrue(result is SocialAiProductionRoutingResult.ClarificationRequired)
     }
 
     @Test
