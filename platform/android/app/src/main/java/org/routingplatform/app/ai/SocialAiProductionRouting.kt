@@ -46,21 +46,14 @@ class SocialAiProductionRouting(
             }
         }
         val bridge = SocialAiNavigationRequestBridge(
-            parser = FixedIntentParser(engine, intent),
+            parser = parser,
             placeResolver = SocialAiTrustedPlaceResolver(favorites, categoryResults),
         )
-        return when (val built = bridge.buildRequest(origin, userText)) {
+        return when (val built = bridge.buildResolved(origin, intent)) {
             is SocialAiNavigationRequestResult.Ready -> SocialAiProductionRoutingResult.Ready(built.request)
             is SocialAiNavigationRequestResult.ClarificationRequired ->
                 SocialAiProductionRoutingResult.ClarificationRequired(built.reason)
         }
     }
 
-    private class FixedIntentParser(
-        engine: SocialAiNativeEngine,
-        private val intent: SocialAiRoutingIntent,
-    ) : SocialAiRoutingIntentParser(engine) {
-        override fun parse(userText: String): SocialAiRoutingIntentResult =
-            SocialAiRoutingIntentResult.Ready(intent)
-    }
 }
