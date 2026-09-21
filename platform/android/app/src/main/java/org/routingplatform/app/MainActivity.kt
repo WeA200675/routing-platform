@@ -207,6 +207,7 @@ class MainActivity :
             DisposableEffect(
                 destinationSearchSource,
                 planningLocationController,
+                socialAiProductRuntime,
             ) {
                 onDispose {
                     destinationSearchSource
