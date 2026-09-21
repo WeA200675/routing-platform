@@ -1108,7 +1108,8 @@ class MainActivity :
                                                                 .message
                                                     }
 
-                                                    NavigationRouteAcquisitionState.Rerouting -> {
+                                                    NavigationRouteAcquisitionState.Rerouting,
+                                                    NavigationRouteAcquisitionState.Refreshing -> {
                                                         destinationPlannerBusy =
                                                             true
 
