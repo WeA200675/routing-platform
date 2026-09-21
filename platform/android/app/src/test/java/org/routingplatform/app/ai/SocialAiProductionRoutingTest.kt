@@ -9,6 +9,106 @@ import org.routingplatform.app.places.FavoriteDestinationCollection
 
 class SocialAiProductionRoutingTest {
     @Test
+    fun validatedContinuationDoesNotInvokeModelAgain() {
+        var generations = 0
+        val engine = object : SocialAiNativeEngine {
+            override val engineId = "counting-fixture"
+            override val artifactSha256 = "0".repeat(64)
+            override fun loadModel(localPath: String, contextTokens: Int) = true
+            override fun unloadModel() = Unit
+            override fun generate(prompt: String, maximumOutputTokens: Int): String {
+                generations += 1
+                return "DESTINATION=home\nAVOID=\nVIA=supermarket"
+            }
+        }
+        val routing = SocialAiProductionRouting(engine)
+        val favorites =
+            FavoriteDestinationCollection.empty("profile")
+                .withHome(RoutePoint(48.1, 11.5))
+        val origin = RoutePoint(48.2, 11.6)
+
+        assertEquals(
+            SocialAiProductionRoutingResult.CategoryLookupRequired("supermarket"),
+            routing.interpret("Nach Hause über Supermarkt", origin, favorites),
+        )
+        assertEquals(1, generations)
+
+        val validated =
+            SocialAiRoutingIntent(
+                destination = "home",
+                avoid = emptySet(),
+                viaCategory = "supermarket",
+            )
+        val market =
+            DestinationSearchResult(
+                "market",
+                "Markt",
+                null,
+                RoutePoint(48.15, 11.55),
+            )
+        val resolved =
+            routing.resolveValidated(
+                intent = validated,
+                origin = origin,
+                favorites = favorites,
+                categoryResults = mapOf("supermarket" to listOf(market)),
+            )
+
+        assertTrue(resolved is SocialAiProductionRoutingResult.Ready)
+        assertEquals(1, generations)
+        val request =
+            (resolved as SocialAiProductionRoutingResult.Ready).request
+        assertEquals(RoutePoint(48.1, 11.5), request.destination)
+        assertEquals(listOf(market.point), request.via)
+    }
+
+    @Test
+    fun validatedContinuationFailsClosedForZeroOrMultipleCategoryMatches() {
+        val routing =
+            SocialAiProductionRouting(
+                engine("DESTINATION=home\nAVOID=\nVIA=supermarket")
+            )
+        val favorites =
+            FavoriteDestinationCollection.empty("profile")
+                .withHome(RoutePoint(48.1, 11.5))
+        val origin = RoutePoint(48.2, 11.6)
+        val intent =
+            SocialAiRoutingIntent(
+                destination = "home",
+                avoid = emptySet(),
+                viaCategory = "supermarket",
+            )
+
+        val none =
+            routing.resolveValidated(
+                intent,
+                origin,
+                favorites,
+                mapOf("supermarket" to emptyList()),
+            )
+        assertTrue(none is SocialAiProductionRoutingResult.ClarificationRequired)
+
+        val multiple =
+            routing.resolveValidated(
+                intent,
+                origin,
+                favorites,
+                mapOf(
+                    "supermarket" to
+                        listOf(
+                            DestinationSearchResult(
+                                "a", "A", null, RoutePoint(48.11, 11.51)
+                            ),
+                            DestinationSearchResult(
+                                "b", "B", null, RoutePoint(48.12, 11.52)
+                            ),
+                        )
+                ),
+            )
+        assertTrue(multiple is SocialAiProductionRoutingResult.ClarificationRequired)
+    }
+
+    @Test
     fun homeResolvesOnlyFromTrustedFavorites() {
         val routing = SocialAiProductionRouting(engine("DESTINATION=home\nAVOID=\nVIA="))
         val favorites = FavoriteDestinationCollection.empty("profile").withHome(RoutePoint(48.1, 11.5))
