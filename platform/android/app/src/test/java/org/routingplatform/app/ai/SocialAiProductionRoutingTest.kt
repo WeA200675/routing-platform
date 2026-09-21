@@ -27,18 +27,25 @@ class SocialAiProductionRoutingTest {
                 .withHome(RoutePoint(48.1, 11.5))
         val origin = RoutePoint(48.2, 11.6)
 
+        val lookup =
+            routing.interpret(
+                "Nach Hause über Supermarkt",
+                origin,
+                favorites,
+            )
+        assertTrue(
+            lookup is
+                SocialAiProductionRoutingResult.CategoryLookupRequired
+        )
         assertEquals(
-            SocialAiProductionRoutingResult.CategoryLookupRequired("supermarket"),
-            routing.interpret("Nach Hause über Supermarkt", origin, favorites),
+            "supermarket",
+            (lookup as SocialAiProductionRoutingResult.CategoryLookupRequired)
+                .category,
         )
         assertEquals(1, generations)
 
         val validated =
-            SocialAiRoutingIntent(
-                destination = "home",
-                avoid = emptySet(),
-                viaCategory = "supermarket",
-            )
+            lookup.validatedIntent
         val market =
             DestinationSearchResult(
                 "market",
@@ -122,7 +129,19 @@ class SocialAiProductionRoutingTest {
         val routing = SocialAiProductionRouting(engine("DESTINATION=home\nAVOID=\nVIA=supermarket"))
         val favorites = FavoriteDestinationCollection.empty("profile").withHome(RoutePoint(48.1, 11.5))
         val result = routing.interpret("Nach Hause über Supermarkt", RoutePoint(48.2, 11.6), favorites)
-        assertEquals(SocialAiProductionRoutingResult.CategoryLookupRequired("supermarket"), result)
+        assertTrue(result is SocialAiProductionRoutingResult.CategoryLookupRequired)
+        assertEquals(
+            "supermarket",
+            (result as SocialAiProductionRoutingResult.CategoryLookupRequired).category,
+        )
+        assertEquals(
+            SocialAiRoutingIntent(
+                destination = "home",
+                avoid = emptySet(),
+                viaCategory = "supermarket",
+            ),
+            result.validatedIntent,
+        )
     }
 
     @Test
