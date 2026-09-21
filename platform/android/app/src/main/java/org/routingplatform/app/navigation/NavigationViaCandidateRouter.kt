@@ -20,6 +20,7 @@ class NavigationViaCandidateRouter(
 
         val lock = Any()
         var cancelled = false
+        var callbackDelivered = false
         var baseline: NavigationRouteContract? = null
         var remaining = candidates.size
         val routed = mutableListOf<NavigationViaCandidateRoute>()
@@ -29,6 +30,7 @@ class NavigationViaCandidateRouter(
             val base = baseline ?: return
             if (remaining != 0 || cancelled) return
             cancelled = true
+            callbackDelivered = true
             onResult(Result.success(selector.select(base, routed.toList())))
         }
 
@@ -79,6 +81,7 @@ class NavigationViaCandidateRouter(
                         synchronized(lock) {
                             if (cancelled) return@fold
                             cancelled = true
+                            callbackDelivered = true
                         }
                         onResult(Result.failure(error))
                     },
@@ -92,7 +95,7 @@ class NavigationViaCandidateRouter(
             override fun cancel() {
                 val toCancel =
                     synchronized(lock) {
-                        if (cancelled) return
+                        if (cancelled || callbackDelivered) return
                         cancelled = true
                         handles.toList()
                     }
