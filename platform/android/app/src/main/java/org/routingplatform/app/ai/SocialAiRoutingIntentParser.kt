@@ -13,7 +13,7 @@ sealed interface SocialAiRoutingIntentResult {
     data class ClarificationRequired(val reason: String) : SocialAiRoutingIntentResult
 }
 
-open class SocialAiRoutingIntentParser(private val engine: SocialAiNativeEngine) {
+class SocialAiRoutingIntentParser(private val engine: SocialAiNativeEngine) {
     internal fun promptFor(userText: String): String {
         require(userText.isNotBlank())
         return buildString {
@@ -30,7 +30,7 @@ open class SocialAiRoutingIntentParser(private val engine: SocialAiNativeEngine)
         }
     }
 
-    open fun parse(userText: String): SocialAiRoutingIntentResult =
+    fun parse(userText: String): SocialAiRoutingIntentResult =
         parseStrict(engine.generate(promptFor(userText), 96))
 
     internal fun parseStrict(raw: String): SocialAiRoutingIntentResult {
