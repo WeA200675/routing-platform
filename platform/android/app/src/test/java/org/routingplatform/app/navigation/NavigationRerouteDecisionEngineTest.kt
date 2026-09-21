@@ -165,6 +165,119 @@ class NavigationRerouteDecisionEngineTest {
         }
     }
 
+    @Test
+    fun attemptIntervalPreventsRerouteOscillation() {
+        val engine =
+            NavigationRerouteDecisionEngine(
+                NavigationReroutePolicy(
+                    minimumEvidenceDurationNanos =
+                        2_000_000_000L,
+
+                    minimumConsecutiveSamples =
+                        3,
+
+                    minimumAttemptIntervalNanos =
+                        30_000_000_000L,
+                )
+            )
+
+        fun observeSeries(start: Long): NavigationRerouteDecision {
+            var decision: NavigationRerouteDecision =
+                NavigationRerouteDecision.Hold
+
+            repeat(3) { index ->
+                decision =
+                    engine.observe(
+                        telemetry(
+                            timestamp =
+                                start +
+                                    index *
+                                    1_000_000_000L,
+
+                            status =
+                                NavigationRouteProgressSafetyStatus.HeldOffRoute,
+
+                            confidence =
+                                NavigationPositionConfidence.High,
+                        )
+                    )
+            }
+
+            return decision
+        }
+
+        assertTrue(
+            observeSeries(0L) is
+                NavigationRerouteDecision.RequestReplacement
+        )
+
+        assertTrue(
+            observeSeries(10_000_000_000L) is
+                NavigationRerouteDecision.Hold
+        )
+
+        assertTrue(
+            observeSeries(32_000_000_000L) is
+                NavigationRerouteDecision.RequestReplacement
+        )
+    }
+
+    @Test
+    fun staleOrDuplicateTimestampResetsCandidateEvidence() {
+        val engine =
+            NavigationRerouteDecisionEngine(
+                NavigationReroutePolicy(
+                    minimumEvidenceDurationNanos =
+                        2_000_000_000L,
+
+                    minimumConsecutiveSamples =
+                        3,
+                )
+            )
+
+        val first =
+            telemetry(
+                timestamp =
+                    1_000_000_000L,
+
+                status =
+                    NavigationRouteProgressSafetyStatus.HeldOffRoute,
+
+                confidence =
+                    NavigationPositionConfidence.High,
+            )
+
+        assertTrue(
+            engine.observe(first) is
+                NavigationRerouteDecision.Hold
+        )
+
+        assertTrue(
+            engine.observe(first) is
+                NavigationRerouteDecision.Hold
+        )
+
+        assertTrue(
+            engine.observe(
+                first.copy(
+                    lastLocationElapsedRealtimeNanos =
+                        2_000_000_000L
+                )
+            ) is
+                NavigationRerouteDecision.Hold
+        )
+
+        assertTrue(
+            engine.observe(
+                first.copy(
+                    lastLocationElapsedRealtimeNanos =
+                        3_000_000_000L
+                )
+            ) is
+                NavigationRerouteDecision.Hold
+        )
+    }
+
     private fun telemetry(
         timestamp: Long,
         status:
