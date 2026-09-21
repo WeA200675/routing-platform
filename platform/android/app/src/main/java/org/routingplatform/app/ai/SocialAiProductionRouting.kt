@@ -33,6 +33,25 @@ class SocialAiProductionRouting(
             return SocialAiProductionRoutingResult.ClarificationRequired(parsed.reason)
         }
         val intent = (parsed as SocialAiRoutingIntentResult.Ready).intent
+        return resolveValidated(
+            intent = intent,
+            origin = origin,
+            favorites = favorites,
+            categoryResults = categoryResults,
+        )
+    }
+
+    /**
+     * Continues a routing request from an already validated symbolic intent.
+     * This deliberately performs no model generation: deterministic category
+     * lookup/selection must never cause the user's command to be reinterpreted.
+     */
+    fun resolveValidated(
+        intent: SocialAiRoutingIntent,
+        origin: RoutePoint,
+        favorites: FavoriteDestinationCollection,
+        categoryResults: Map<String, List<DestinationSearchResult>> = emptyMap(),
+    ): SocialAiProductionRoutingResult {
         if (intent.viaCategory != null && intent.viaCategory !in categoryResults) {
             return SocialAiProductionRoutingResult.CategoryLookupRequired(intent.viaCategory)
         }
