@@ -4,18 +4,21 @@ services:
     command: osrm-routed --algorithm mld /data/region.osrm
     volumes:
       - ./data:/data:ro
-    ports:
-      - "127.0.0.1:5000:5000"
+    expose:
+      - "5000"
     restart: unless-stopped
 
   navigation-adapter:
-    image: python:3.12.7-slim@sha256:cf7c1a1f4b3f36f8c18ec2d44b66e6f6d1f82e8a93cf58af8d97b0a6f6a2f76b
+    image: python:3.12.7-slim
     working_dir: /app
     command: python /app/osrm_adapter.py
     environment:
       OSRM_URL: http://osrm:5000
       PORT: "8787"
     volumes:
-      - ./:/app:ro
-    network_mode: host
+      - ../:/app:ro
+    ports:
+      - "127.0.0.1:8787:8787"
+    depends_on:
+      - osrm
     restart: unless-stopped
