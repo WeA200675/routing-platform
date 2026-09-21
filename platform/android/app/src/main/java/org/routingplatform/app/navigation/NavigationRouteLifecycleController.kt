@@ -56,6 +56,8 @@ class NavigationRouteLifecycleController(
 
     private var activeRouteContract: NavigationRouteContract? = null
 
+    private var latestTrustedRerouteOrigin: RoutePoint? = null
+
     private var lastTrafficRefreshSuccessMs: Long? = null
     private var lastTrafficRefreshAttemptMs: Long? = null
 
@@ -203,6 +205,13 @@ class NavigationRouteLifecycleController(
                 )
 
         if (
+            telemetry.locationConfidence == NavigationLocationConfidence.High &&
+            telemetry.currentPosition != null
+        ) {
+            latestTrustedRerouteOrigin = telemetry.currentPosition
+        }
+
+        if (
             decision !is
                 NavigationRerouteDecision.RequestReplacement
         ) {
@@ -210,7 +219,8 @@ class NavigationRouteLifecycleController(
         }
 
         if (
-            rerouteInFlight
+            rerouteInFlight ||
+            activeHandle != null
         ) {
             return
         }
@@ -410,6 +420,26 @@ class NavigationRouteLifecycleController(
         val current = snapshotProvider()
         if (current.state != NavigationSessionState.Navigating) return
 
+        /*
+         * A periodic refresh cannot safely reuse the trip's original origin:
+         * the vehicle may already be far along the route. With via points we
+         * additionally cannot prove which stops have already been visited.
+         * Until trusted current-origin/remaining-via tracking is available,
+         * fail closed rather than installing a route for the wrong trip leg.
+         */
+        if (request.viaPoints.isNotEmpty()) {
+            onTelemetry(
+                NavigationRouteAcquisitionTelemetry(
+                    state = NavigationRouteAcquisitionState.LiveReady,
+                    message = "Routenprüfung mit offenen Via-Punkten aus Sicherheitsgründen ausgesetzt",
+                )
+            )
+            return
+        }
+
+        val trustedOrigin = latestTrustedRerouteOrigin ?: return
+        val refreshRequest = request.copy(origin = trustedOrigin)
+
         val decision =
             trafficReevaluationPolicy.decide(
                 nowMs = nowMs,
@@ -431,7 +461,7 @@ class NavigationRouteLifecycleController(
         )
 
         activeHandle =
-            source.acquire(request) { result ->
+            source.acquire(refreshRequest) { result ->
                 if (generation != requestGeneration) return@acquire
                 activeHandle = null
 
@@ -516,6 +546,7 @@ class NavigationRouteLifecycleController(
         lastTrafficRefreshSuccessMs = null
         lastTrafficRefreshAttemptMs = null
         activeRouteContract = null
+        latestTrustedRerouteOrigin = null
 
         requestGeneration +=
             1L
