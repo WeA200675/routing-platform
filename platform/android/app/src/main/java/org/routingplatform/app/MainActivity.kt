@@ -19,6 +19,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.maplibre.android.MapLibre
+import org.routingplatform.app.ai.SocialAiProductRuntime
+import org.routingplatform.app.ai.SocialAiProductionRoutingResult
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.JniNavigationCoreBridge
@@ -170,6 +172,23 @@ class MainActivity :
                     )
                 }
 
+            val socialAiProductRuntime =
+                remember {
+                    SocialAiProductRuntime(
+                        applicationContext
+                    )
+                }
+
+            var socialAiMessage by
+                remember {
+                    mutableStateOf<String?>(null)
+                }
+
+            var socialAiBusy by
+                remember {
+                    mutableStateOf(false)
+                }
+
             DisposableEffect(
                 destinationSearchSource,
                 planningLocationController,
@@ -179,6 +198,9 @@ class MainActivity :
                         .close()
 
                     planningLocationController
+                        .close()
+
+                    socialAiProductRuntime
                         .close()
                 }
             }
@@ -559,6 +581,77 @@ class MainActivity :
 
                             null
                         }
+                }
+
+            val submitSocialAiCommand:
+                (String) -> Unit =
+                socialAi@ { rawCommand ->
+                    val command = rawCommand.trim()
+                    if (command.length !in 2..512 || socialAiBusy || destinationPlannerBusy) return@socialAi
+                    if (snapshot.state != NavigationSessionState.Preview) {
+                        socialAiMessage = "Navigation zuerst stoppen."
+                        return@socialAi
+                    }
+                    if (!hasPreciseNavigationLocationPermission(applicationContext)) {
+                        socialAiMessage = "Präzise Standortfreigabe ist für die Routenvorschau erforderlich."
+                        permissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                            )
+                        )
+                        return@socialAi
+                    }
+                    socialAiBusy = true
+                    socialAiMessage = "Lokale KI wird vorbereitet …"
+                    planningLocationController.request { planningResult ->
+                        planningResult.fold(
+                            onSuccess = { planningLocation ->
+                                Thread {
+                                    val result = runCatching {
+                                        socialAiProductRuntime.routing().interpret(
+                                            userText = command,
+                                            origin = planningLocation.position,
+                                            favorites = favoriteDestinations,
+                                        )
+                                    }
+                                    runOnUiThread {
+                                        socialAiBusy = false
+                                        result.fold(
+                                            onSuccess = { interpreted ->
+                                                when (interpreted) {
+                                                    is SocialAiProductionRoutingResult.Ready -> {
+                                                        socialAiMessage = "Intent lokal validiert. Routenvorschau wird berechnet …"
+                                                        routeLifecycleController?.loadInitial(
+                                                            request = interpreted.request,
+                                                            snapshotProvider = { snapshot },
+                                                            onSnapshot = { updated -> snapshot = updated },
+                                                            onTelemetry = { updated -> routeAcquisitionTelemetry = updated },
+                                                        ) ?: run {
+                                                            socialAiMessage = "Live-Routing ist nicht konfiguriert."
+                                                        }
+                                                    }
+                                                    is SocialAiProductionRoutingResult.CategoryLookupRequired -> {
+                                                        socialAiMessage = "Zwischenstopp „${interpreted.category}“ muss eindeutig ausgewählt werden."
+                                                        searchDestination(interpreted.category)
+                                                    }
+                                                    is SocialAiProductionRoutingResult.ClarificationRequired ->
+                                                        socialAiMessage = interpreted.reason
+                                                }
+                                            },
+                                            onFailure = { error ->
+                                                socialAiMessage = error.message ?: "Lokale KI konnte nicht ausgeführt werden."
+                                            },
+                                        )
+                                    }
+                                }.start()
+                            },
+                            onFailure = { error ->
+                                socialAiBusy = false
+                                socialAiMessage = error.message ?: "Aktuelle Position konnte nicht bestimmt werden."
+                            },
+                        )
+                    }
                 }
 
             val requestTripPlanRoute:
@@ -1330,6 +1423,15 @@ class MainActivity :
 
                         destinationPlannerBusy =
                             destinationPlannerBusy,
+
+                        socialAiMessage =
+                            socialAiMessage,
+
+                        socialAiBusy =
+                            socialAiBusy,
+
+                        onSocialAiCommand =
+                            submitSocialAiCommand,
 
                         onMapTargetSelected = {
                                 point ->
