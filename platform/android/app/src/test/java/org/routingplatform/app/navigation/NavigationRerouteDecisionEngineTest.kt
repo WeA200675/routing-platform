@@ -216,9 +216,39 @@ class NavigationRerouteDecisionEngineTest {
                 NavigationRerouteDecision.Hold
         )
 
+        // The suppressed candidate remains accumulated. Exactly when the
+        // attempt interval expires, the first fresh eligible observation may
+        // request a replacement; subsequent observations start a new candidate.
         assertTrue(
-            observeSeries(32_000_000_000L) is
+            engine.observe(
+                telemetry(
+                    timestamp =
+                        32_000_000_000L,
+
+                    status =
+                        NavigationRouteProgressSafetyStatus.HeldOffRoute,
+
+                    confidence =
+                        NavigationPositionConfidence.High,
+                )
+            ) is
                 NavigationRerouteDecision.RequestReplacement
+        )
+
+        assertTrue(
+            engine.observe(
+                telemetry(
+                    timestamp =
+                        33_000_000_000L,
+
+                    status =
+                        NavigationRouteProgressSafetyStatus.HeldOffRoute,
+
+                    confidence =
+                        NavigationPositionConfidence.High,
+                )
+            ) is
+                NavigationRerouteDecision.Hold
         )
     }
 
