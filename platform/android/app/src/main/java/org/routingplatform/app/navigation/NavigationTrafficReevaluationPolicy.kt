@@ -63,3 +63,29 @@ enum class NavigationTrafficReevaluationHoldReason {
     RequestInFlight,
     RetryCooldown,
 }
+
+
+/**
+ * A periodic refresh may replace an active route only when it is the same
+ * deterministic routing family and the engine result is materially better.
+ * This prevents harmless provider jitter from restarting navigation.
+ */
+data class NavigationTrafficReplacementPolicy(
+    val minimumDurationImprovementS: Double = 30.0,
+    val minimumRelativeImprovement: Double = 0.05,
+) {
+    init {
+        require(minimumDurationImprovementS >= 0.0)
+        require(minimumRelativeImprovement in 0.0..1.0)
+    }
+
+    fun shouldReplace(
+        current: NavigationRouteContract,
+        candidate: NavigationRouteContract,
+    ): Boolean {
+        if (candidate.family != current.family) return false
+        val improvement = current.durationS - candidate.durationS
+        if (improvement < minimumDurationImprovementS) return false
+        return improvement / current.durationS >= minimumRelativeImprovement
+    }
+}
