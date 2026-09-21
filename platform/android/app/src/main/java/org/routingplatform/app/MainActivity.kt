@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -1290,6 +1292,43 @@ class MainActivity :
 
                 onDispose {
                     runtimeController.stop()
+                }
+            }
+
+            LaunchedEffect(
+                snapshot.sessionId,
+                snapshot.state,
+                routeLifecycleController,
+            ) {
+                while (
+                    snapshot.state ==
+                        NavigationSessionState.Navigating
+                ) {
+                    delay(30_000L)
+                    routeLifecycleController
+                        ?.reevaluateActiveRoute(
+                            nowMs =
+                                SystemClock.elapsedRealtime(),
+                            snapshotProvider = {
+                                snapshot
+                            },
+                            onSnapshot = {
+                                    replacementSnapshot ->
+                                runtimeController.reset()
+                                progressStep = 0
+                                navigationStartedAtNanos =
+                                    SystemClock.elapsedRealtimeNanos()
+                                telemetry =
+                                    NavigationRuntimeTelemetry.stopped()
+                                snapshot =
+                                    replacementSnapshot
+                            },
+                            onTelemetry = {
+                                    updatedAcquisition ->
+                                routeAcquisitionTelemetry =
+                                    updatedAcquisition
+                            },
+                        )
                 }
             }
 
