@@ -22,6 +22,14 @@ data class NavigationTrafficReevaluationPolicy(
         lastAttemptMs: Long?,
         requestInFlight: Boolean,
     ): NavigationTrafficReevaluationDecision {
+        require(nowMs >= 0L) { "Monotonic time must not be negative." }
+        require(lastSuccessfulRefreshMs == null || lastSuccessfulRefreshMs <= nowMs) {
+            "Successful refresh timestamp cannot be in the future."
+        }
+        require(lastAttemptMs == null || lastAttemptMs <= nowMs) {
+            "Refresh attempt timestamp cannot be in the future."
+        }
+
         if (requestInFlight) {
             return NavigationTrafficReevaluationDecision.Hold(
                 NavigationTrafficReevaluationHoldReason.RequestInFlight
