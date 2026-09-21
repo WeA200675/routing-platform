@@ -66,7 +66,7 @@ class SocialAiProductionRoutingTest {
         val request =
             (resolved as SocialAiProductionRoutingResult.Ready).request
         assertEquals(RoutePoint(48.1, 11.5), request.destination)
-        assertEquals(listOf(market.point), request.via)
+        assertEquals(listOf(market.point), request.viaPoints)
     }
 
     @Test
