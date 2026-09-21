@@ -563,46 +563,128 @@ class MainActivity :
                                             destinationSearchResults =
                                                 results
 
-                                            val pendingCommand = pendingSocialAiCommand
-                                            val pendingCategory = pendingSocialAiCategory
-                                            val pendingOrigin = pendingSocialAiOrigin
-                                            if (pendingCommand != null && pendingCategory != null && pendingOrigin != null) {
-                                                pendingSocialAiCommand = null
-                                                pendingSocialAiCategory = null
-                                                pendingSocialAiOrigin = null
-                                                if (results.size == 1) {
-                                                    socialAiBusy = true
+                                            val pendingCommand =
+                                                pendingSocialAiCommand
+
+                                            val pendingCategory =
+                                                pendingSocialAiCategory
+
+                                            val pendingOrigin =
+                                                pendingSocialAiOrigin
+
+                                            if (
+                                                pendingCommand !=
+                                                    null &&
+                                                pendingCategory !=
+                                                    null &&
+                                                pendingOrigin !=
+                                                    null
+                                            ) {
+                                                pendingSocialAiCommand =
+                                                    null
+
+                                                pendingSocialAiCategory =
+                                                    null
+
+                                                pendingSocialAiOrigin =
+                                                    null
+
+                                                if (
+                                                    results.size ==
+                                                    1
+                                                ) {
+                                                    socialAiBusy =
+                                                        true
+
                                                     Thread {
-                                                        val resolved = runCatching {
-                                                            socialAiProductRuntime.routing().interpret(
-                                                                userText = pendingCommand,
-                                                                origin = pendingOrigin,
-                                                                favorites = favoriteDestinations,
-                                                                categoryResults = mapOf(pendingCategory to results),
-                                                            )
-                                                        }
+                                                        val resolved =
+                                                            runCatching {
+                                                                socialAiProductRuntime
+                                                                    .routing()
+                                                                    .interpret(
+                                                                        userText =
+                                                                            pendingCommand,
+
+                                                                        origin =
+                                                                            pendingOrigin,
+
+                                                                        favorites =
+                                                                            favoriteDestinations,
+
+                                                                        categoryResults =
+                                                                            mapOf(
+                                                                                pendingCategory to
+                                                                                    results
+                                                                            ),
+                                                                    )
+                                                            }
+
                                                         runOnUiThread {
-                                                            socialAiBusy = false
-                                                            val ready = resolved.getOrNull() as? SocialAiProductionRoutingResult.Ready
-                                                            if (ready == null) {
-                                                                socialAiMessage = (resolved.getOrNull() as? SocialAiProductionRoutingResult.ClarificationRequired)?.reason
-                                                                    ?: resolved.exceptionOrNull()?.message
-                                                                    ?: "Zwischenstopp konnte nicht eindeutig validiert werden."
+                                                            socialAiBusy =
+                                                                false
+
+                                                            val interpreted =
+                                                                resolved
+                                                                    .getOrNull()
+
+                                                            val ready =
+                                                                interpreted as?
+                                                                    SocialAiProductionRoutingResult
+                                                                        .Ready
+
+                                                            if (
+                                                                ready ==
+                                                                null
+                                                            ) {
+                                                                socialAiMessage =
+                                                                    (
+                                                                        interpreted as?
+                                                                            SocialAiProductionRoutingResult
+                                                                                .ClarificationRequired
+                                                                    )
+                                                                        ?.reason
+                                                                        ?: resolved
+                                                                            .exceptionOrNull()
+                                                                            ?.message
+                                                                        ?: "Zwischenstopp konnte nicht eindeutig validiert werden."
                                                             } else {
-                                                                socialAiMessage = "Intent und Zwischenstopp lokal validiert. Routenvorschau wird berechnet …"
-                                                                routeLifecycleController?.loadInitial(
-                                                                    request = ready.request,
-                                                                    snapshotProvider = { snapshot },
-                                                                    onSnapshot = { updated -> snapshot = updated },
-                                                                    onTelemetry = { updated -> routeAcquisitionTelemetry = updated },
-                                                                )
+                                                                socialAiMessage =
+                                                                    "Intent und Zwischenstopp lokal validiert. Routenvorschau wird berechnet …"
+
+                                                                routeLifecycleController
+                                                                    ?.loadInitial(
+                                                                        request =
+                                                                            ready.request,
+
+                                                                        snapshotProvider = {
+                                                                            snapshot
+                                                                        },
+
+                                                                        onSnapshot = {
+                                                                                updated ->
+                                                                            snapshot =
+                                                                                updated
+                                                                        },
+
+                                                                        onTelemetry = {
+                                                                                updated ->
+                                                                            routeAcquisitionTelemetry =
+                                                                                updated
+                                                                        },
+                                                                    )
                                                             }
                                                         }
                                                     }.start()
                                                 } else {
                                                     socialAiMessage =
-                                                        if (results.isEmpty()) "Kein eindeutiger Zwischenstopp gefunden."
-                                                        else "Mehrere Zwischenstopps gefunden. Bitte einen Treffer auswählen."
+                                                        if (
+                                                            results
+                                                                .isEmpty()
+                                                        ) {
+                                                            "Kein eindeutiger Zwischenstopp gefunden."
+                                                        } else {
+                                                            "Mehrere Zwischenstopps gefunden. Bitte einen Treffer auswählen."
+                                                        }
                                                 }
                                             }
 
