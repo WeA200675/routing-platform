@@ -1,0 +1,57 @@
+package org.routingplatform.app.ai
+
+import org.routingplatform.app.navigation.NavigationRouteRequest
+import org.routingplatform.app.navigation.RoutePoint
+import org.routingplatform.app.places.DestinationSearchResult
+import org.routingplatform.app.places.FavoriteDestinationCollection
+
+sealed interface SocialAiProductionRoutingResult {
+    data class Ready(val request: NavigationRouteRequest) : SocialAiProductionRoutingResult
+    data class CategoryLookupRequired(val category: String) : SocialAiProductionRoutingResult
+    data class ClarificationRequired(val reason: String) : SocialAiProductionRoutingResult
+}
+
+/**
+ * Product-path orchestration for local Social AI.
+ *
+ * The model can only produce a validated symbolic intent. Coordinates always
+ * originate from trusted favorites or deterministic search results.
+ */
+class SocialAiProductionRouting(
+    private val engine: SocialAiNativeEngine,
+) {
+    private val parser = SocialAiRoutingIntentParser(engine)
+
+    fun interpret(
+        userText: String,
+        origin: RoutePoint,
+        favorites: FavoriteDestinationCollection,
+        categoryResults: Map<String, List<DestinationSearchResult>> = emptyMap(),
+    ): SocialAiProductionRoutingResult {
+        val parsed = parser.parse(userText)
+        if (parsed is SocialAiRoutingIntentResult.ClarificationRequired) {
+            return SocialAiProductionRoutingResult.ClarificationRequired(parsed.reason)
+        }
+        val intent = (parsed as SocialAiRoutingIntentResult.Ready).intent
+        if (intent.viaCategory != null && intent.viaCategory !in categoryResults) {
+            return SocialAiProductionRoutingResult.CategoryLookupRequired(intent.viaCategory)
+        }
+        val bridge = SocialAiNavigationRequestBridge(
+            parser = FixedIntentParser(engine, intent),
+            placeResolver = SocialAiTrustedPlaceResolver(favorites, categoryResults),
+        )
+        return when (val built = bridge.buildRequest(origin, userText)) {
+            is SocialAiNavigationRequestResult.Ready -> SocialAiProductionRoutingResult.Ready(built.request)
+            is SocialAiNavigationRequestResult.ClarificationRequired ->
+                SocialAiProductionRoutingResult.ClarificationRequired(built.reason)
+        }
+    }
+
+    private class FixedIntentParser(
+        engine: SocialAiNativeEngine,
+        private val intent: SocialAiRoutingIntent,
+    ) : SocialAiRoutingIntentParser(engine) {
+        override fun parse(userText: String): SocialAiRoutingIntentResult =
+            SocialAiRoutingIntentResult.Ready(intent)
+    }
+}
