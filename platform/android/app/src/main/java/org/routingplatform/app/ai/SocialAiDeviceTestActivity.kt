@@ -75,7 +75,7 @@ class SocialAiDeviceTestActivity : ComponentActivity() {
                 update("4/5 Runtime geladen. Modell wird initialisiert …\nVerfügbarer RAM: ${memory.availMem / (1024 * 1024)} MiB")
                 check(engine.loadModel(model.absolutePath, 4096)) { "Native Runtime hat das Modell abgelehnt." }
                 try {
-                    update("5/5 Modell geladen. Lokale Qwen-Inferenz läuft …")
+                    update("5/5 Modell geladen. Lokale Qwen-Inferenz + Recovery-Test laufen …")
                     val inferenceStart = SystemClock.elapsedRealtime()
                     val answer = engine.generate(
                         "<|im_start|>system\nDu bist der lokale Offline-Assistent einer Routing-App. Antworte präzise auf Deutsch.<|im_end|>\n<|im_start|>user\nEin Fahrer sagt: Fahr mich nach Hause, vermeide Autobahnen und halte vorher an einem Supermarkt. Fasse Ziel, Vermeidung und Zwischenstopp knapp zusammen.<|im_end|>\n<|im_start|>assistant\n",
@@ -83,8 +83,21 @@ class SocialAiDeviceTestActivity : ComponentActivity() {
                     ).trim()
                     val inferenceMs = SystemClock.elapsedRealtime() - inferenceStart
                     check(answer.isNotBlank()) { "Die Runtime lieferte eine leere Antwort." }
+
+                    engine.unloadModel()
+                    check(engine.loadModel(model.absolutePath, 4096)) {
+                        "Recovery-Test: Modell konnte nach Unload nicht erneut geladen werden."
+                    }
+                    val recoveryStart = SystemClock.elapsedRealtime()
+                    val recoveryAnswer = engine.generate(
+                        "<|im_start|>system\nAntworte ausschließlich mit OK.<|im_end|>\n<|im_start|>user\nRuntime-Recovery-Test.<|im_end|>\n<|im_start|>assistant\n",
+                        16
+                    ).trim()
+                    val recoveryMs = SystemClock.elapsedRealtime() - recoveryStart
+                    check(recoveryAnswer.isNotBlank()) { "Recovery-Test lieferte keine Ausgabe." }
+
                     val totalMs = SystemClock.elapsedRealtime() - started
-                    "G6 PASS ✓\n\nModell-SHA: PASS\nIntent-Safety: PASS\nNative Runtime: PASS\nLokale Inferenz: PASS\n\nLokale Antwort:\n$answer\n\nInferenz: ${inferenceMs} ms\nGesamttest: ${totalMs} ms\nVerfügbarer RAM: ${memory.availMem / (1024 * 1024)} MiB\nNetzwerk-Fallback: keiner"
+                    "G6 PASS ✓\n\nModell-SHA: PASS\nIntent-Safety: PASS\nNative Runtime: PASS\nLokale Inferenz: PASS\nUnload/Reload-Recovery: PASS\nWiederholte Inferenz: PASS\n\nLokale Antwort:\n$answer\n\nInferenz: ${inferenceMs} ms\nRecovery-Inferenz: ${recoveryMs} ms\nGesamttest: ${totalMs} ms\nVerfügbarer RAM: ${memory.availMem / (1024 * 1024)} MiB\nNetzwerk-Fallback: keiner"
                 } finally {
                     engine.unloadModel()
                 }
