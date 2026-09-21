@@ -206,7 +206,7 @@ class NavigationRouteLifecycleController(
 
         if (
             telemetry.confidence == NavigationPositionConfidence.High &&
-            telemetry.fusionMode == NavigationFusionMode.Direct &&
+            telemetry.fusionMode == NavigationFusionMode.DirectObservation &&
             telemetry.lastObservedPosition != null
         ) {
             latestTrustedRerouteOrigin = telemetry.lastObservedPosition
