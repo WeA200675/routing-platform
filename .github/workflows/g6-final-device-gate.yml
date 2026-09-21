@@ -1,0 +1,41 @@
+name: G6 Final Device Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Prepare G6 physical-device acceptance package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Verify G6 acceptance plan exists
+        run: test -f docs/G6_ACCEPTANCE.md
+      - name: Create one-click Pixel test instructions
+        shell: bash
+        run: |
+          cat > g6-device-test.txt <<'EOF'
+          G6 FINAL PHYSICAL DEVICE GATE
+          
+          1. Download the latest successful G6.20 Real Candidate artifact: g620-candidate-evidence
+          2. Extract g620-release.apk to C:\g620-rc\g620-release.apk
+          3. Run: C:\platform-tools\adb.exe uninstall org.routingplatform.app
+          4. Run: C:\platform-tools\adb.exe install C:\g620-rc\g620-release.apk
+          5. Run: C:\platform-tools\adb.exe shell am start -n org.routingplatform.app/.ai.SocialAiDeviceTestActivity
+          
+          Required evidence: PASS, non-empty local response, inference/total timing, Netzwerk-Fallback: keiner.
+          Then exercise the product navigation flow with:
+          Fahr mich nach Hause, vermeide Autobahnen und halte vorher an einem Supermarkt.
+          
+          Expected safety behavior: until exact deterministic motorway avoidance exists, the avoidance request must fail closed / request clarification; it must never silently map to LowUrban.
+          EOF
+      - name: Upload physical-device gate instructions
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: g6-physical-device-gate
+          path: g6-device-test.txt
+          retention-days: 14
