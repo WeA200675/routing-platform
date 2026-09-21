@@ -36,7 +36,7 @@
 
         <activity
             android:name=".ai.SocialAiDeviceTestActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="G6 Local AI Test" />
 
         <activity
