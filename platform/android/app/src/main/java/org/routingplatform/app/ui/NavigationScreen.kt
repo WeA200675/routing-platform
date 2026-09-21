@@ -217,6 +217,18 @@ internal fun NavigationScreen(
         Boolean =
         false,
 
+    socialAiMessage:
+        String? =
+        null,
+
+    socialAiBusy:
+        Boolean =
+        false,
+
+    onSocialAiCommand:
+        (String) -> Unit =
+        {},
+
     onMapTargetSelected:
         (RoutePoint) -> Unit =
         {},
@@ -357,6 +369,13 @@ internal fun NavigationScreen(
         }
 
     var customFavoriteLabel by
+        remember {
+            mutableStateOf(
+                ""
+            )
+        }
+
+    var socialAiCommand by
         remember {
             mutableStateOf(
                 ""
@@ -1308,6 +1327,18 @@ internal fun NavigationScreen(
             busy =
                 destinationPlannerBusy,
 
+            socialAiMessage =
+                socialAiMessage,
+
+            socialAiBusy =
+                socialAiBusy,
+
+            socialAiCommand =
+                socialAiCommand,
+
+            onSocialAiCommand =
+                onSocialAiCommand,
+
             searchQuery =
                 searchQuery,
 
@@ -1617,6 +1648,18 @@ private fun DestinationPlannerDialog(
     busy:
         Boolean,
 
+    socialAiMessage:
+        String?,
+
+    socialAiBusy:
+        Boolean,
+
+    socialAiCommand:
+        String,
+
+    onSocialAiCommand:
+        (String) -> Unit,
+
     searchQuery:
         String,
 
@@ -1767,6 +1810,47 @@ private fun DestinationPlannerDialog(
                                 )
                         )
                     }
+
+                Text(
+                    text =
+                        "Lokaler Fahrassistent",
+
+                    fontWeight =
+                        FontWeight.SemiBold,
+                )
+
+                OutlinedTextField(
+                    value = socialAiCommand,
+                    onValueChange = { socialAiCommand = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !busy && !socialAiBusy,
+                    singleLine = true,
+                    label = {
+                        Text("z. B. Fahr mich nach Hause")
+                    },
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !busy && !socialAiBusy && socialAiCommand.trim().length in 2..512,
+                    onClick = {
+                        focusManager.clearFocus()
+                        onSocialAiCommand(socialAiCommand)
+                    },
+                ) {
+                    Text(if (socialAiBusy) "Lokale KI läuft …" else "Lokal interpretieren")
+                }
+
+                socialAiMessage
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { message ->
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(text = message, style = MaterialTheme.typography.bodySmall)
+                    }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text =
