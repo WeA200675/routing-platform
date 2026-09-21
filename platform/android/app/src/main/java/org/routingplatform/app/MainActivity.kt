@@ -301,6 +301,11 @@ class MainActivity :
                         )
                 }
 
+            val socialAiViaCandidateRouter =
+                remember(liveRouteSource) {
+                    liveRouteSource?.let { NavigationViaCandidateRouter(it) }
+                }
+
             val routeLifecycleController =
                 remember(
                     liveRouteSource
@@ -704,8 +709,87 @@ class MainActivity :
                                                     } else {
                                                         pendingSocialAiAllowedResultIds =
                                                             results.map { it.id }.toSet()
-                                                        socialAiMessage =
-                                                            "Mehrere Zwischenstopps gefunden. Bitte einen Treffer auswählen."
+
+                                                        val router =
+                                                            socialAiViaCandidateRouter
+
+                                                        if (router == null) {
+                                                            socialAiMessage =
+                                                                "Mehrere Zwischenstopps gefunden. Bitte einen Treffer auswählen."
+                                                        } else {
+                                                            /*
+                                                             * Resolve one candidate only to obtain the trusted
+                                                             * destination. The validated intent is reused and no
+                                                             * model generation occurs here.
+                                                             */
+                                                            val seed =
+                                                                socialAiProductRuntime
+                                                                    .routing()
+                                                                    .resolveValidated(
+                                                                        intent = pendingIntent,
+                                                                        origin = pendingOrigin,
+                                                                        favorites = favoriteDestinations,
+                                                                        categoryResults =
+                                                                            mapOf(
+                                                                                pendingCategory to
+                                                                                    listOf(results.first())
+                                                                            ),
+                                                                    ) as? SocialAiProductionRoutingResult.Ready
+
+                                                            if (seed == null) {
+                                                                socialAiMessage =
+                                                                    "Zwischenziel-Routen konnten nicht vorbereitet werden."
+                                                            } else {
+                                                                socialAiMessage =
+                                                                    "Zwischenstopps werden mit echten Routen verglichen …"
+                                                                socialAiBusy = true
+                                                                socialAiViaRoutingHandle?.cancel()
+                                                                socialAiViaRoutingHandle =
+                                                                    router.evaluate(
+                                                                        baseRequest =
+                                                                            seed.request.copy(
+                                                                                viaPoints = emptyList()
+                                                                            ),
+                                                                        candidates =
+                                                                            results.map {
+                                                                                it.id to it.point
+                                                                            },
+                                                                    ) { routedResult ->
+                                                                        runOnUiThread {
+                                                                            socialAiViaRoutingHandle = null
+                                                                            socialAiBusy = false
+                                                                            when (
+                                                                                val selection =
+                                                                                    routedResult.getOrNull()
+                                                                            ) {
+                                                                                is NavigationViaCandidateSelection.Selected -> {
+                                                                                    pendingSocialAiIntent = null
+                                                                                    pendingSocialAiCategory = null
+                                                                                    pendingSocialAiOrigin = null
+                                                                                    pendingSocialAiAllowedResultIds = emptySet()
+                                                                                    socialAiMessage =
+                                                                                        "Geeigneter Zwischenstopp anhand echter Routendaten ausgewählt."
+                                                                                    routeLifecycleController
+                                                                                        ?.loadInitial(
+                                                                                            request = selection.candidate.request,
+                                                                                            snapshotProvider = { snapshot },
+                                                                                            onSnapshot = { updated -> snapshot = updated },
+                                                                                            onTelemetry = { updated -> routeAcquisitionTelemetry = updated },
+                                                                                        )
+                                                                                }
+                                                                                is NavigationViaCandidateSelection.ClarificationRequired ->
+                                                                                    socialAiMessage =
+                                                                                        "Mehrere ähnlich geeignete Zwischenstopps gefunden. Bitte einen Treffer auswählen."
+                                                                                NavigationViaCandidateSelection.NoRoutableCandidate,
+                                                                                null ->
+                                                                                    socialAiMessage =
+                                                                                        routedResult.exceptionOrNull()?.message
+                                                                                            ?: "Kein Zwischenstopp konnte sicher geroutet werden."
+                                                                            }
+                                                                        }
+                                                                    }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
