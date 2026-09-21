@@ -3,6 +3,8 @@ package org.routingplatform.app.ai
 import android.app.ActivityManager
 import android.content.Context
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * Production owner for the pinned local routing model. It has no networking
@@ -38,8 +40,36 @@ class SocialAiProductRuntime(
             require(SocialAiModelIntegrity.sha256(staged).equals(MODEL_SHA256, ignoreCase = true)) {
                 "Das lokale KI-Modell hat die Integritätsprüfung nicht bestanden."
             }
-            if (target.exists()) require(target.delete())
-            require(staged.renameTo(target)) { "Das lokale KI-Modell konnte nicht aktiviert werden." }
+            val backup = File(context.filesDir, "$MODEL_FILE.previous")
+            if (backup.exists()) require(backup.delete())
+            if (target.exists()) {
+                Files.move(
+                    target.toPath(),
+                    backup.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            }
+            try {
+                Files.move(
+                    staged.toPath(),
+                    target.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+                require(SocialAiModelIntegrity.sha256(target).equals(MODEL_SHA256, ignoreCase = true)) {
+                    "Das aktivierte lokale KI-Modell hat die Integritätsprüfung nicht bestanden."
+                }
+                if (backup.exists()) backup.delete()
+            } catch (error: Exception) {
+                target.delete()
+                if (backup.exists()) {
+                    Files.move(
+                        backup.toPath(),
+                        target.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                }
+                throw error
+            }
         }
 
         val loadedEngine = JniSocialAiNativeEngine()
