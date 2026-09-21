@@ -7,7 +7,10 @@ import org.routingplatform.app.places.FavoriteDestinationCollection
 
 sealed interface SocialAiProductionRoutingResult {
     data class Ready(val request: NavigationRouteRequest) : SocialAiProductionRoutingResult
-    data class CategoryLookupRequired(val category: String) : SocialAiProductionRoutingResult
+    data class CategoryLookupRequired(
+        val category: String,
+        val validatedIntent: SocialAiRoutingIntent,
+    ) : SocialAiProductionRoutingResult
     data class ClarificationRequired(val reason: String) : SocialAiProductionRoutingResult
 }
 
@@ -53,7 +56,10 @@ class SocialAiProductionRouting(
         categoryResults: Map<String, List<DestinationSearchResult>> = emptyMap(),
     ): SocialAiProductionRoutingResult {
         if (intent.viaCategory != null && intent.viaCategory !in categoryResults) {
-            return SocialAiProductionRoutingResult.CategoryLookupRequired(intent.viaCategory)
+            return SocialAiProductionRoutingResult.CategoryLookupRequired(
+                category = intent.viaCategory,
+                validatedIntent = intent,
+            )
         }
         intent.viaCategory?.let { category ->
             val matches = categoryResults[category].orEmpty()
