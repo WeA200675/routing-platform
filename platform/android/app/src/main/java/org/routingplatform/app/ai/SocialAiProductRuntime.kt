@@ -60,7 +60,11 @@ class SocialAiProductRuntime(
                 }
                 if (backup.exists()) backup.delete()
             } catch (error: Exception) {
-                target.delete()
+                if (target.exists()) {
+                    require(target.delete()) {
+                        "Failed to remove rejected model artifact."
+                    }
+                }
                 if (backup.exists()) {
                     Files.move(
                         backup.toPath(),
