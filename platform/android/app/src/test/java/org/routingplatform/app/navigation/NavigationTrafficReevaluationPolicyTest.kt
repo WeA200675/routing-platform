@@ -10,6 +10,26 @@ class NavigationTrafficReevaluationPolicyTest {
             retryIntervalMs = 30_000L,
         )
 
+    @Test(expected = IllegalArgumentException::class)
+    fun futureSuccessTimestampFailsClosed() {
+        policy.decide(
+            nowMs = 100L,
+            lastSuccessfulRefreshMs = 101L,
+            lastAttemptMs = null,
+            requestInFlight = false,
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun futureAttemptTimestampFailsClosed() {
+        policy.decide(
+            nowMs = 100L,
+            lastSuccessfulRefreshMs = null,
+            lastAttemptMs = 101L,
+            requestInFlight = false,
+        )
+    }
+
     @Test
     fun firstEvaluationRequestsEngineRefresh() {
         assertEquals(
