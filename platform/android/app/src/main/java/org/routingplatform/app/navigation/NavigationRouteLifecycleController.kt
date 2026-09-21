@@ -5,6 +5,7 @@ enum class NavigationRouteAcquisitionState {
     LoadingInitial,
     LiveReady,
     Rerouting,
+    Refreshing,
     LiveFailed,
     RerouteFailed,
 }
@@ -46,6 +47,12 @@ class NavigationRouteLifecycleController(
 
     private var rerouteInFlight =
         false
+
+    private val trafficReevaluationPolicy =
+        NavigationTrafficReevaluationPolicy()
+
+    private var lastTrafficRefreshSuccessMs: Long? = null
+    private var lastTrafficRefreshAttemptMs: Long? = null
 
     fun loadInitial(
         request:
@@ -384,6 +391,79 @@ class NavigationRouteLifecycleController(
             }
     }
 
+    fun reevaluateActiveRoute(
+        nowMs: Long,
+        snapshotProvider: () -> NavigationUiSnapshot,
+        onSnapshot: (NavigationUiSnapshot) -> Unit,
+        onTelemetry: (NavigationRouteAcquisitionTelemetry) -> Unit,
+    ) {
+        val request = activeRequest ?: return
+        val current = snapshotProvider()
+        if (current.state != NavigationSessionState.Navigating) return
+
+        val decision =
+            trafficReevaluationPolicy.decide(
+                nowMs = nowMs,
+                lastSuccessfulRefreshMs = lastTrafficRefreshSuccessMs,
+                lastAttemptMs = lastTrafficRefreshAttemptMs,
+                requestInFlight = rerouteInFlight || activeHandle != null,
+            )
+        if (decision !is NavigationTrafficReevaluationDecision.Refresh) return
+
+        lastTrafficRefreshAttemptMs = nowMs
+        val expectedSessionId = current.sessionId
+        val generation = nextGeneration()
+
+        onTelemetry(
+            NavigationRouteAcquisitionTelemetry(
+                state = NavigationRouteAcquisitionState.Refreshing,
+                message = "Aktive Route wird von der Routing-Engine neu bewertet",
+            )
+        )
+
+        activeHandle =
+            source.acquire(request) { result ->
+                if (generation != requestGeneration) return@acquire
+                activeHandle = null
+
+                val latest = snapshotProvider()
+                if (
+                    latest.state != NavigationSessionState.Navigating ||
+                    latest.sessionId != expectedSessionId
+                ) {
+                    return@acquire
+                }
+
+                result.fold(
+                    onSuccess = { route ->
+                        val replacement = bridge.replaceNavigatingRoute(route)
+                        lastTrafficRefreshSuccessMs = nowMs
+                        rerouteDecisionEngine.onRouteReplaced()
+                        onSnapshot(replacement)
+                        onTelemetry(
+                            NavigationRouteAcquisitionTelemetry(
+                                state = NavigationRouteAcquisitionState.LiveReady,
+                                message = "Aktive Route neu bewertet",
+                            )
+                        )
+                    },
+                    onFailure = { error ->
+                        val fault =
+                            NavigationReliabilityClassifier.fromThrowable(error)
+                        onTelemetry(
+                            NavigationRouteAcquisitionTelemetry(
+                                state = NavigationRouteAcquisitionState.RerouteFailed,
+                                message =
+                                    "Routenaktualisierung fehlgeschlagen – alte Route bleibt aktiv: " +
+                                        fault.userMessage,
+                                fault = fault,
+                            )
+                        )
+                    },
+                )
+            }
+    }
+
     fun resetRerouteEvidence() {
         rerouteDecisionEngine.reset()
     }
@@ -405,6 +485,9 @@ class NavigationRouteLifecycleController(
 
         rerouteInFlight =
             false
+
+        lastTrafficRefreshSuccessMs = null
+        lastTrafficRefreshAttemptMs = null
 
         requestGeneration +=
             1L
