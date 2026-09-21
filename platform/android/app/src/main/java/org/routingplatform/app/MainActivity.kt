@@ -796,15 +796,7 @@ class MainActivity :
                                                     }
                                                     is SocialAiProductionRoutingResult.CategoryLookupRequired -> {
                                                         pendingSocialAiIntent =
-                                                            SocialAiRoutingIntent(
-                                                                destination =
-                                                                    when {
-                                                                        command.contains("arbeit", ignoreCase = true) -> "work"
-                                                                        else -> "home"
-                                                                    },
-                                                                avoid = emptySet(),
-                                                                viaCategory = interpreted.category,
-                                                            )
+                                                            interpreted.validatedIntent
                                                         pendingSocialAiCategory = interpreted.category
                                                         pendingSocialAiOrigin = planningLocation.position
                                                         socialAiMessage = "Zwischenstopp „${interpreted.category}“ wird deterministisch gesucht …"
