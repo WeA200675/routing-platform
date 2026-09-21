@@ -727,14 +727,35 @@ class MainActivity :
             val submitSocialAiCommand:
                 (String) -> Unit =
                 socialAi@ { rawCommand ->
-                    val command = rawCommand.trim()
-                    if (command.length !in 2..512 || socialAiBusy || destinationPlannerBusy) return@socialAi
-                    if (snapshot.state != NavigationSessionState.Preview) {
-                        socialAiMessage = "Navigation zuerst stoppen."
+                    val command =
+                        rawCommand.trim()
+
+                    if (
+                        command.length !in
+                            2..512 ||
+                        socialAiBusy ||
+                        destinationPlannerBusy
+                    ) {
                         return@socialAi
                     }
-                    if (!hasPreciseNavigationLocationPermission(applicationContext)) {
-                        socialAiMessage = "Präzise Standortfreigabe ist für die Routenvorschau erforderlich."
+
+                    if (
+                        snapshot.state !=
+                            NavigationSessionState.Preview
+                    ) {
+                        socialAiMessage =
+                            "Navigation zuerst stoppen."
+
+                        return@socialAi
+                    }
+
+                    if (
+                        !hasPreciseNavigationLocationPermission(
+                            applicationContext
+                        )
+                    ) {
+                        socialAiMessage =
+                            "Präzise Standortfreigabe ist für die Routenvorschau erforderlich."
                         permissionLauncher.launch(
                             arrayOf(
                                 Manifest.permission.ACCESS_FINE_LOCATION,
