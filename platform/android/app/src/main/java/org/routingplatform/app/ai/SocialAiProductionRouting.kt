@@ -36,6 +36,15 @@ class SocialAiProductionRouting(
         if (intent.viaCategory != null && intent.viaCategory !in categoryResults) {
             return SocialAiProductionRoutingResult.CategoryLookupRequired(intent.viaCategory)
         }
+        intent.viaCategory?.let { category ->
+            val matches = categoryResults[category].orEmpty()
+            if (matches.size != 1) {
+                return SocialAiProductionRoutingResult.ClarificationRequired(
+                    if (matches.isEmpty()) "Kein eindeutiger Zwischenstopp gefunden."
+                    else "Mehrere Zwischenstopps gefunden. Bitte einen Treffer auswählen."
+                )
+            }
+        }
         val bridge = SocialAiNavigationRequestBridge(
             parser = FixedIntentParser(engine, intent),
             placeResolver = SocialAiTrustedPlaceResolver(favorites, categoryResults),
