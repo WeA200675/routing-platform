@@ -4,8 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.routingplatform.app.navigation.RoutePoint
-import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.places.DestinationSearchResult
+import org.routingplatform.app.places.FavoriteDestinationCollection
 
 class SocialAiProductionRoutingTest {
     @Test
