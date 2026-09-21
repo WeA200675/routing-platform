@@ -1821,7 +1821,7 @@ private fun DestinationPlannerDialog(
 
                 OutlinedTextField(
                     value = socialAiCommand,
-                    onValueChange = { socialAiCommand = it },
+                    onValueChange = {},
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !busy && !socialAiBusy,
                     singleLine = true,
