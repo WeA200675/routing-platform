@@ -205,10 +205,11 @@ class NavigationRouteLifecycleController(
                 )
 
         if (
-            telemetry.locationConfidence == NavigationLocationConfidence.High &&
-            telemetry.currentPosition != null
+            telemetry.confidence == NavigationPositionConfidence.High &&
+            telemetry.fusionMode == NavigationFusionMode.Direct &&
+            telemetry.lastObservedPosition != null
         ) {
-            latestTrustedRerouteOrigin = telemetry.currentPosition
+            latestTrustedRerouteOrigin = telemetry.lastObservedPosition
         }
 
         if (
