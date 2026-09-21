@@ -31,14 +31,11 @@ class SocialAiModelInstallerTest {
     }
 
     private fun metadata(file: File) = LocalModelArtifactMetadata(
-        family = "test",
-        quantization = "test",
-        artifactFileName = file.name,
-        artifactBytes = file.length(),
+        modelId = "test-model",
+        revision = "test-revision",
+        licenseSpdx = "Apache-2.0",
         sha256 = sha256(file),
-        license = "test",
-        sourceRepository = "test",
-        sourceRevision = "test",
+        sourceUrl = "https://example.invalid/model",
     )
 
     private fun sha256(file: File): String {
