@@ -1336,6 +1336,10 @@ internal fun NavigationScreen(
             socialAiCommand =
                 socialAiCommand,
 
+            onSocialAiCommandChanged = {
+                socialAiCommand = it
+            },
+
             onSocialAiCommand =
                 onSocialAiCommand,
 
@@ -1657,6 +1661,9 @@ private fun DestinationPlannerDialog(
     socialAiCommand:
         String,
 
+    onSocialAiCommandChanged:
+        (String) -> Unit,
+
     onSocialAiCommand:
         (String) -> Unit,
 
@@ -1821,7 +1828,7 @@ private fun DestinationPlannerDialog(
 
                 OutlinedTextField(
                     value = socialAiCommand,
-                    onValueChange = {},
+                    onValueChange = onSocialAiCommandChanged,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !busy && !socialAiBusy,
                     singleLine = true,
