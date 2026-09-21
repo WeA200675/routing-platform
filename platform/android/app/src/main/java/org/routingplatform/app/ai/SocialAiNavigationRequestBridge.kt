@@ -41,16 +41,13 @@ class SocialAiNavigationRequestBridge(
             placeResolver.resolveViaCategory(it)
                 ?: return clarification("Zwischenstopp konnte nicht eindeutig aufgelöst werden.")
         }
-        val family = when {
-            SocialAiRouteAvoidance.Motorway in intent.avoid -> NavigationRouteFamily.LowUrban
-            else -> NavigationRouteFamily.ProfileOptimal
+        // No current NavigationRouteFamily is an exact avoidance contract.
+        // LowUrban is deliberately NOT treated as "avoid motorways".
+        // Until deterministic routing exposes explicit avoidance flags, fail closed.
+        if (intent.avoid.isNotEmpty()) {
+            return clarification("Diese Routenvermeidung wird von der Routing-Engine noch nicht exakt unterstützt.")
         }
-        // Toll/ferry avoidance is deliberately not approximated by a route family.
-        // Until the deterministic routing contract supports these flags, fail closed.
-        val unsupported = intent.avoid - SocialAiRouteAvoidance.Motorway
-        if (unsupported.isNotEmpty()) {
-            return clarification("Diese Routenvermeidung wird von der Routing-Engine noch nicht sicher unterstützt.")
-        }
+        val family = NavigationRouteFamily.ProfileOptimal
         return SocialAiNavigationRequestResult.Ready(
             NavigationRouteRequest(
                 origin = origin,
