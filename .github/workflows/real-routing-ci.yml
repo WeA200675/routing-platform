@@ -1,0 +1,32 @@
+name: Real Routing Adapter CI
+
+on:
+  push:
+    branches: [main, "g6.*/*"]
+    paths:
+      - "backend/osrm_adapter.py"
+      - "backend/test_osrm_adapter.py"
+      - "backend/osrm/**"
+      - ".github/workflows/real-routing-ci.yml"
+  pull_request:
+    paths:
+      - "backend/osrm_adapter.py"
+      - "backend/test_osrm_adapter.py"
+      - "backend/osrm/**"
+      - ".github/workflows/real-routing-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Adapter contract tests
+        run: python3 -m unittest backend/test_osrm_adapter.py
+      - name: Compile adapter
+        run: python3 -m py_compile backend/osrm_adapter.py backend/test_osrm_adapter.py
+      - name: Validate shell bootstrap
+        run: bash -n backend/osrm/prepare_osrm_data.sh
