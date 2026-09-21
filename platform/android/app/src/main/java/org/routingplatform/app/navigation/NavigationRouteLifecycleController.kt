@@ -51,6 +51,11 @@ class NavigationRouteLifecycleController(
     private val trafficReevaluationPolicy =
         NavigationTrafficReevaluationPolicy()
 
+    private val trafficReplacementPolicy =
+        NavigationTrafficReplacementPolicy()
+
+    private var activeRouteContract: NavigationRouteContract? = null
+
     private var lastTrafficRefreshSuccessMs: Long? = null
     private var lastTrafficRefreshAttemptMs: Long? = null
 
@@ -131,6 +136,8 @@ class NavigationRouteLifecycleController(
                             bridge.installRoute(
                                 route
                             )
+
+                        activeRouteContract = route
 
                         onSnapshot(
                             installed
@@ -336,6 +343,8 @@ class NavigationRouteLifecycleController(
                         activeRequest =
                             replacementRequest
 
+                        activeRouteContract = route
+
                         rerouteDecisionEngine
                             .onRouteReplaced()
 
@@ -436,14 +445,32 @@ class NavigationRouteLifecycleController(
 
                 result.fold(
                     onSuccess = { route ->
-                        val replacement = bridge.replaceNavigatingRoute(route)
                         lastTrafficRefreshSuccessMs = nowMs
+                        val currentRoute = activeRouteContract
+                        if (
+                            currentRoute != null &&
+                            !trafficReplacementPolicy.shouldReplace(
+                                current = currentRoute,
+                                candidate = route,
+                            )
+                        ) {
+                            onTelemetry(
+                                NavigationRouteAcquisitionTelemetry(
+                                    state = NavigationRouteAcquisitionState.LiveReady,
+                                    message = "Routenprüfung aktuell – bestehende Route bleibt aktiv",
+                                )
+                            )
+                            return@fold
+                        }
+
+                        val replacement = bridge.replaceNavigatingRoute(route)
+                        activeRouteContract = route
                         rerouteDecisionEngine.onRouteReplaced()
                         onSnapshot(replacement)
                         onTelemetry(
                             NavigationRouteAcquisitionTelemetry(
                                 state = NavigationRouteAcquisitionState.LiveReady,
-                                message = "Aktive Route neu bewertet",
+                                message = "Aktive Route mit besserer Engine-Route aktualisiert",
                             )
                         )
                     },
@@ -488,6 +515,7 @@ class NavigationRouteLifecycleController(
 
         lastTrafficRefreshSuccessMs = null
         lastTrafficRefreshAttemptMs = null
+        activeRouteContract = null
 
         requestGeneration +=
             1L
