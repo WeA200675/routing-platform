@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import org.maplibre.android.MapLibre
 import org.routingplatform.app.ai.SocialAiProductRuntime
 import org.routingplatform.app.ai.SocialAiProductionRoutingResult
+import org.routingplatform.app.ai.SocialAiRoutingIntent
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.JniNavigationCoreBridge
@@ -189,9 +190,9 @@ class MainActivity :
                     mutableStateOf(false)
                 }
 
-            var pendingSocialAiCommand by
+            var pendingSocialAiIntent by
                 remember {
-                    mutableStateOf<String?>(null)
+                    mutableStateOf<SocialAiRoutingIntent?>(null)
                 }
 
             var pendingSocialAiCategory by
@@ -563,8 +564,8 @@ class MainActivity :
                                             destinationSearchResults =
                                                 results
 
-                                            val pendingCommand =
-                                                pendingSocialAiCommand
+                                            val pendingIntent =
+                                                pendingSocialAiIntent
 
                                             val pendingCategory =
                                                 pendingSocialAiCategory
@@ -573,14 +574,14 @@ class MainActivity :
                                                 pendingSocialAiOrigin
 
                                             if (
-                                                pendingCommand !=
+                                                pendingIntent !=
                                                     null &&
                                                 pendingCategory !=
                                                     null &&
                                                 pendingOrigin !=
                                                     null
                                             ) {
-                                                pendingSocialAiCommand =
+                                                pendingSocialAiIntent =
                                                     null
 
                                                 pendingSocialAiCategory =
@@ -601,9 +602,9 @@ class MainActivity :
                                                             runCatching {
                                                                 socialAiProductRuntime
                                                                     .routing()
-                                                                    .interpret(
-                                                                        userText =
-                                                                            pendingCommand,
+                                                                    .resolveValidated(
+                                                                        intent =
+                                                                            pendingIntent,
 
                                                                         origin =
                                                                             pendingOrigin,
@@ -794,7 +795,16 @@ class MainActivity :
                                                         }
                                                     }
                                                     is SocialAiProductionRoutingResult.CategoryLookupRequired -> {
-                                                        pendingSocialAiCommand = command
+                                                        pendingSocialAiIntent =
+                                                            SocialAiRoutingIntent(
+                                                                destination =
+                                                                    when {
+                                                                        command.contains("arbeit", ignoreCase = true) -> "work"
+                                                                        else -> "home"
+                                                                    },
+                                                                avoid = emptySet(),
+                                                                viaCategory = interpreted.category,
+                                                            )
                                                         pendingSocialAiCategory = interpreted.category
                                                         pendingSocialAiOrigin = planningLocation.position
                                                         socialAiMessage = "Zwischenstopp „${interpreted.category}“ wird deterministisch gesucht …"
