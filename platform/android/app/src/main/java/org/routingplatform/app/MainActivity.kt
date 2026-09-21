@@ -32,6 +32,9 @@ import org.routingplatform.app.navigation.NavigationRouteAcquisitionTelemetry
 import org.routingplatform.app.navigation.NavigationRouteBootstrap
 import org.routingplatform.app.navigation.NavigationRouteIntentRequest
 import org.routingplatform.app.navigation.NavigationRouteLifecycleController
+import org.routingplatform.app.navigation.NavigationViaCandidateRouter
+import org.routingplatform.app.navigation.NavigationViaCandidateSelection
+import org.routingplatform.app.navigation.NavigationRouteAcquisitionHandle
 import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
 import org.routingplatform.app.navigation.NavigationRouteSourceFactory
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
@@ -205,6 +208,16 @@ class MainActivity :
                     mutableStateOf<org.routingplatform.app.navigation.RoutePoint?>(null)
                 }
 
+            var pendingSocialAiAllowedResultIds by
+                remember {
+                    mutableStateOf(emptySet<String>())
+                }
+
+            var socialAiViaRoutingHandle by
+                remember {
+                    mutableStateOf<NavigationRouteAcquisitionHandle?>(null)
+                }
+
             DisposableEffect(
                 destinationSearchSource,
                 planningLocationController,
@@ -216,6 +229,9 @@ class MainActivity :
 
                     planningLocationController
                         .close()
+
+                    socialAiViaRoutingHandle
+                        ?.cancel()
 
                     socialAiProductRuntime
                         .close()
@@ -686,6 +702,8 @@ class MainActivity :
                                                         socialAiMessage =
                                                             "Kein eindeutiger Zwischenstopp gefunden."
                                                     } else {
+                                                        pendingSocialAiAllowedResultIds =
+                                                            results.map { it.id }.toSet()
                                                         socialAiMessage =
                                                             "Mehrere Zwischenstopps gefunden. Bitte einen Treffer auswählen."
                                                     }
@@ -705,6 +723,10 @@ class MainActivity :
                                         onFailure = {
                                                 error ->
 
+                                            pendingSocialAiIntent = null
+                                            pendingSocialAiCategory = null
+                                            pendingSocialAiOrigin = null
+                                            pendingSocialAiAllowedResultIds = emptySet()
                                             destinationSearchResults =
                                                 emptyList()
 
@@ -719,6 +741,10 @@ class MainActivity :
 
                             destinationPlannerBusy =
                                 false
+                            pendingSocialAiIntent = null
+                            pendingSocialAiCategory = null
+                            pendingSocialAiOrigin = null
+                            pendingSocialAiAllowedResultIds = emptySet()
 
                             destinationPlannerMessage =
                                 error.message
@@ -731,6 +757,13 @@ class MainActivity :
             val submitSocialAiCommand:
                 (String) -> Unit =
                 socialAi@ { rawCommand ->
+                    socialAiViaRoutingHandle?.cancel()
+                    socialAiViaRoutingHandle = null
+                    pendingSocialAiIntent = null
+                    pendingSocialAiCategory = null
+                    pendingSocialAiOrigin = null
+                    pendingSocialAiAllowedResultIds = emptySet()
+
                     val command =
                         rawCommand.trim()
 
@@ -1657,11 +1690,13 @@ class MainActivity :
                                     pendingIntent != null &&
                                     pendingCategory != null &&
                                     pendingOrigin != null &&
+                                    result.id in pendingSocialAiAllowedResultIds &&
                                     !socialAiBusy
                                 ) {
                                     pendingSocialAiIntent = null
                                     pendingSocialAiCategory = null
                                     pendingSocialAiOrigin = null
+                                    pendingSocialAiAllowedResultIds = emptySet()
                                     socialAiBusy = true
 
                                     Thread {
