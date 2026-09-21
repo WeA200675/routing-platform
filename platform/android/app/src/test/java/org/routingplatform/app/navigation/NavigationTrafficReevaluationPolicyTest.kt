@@ -95,4 +95,52 @@ class NavigationTrafficReevaluationPolicyTest {
             ),
         )
     }
+    @Test
+    fun replacementRequiresMaterialEngineImprovement() {
+        val policy = NavigationTrafficReplacementPolicy()
+        val current = route(durationS = 1_000.0)
+        assertEquals(
+            false,
+            policy.shouldReplace(current, route(durationS = 980.0)),
+        )
+        assertEquals(
+            true,
+            policy.shouldReplace(current, route(durationS = 900.0)),
+        )
+    }
+
+    @Test
+    fun replacementCannotSilentlyChangeRouteFamily() {
+        val policy = NavigationTrafficReplacementPolicy()
+        assertEquals(
+            false,
+            policy.shouldReplace(
+                route(durationS = 1_000.0),
+                route(
+                    durationS = 800.0,
+                    family = NavigationRouteFamily.Fastest,
+                ),
+            ),
+        )
+    }
+
+    private fun route(
+        durationS: Double,
+        family: NavigationRouteFamily =
+            NavigationRouteFamily.ProfileOptimal,
+    ) = NavigationRouteContract(
+        routeId = "route-" + durationS + "-" + family.name,
+        family = family,
+        distanceM = 10_000.0,
+        durationS = durationS,
+        geometry = listOf(
+            RoutePoint(48.0, 12.0),
+            RoutePoint(48.1, 12.1),
+        ),
+        maneuvers = emptyList(),
+        engineName = "fixture",
+        engineVersion = "1",
+        segmentDataStatus = NavigationRouteSegmentDataStatus.Unspecified,
+        diagnostics = emptyList(),
+    )
 }
