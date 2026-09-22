@@ -143,7 +143,7 @@ class NavigationObservedPositionPresentationTest {
         assertTrue(
             held.statusText
                 .contains(
-                    "Safety: Hold"
+                    "Safety: Hold (außerhalb Route)"
                 )
         )
 
