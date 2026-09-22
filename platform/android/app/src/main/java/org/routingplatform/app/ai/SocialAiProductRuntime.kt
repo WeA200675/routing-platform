@@ -3,8 +3,6 @@ package org.routingplatform.app.ai
 import android.app.ActivityManager
 import android.content.Context
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 /**
  * Production owner for the pinned local routing model. It has no networking
@@ -32,48 +30,31 @@ class SocialAiProductRuntime(
         }
 
         val target = File(context.filesDir, MODEL_FILE)
-        if (!target.isFile || !SocialAiModelIntegrity.sha256(target).equals(MODEL_SHA256, ignoreCase = true)) {
+        if (!target.isFile || !SocialAiModelIntegrity.verify(target, MODEL_METADATA)) {
             val staged = File(context.filesDir, "$MODEL_FILE.staged")
-            context.assets.open(MODEL_ASSET).use { input ->
-                staged.outputStream().buffered().use { output -> input.copyTo(output) }
-            }
-            require(SocialAiModelIntegrity.sha256(staged).equals(MODEL_SHA256, ignoreCase = true)) {
-                "Das lokale KI-Modell hat die Integritätsprüfung nicht bestanden."
-            }
-            val backup = File(context.filesDir, "$MODEL_FILE.previous")
-            if (backup.exists()) require(backup.delete())
-            if (target.exists()) {
-                Files.move(
-                    target.toPath(),
-                    backup.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING,
-                )
-            }
-            try {
-                Files.move(
-                    staged.toPath(),
-                    target.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING,
-                )
-                require(SocialAiModelIntegrity.sha256(target).equals(MODEL_SHA256, ignoreCase = true)) {
-                    "Das aktivierte lokale KI-Modell hat die Integritätsprüfung nicht bestanden."
+            runCatching {
+                context.assets.open(MODEL_ASSET).use { input ->
+                    staged.outputStream().buffered().use { output -> input.copyTo(output) }
                 }
-                if (backup.exists()) backup.delete()
-            } catch (error: Exception) {
-                if (target.exists()) {
-                    require(target.delete()) {
-                        "Failed to remove rejected model artifact."
-                    }
-                }
-                if (backup.exists()) {
-                    Files.move(
-                        backup.toPath(),
-                        target.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING,
+            }.getOrElse { error ->
+                staged.delete()
+                throw IllegalStateException("Lokales KI-Modell konnte nicht bereitgestellt werden.", error)
+            }
+
+            when (
+                val install =
+                    SocialAiModelInstaller.install(
+                        stagedArtifact = staged,
+                        destination = target,
+                        metadata = MODEL_METADATA,
+                        minimumFreeBytesAfterInstall = MINIMUM_FREE_STORAGE_AFTER_INSTALL_BYTES,
                     )
-                }
-                throw error
+            ) {
+                is SocialAiModelInstallResult.Installed -> Unit
+                is SocialAiModelInstallResult.Rejected ->
+                    throw IllegalStateException(install.reason)
             }
+            staged.delete()
         }
 
         val loadedEngine = JniSocialAiNativeEngine()
@@ -98,5 +79,11 @@ class SocialAiProductRuntime(
         private const val MODEL_SHA256 = "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370"
         private const val CONTEXT_TOKENS = 4096
         private const val MINIMUM_AVAILABLE_MEMORY_BYTES = 768L * 1024 * 1024
+        private const val MINIMUM_FREE_STORAGE_AFTER_INSTALL_BYTES = 256L * 1024 * 1024
+        private val MODEL_METADATA =
+            LocalModelArtifactMetadata(
+                sha256 = MODEL_SHA256,
+                sizeBytes = 986048768L,
+            )
     }
 }
