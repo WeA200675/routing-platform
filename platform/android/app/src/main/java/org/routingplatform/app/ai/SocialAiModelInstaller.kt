@@ -17,8 +17,10 @@ object SocialAiModelInstaller {
         destination: File,
         metadata: LocalModelArtifactMetadata,
         minimumFreeBytesAfterInstall: Long = 256L * 1024 * 1024,
+        expectedSizeBytes: Long? = null,
     ): SocialAiModelInstallResult {
         if (!stagedArtifact.isFile) return rejected("Staged model is missing.")
+        if (expectedSizeBytes != null && stagedArtifact.length() != expectedSizeBytes) return rejected("Staged model size verification failed.")
         if (!SocialAiModelIntegrity.verify(stagedArtifact, metadata)) return rejected("Staged model integrity verification failed.")
         val parent = destination.parentFile ?: return rejected("Invalid model destination.")
         if (!parent.exists() && !parent.mkdirs()) return rejected("Model directory cannot be created.")
@@ -33,6 +35,10 @@ object SocialAiModelInstaller {
             stagedArtifact.inputStream().use { input ->
                 temporary.outputStream().buffered().use { output -> input.copyTo(output) }
             }
+            if (expectedSizeBytes != null && temporary.length() != expectedSizeBytes) {
+                temporary.delete()
+                return rejected("Copied model size verification failed.")
+            }
             if (!SocialAiModelIntegrity.verify(temporary, metadata)) {
                 temporary.delete()
                 return rejected("Copied model failed integrity verification.")
@@ -46,7 +52,7 @@ object SocialAiModelInstaller {
                 throw error
             }
 
-            if (!SocialAiModelIntegrity.verify(destination, metadata)) {
+            if ((expectedSizeBytes != null && destination.length() != expectedSizeBytes) || !SocialAiModelIntegrity.verify(destination, metadata)) {
                 destination.delete()
                 if (backup.exists()) move(backup, destination)
                 return rejected("Promoted model failed integrity verification; previous model restored.")
