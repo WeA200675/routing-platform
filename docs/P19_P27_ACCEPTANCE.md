@@ -53,3 +53,11 @@ P22 now has a buildable Swift package, fail-closed navigation admission types, X
 ## P23 implementation evidence
 
 P23 starts a common platform-neutral admission fixture corpus at `platform/shared/parity/navigation-admission-fixtures.csv`. The corpus records identical capability and observation cases that Android and iOS parity tests must consume. P23 is not accepted until both platform test suites consume the same fixtures and the iOS CI gate is green on the immutable candidate SHA.
+
+## P24 implementation evidence
+
+P24 introduces explicit navigation resource budgets and a fail-closed governor for bounded buffered samples and pending work. Boundary values are admitted; exhausted budgets and malformed negative counters are rejected by unit tests. This is an enforceable semantic pressure contract, not a claim about measured physical-device battery life. CPU, memory, wakeup and battery measurements still require platform/device evidence before P24 can be fully accepted.
+
+## P25 implementation evidence
+
+P25 retains the existing repository-wide immutable GitHub Action pin verifier as an explicit production-candidate gate. Candidate generation already binds pinned runtime inputs to source digests, SBOM and release evidence, while release checks reject unsafe manifest/network/diagnostic exposure. Production secrets and signing credentials remain outside repository evidence. P25 acceptance requires these gates to pass on the immutable candidate SHA; repository branch-protection administration is separate evidence.
