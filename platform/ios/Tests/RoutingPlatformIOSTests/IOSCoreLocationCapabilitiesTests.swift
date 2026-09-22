@@ -5,7 +5,7 @@ import XCTest
 final class IOSCoreLocationCapabilitiesTests: XCTestCase {
     func testFullAccuracyAuthorizationAdmitsCalibration() {
         let capabilities = IOSCoreLocationCapabilities.detect(
-            authorizationStatus: .authorizedWhenInUse,
+            authorizationStatus: .authorizedAlways,
             accuracyAuthorization: .fullAccuracy
         )
         XCTAssertTrue(capabilities.calibrationAvailable)
@@ -13,7 +13,7 @@ final class IOSCoreLocationCapabilitiesTests: XCTestCase {
 
     func testReducedAccuracyFailsClosedForCalibration() {
         let capabilities = IOSCoreLocationCapabilities.detect(
-            authorizationStatus: .authorizedWhenInUse,
+            authorizationStatus: .authorizedAlways,
             accuracyAuthorization: .reducedAccuracy
         )
         XCTAssertFalse(capabilities.calibrationAvailable)
