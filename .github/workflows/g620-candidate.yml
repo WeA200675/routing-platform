@@ -112,10 +112,6 @@ jobs:
           forbidden = {"android.permission.BLUETOOTH_SCAN", "android.permission.NEARBY_WIFI_DEVICES", "android.permission.CHANGE_WIFI_STATE"}
           assert not (permissions & forbidden), "Release manifest contains prohibited active radio scan/change permission"
           PY
-          if false; then
-            echo "Authenticated security diagnostics surface missing or exported" >&2
-            exit 1
-          fi
           APK="$(find platform/android/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
           test -n "$APK"
           python3 tools/g620/verify_release_apk.py "$APK" --release-manifest "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
