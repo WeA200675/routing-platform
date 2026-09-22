@@ -25,6 +25,10 @@ import org.routingplatform.app.ai.SocialAiProductRuntime
 import org.routingplatform.app.ai.SocialAiProductionRoutingResult
 import org.routingplatform.app.ai.SocialAiRoutingIntent
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
+import org.routingplatform.app.navigation.AndroidNavigationCalibrationDisclosureStore
+import org.routingplatform.app.navigation.AndroidNavigationCalibrationStore
+import org.routingplatform.app.navigation.NavigationCalibrationObservation
+import org.routingplatform.app.navigation.NavigationDeviceCalibration
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.JniNavigationCoreBridge
 import org.routingplatform.app.navigation.NavigationDriveProofObservationSinkFactory
@@ -424,6 +428,12 @@ class MainActivity :
                 }
             }
 
+            val calibrationStore = remember { AndroidNavigationCalibrationStore(applicationContext) }
+            val calibrationDisclosureStore = remember { AndroidNavigationCalibrationDisclosureStore(applicationContext) }
+            var calibrationDisclosureAccepted by remember {
+                mutableStateOf(calibrationDisclosureStore.accepted())
+            }
+
             var telemetry by
                 remember {
                     mutableStateOf(
@@ -431,6 +441,29 @@ class MainActivity :
                             .stopped()
                     )
                 }
+
+            LaunchedEffect(
+                calibrationDisclosureAccepted,
+                snapshot.state,
+                telemetry.lastLocationElapsedRealtimeNanos,
+                telemetry.confidence,
+                telemetry.fusionMode,
+                telemetry.lastLocationAccuracyM,
+            ) {
+                if (calibrationDisclosureAccepted && snapshot.state == NavigationSessionState.Navigating) {
+                    val nowUtc = System.currentTimeMillis()
+                    val updated = NavigationDeviceCalibration.observe(
+                        calibrationStore.load(nowUtc),
+                        NavigationCalibrationObservation(
+                            confidence = telemetry.confidence,
+                            fusionMode = telemetry.fusionMode,
+                            horizontalAccuracyM = telemetry.lastLocationAccuracyM,
+                            elapsedRealtimeNanos = telemetry.lastLocationElapsedRealtimeNanos,
+                        ),
+                    )
+                    calibrationStore.save(updated, nowUtc)
+                }
+            }
 
             var progressStep by
                 remember {
@@ -1593,6 +1626,14 @@ class MainActivity :
                     NavigationScreen(
                         snapshot =
                             snapshot,
+
+                        calibrationDisclosureRequired =
+                            !calibrationDisclosureAccepted,
+
+                        onAcceptCalibrationDisclosure = {
+                            calibrationDisclosureStore.accept()
+                            calibrationDisclosureAccepted = true
+                        },
 
                         navigationStartEnabled =
                             routeBootstrap
