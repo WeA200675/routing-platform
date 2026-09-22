@@ -80,4 +80,6 @@ object DrivingInterferenceEvidence {
             vehiclePosition = vehiclePosition,
         )
     }
+
+    private const val MAX_PAYLOAD_BYTES = 64 * 1024
 }
