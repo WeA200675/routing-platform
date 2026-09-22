@@ -9,6 +9,9 @@ on:
       - .github/workflows/g620-candidate.yml
       - MILESTONES.md
       - tools/g620/**
+      - tools/release/**
+      - platform/ios/**
+      - platform/shared/parity/**
       - platform/android/app/build.gradle.kts
       - platform/android/app/src/main/java/org/routingplatform/app/ai/**
       - platform/android/app/src/main/java/org/routingplatform/app/MainActivity.kt
@@ -38,6 +41,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Test release and promotion validators
+        run: |
+          python3 tools/g620/test_create_release_evidence.py
+          python3 tools/release/test_verify_ga_promotion.py
       - name: P28 verify shared parity corpus
         run: python3 tools/release/verify_parity_corpus.py
 
