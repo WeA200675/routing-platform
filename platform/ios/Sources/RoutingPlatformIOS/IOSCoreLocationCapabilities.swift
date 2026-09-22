@@ -10,9 +10,14 @@ public enum IOSCoreLocationCapabilities {
         authorizationStatus: CLAuthorizationStatus,
         accuracyAuthorization: CLAccuracyAuthorization
     ) -> IOSNavigationDeviceCapabilities {
-        let locationAuthorized =
+        let locationAuthorized: Bool
+        #if os(iOS)
+        locationAuthorized =
             authorizationStatus == .authorizedAlways ||
             authorizationStatus == .authorizedWhenInUse
+        #else
+        locationAuthorized = authorizationStatus == .authorizedAlways
+        #endif
 
         return IOSNavigationDeviceCapabilities(
             preciseLocationAvailable:
