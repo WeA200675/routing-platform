@@ -479,10 +479,9 @@ class AndroidNavigationRuntimeController(
         aiView
 
     private fun enqueueLocation(sample: NavigationLocationSample) {
-        val bufferedSamples = sensorSource.accelerationHistory().size +
-            sensorSource.gyroscopeHistory().size + sensorSource.bearingHistory().size +
-            sensorSource.gnssHistory().size
-        val decision = locationWorkQueue.offer(sample, bufferedSamples)
+        // Sensor histories are independently bounded at their source. The
+        // work queue budget therefore accounts only for pending callback work.
+        val decision = locationWorkQueue.offer(sample, bufferedSamples = 0)
         if (!decision.admitNewWork) return
         while (active) {
             val next = locationWorkQueue.poll() ?: break
