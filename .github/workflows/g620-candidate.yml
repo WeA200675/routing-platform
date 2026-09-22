@@ -144,6 +144,25 @@ jobs:
           assert len(manifest["sbomSha256"]) == 64, "SBOM digest missing"
           PY
 
+      - name: P33 capture reproducibility identity
+        shell: bash
+        run: |
+          sha256sum "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json" > "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.sha256"
+          sha256sum "$RUNNER_TEMP/g620/build/evidence/g620-sbom.spdx.json" > "$RUNNER_TEMP/g620/build/evidence/g620-sbom.spdx.sha256"
+          sha256sum -c "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.sha256"
+          sha256sum -c "$RUNNER_TEMP/g620/build/evidence/g620-sbom.spdx.sha256"
+
+      - name: P34 classify distribution state
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/g620/build/evidence/distribution-state.json" <<'JSON'
+          {
+            "androidArtifact": "test-signed-installable-rc",
+            "productionSigned": false,
+            "storePublished": false
+          }
+          JSON
+
       - name: Upload candidate evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -156,5 +175,8 @@ jobs:
             ${{ runner.temp }}/g620/build/runtime-source.sha256
             ${{ runner.temp }}/g620/build/evidence/g620-sbom.spdx.json
             ${{ runner.temp }}/g620/build/evidence/g620-release-manifest.json
+            ${{ runner.temp }}/g620/build/evidence/g620-release-manifest.sha256
+            ${{ runner.temp }}/g620/build/evidence/g620-sbom.spdx.sha256
+            ${{ runner.temp }}/g620/build/evidence/distribution-state.json
             ${{ runner.temp }}/g620/build/g620-release.apk
             ${{ runner.temp }}/g620/build/g620-release.apk.sha256
