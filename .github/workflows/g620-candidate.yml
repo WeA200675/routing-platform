@@ -59,6 +59,7 @@ jobs:
       - name: Test release and promotion validators
         run: |
           python3 tools/g620/test_create_release_evidence.py
+          python3 tools/release/test_verify_device_acceptance.py
           python3 tools/release/test_verify_ga_promotion.py
       - name: P28 verify shared parity corpus
         run: python3 tools/release/verify_parity_corpus.py
@@ -172,10 +173,13 @@ jobs:
       - name: P33 capture reproducibility identity
         shell: bash
         run: |
-          sha256sum "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json" > "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.sha256"
-          sha256sum "$RUNNER_TEMP/g620/build/evidence/g620-sbom.spdx.json" > "$RUNNER_TEMP/g620/build/evidence/g620-sbom.spdx.sha256"
-          sha256sum -c "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.sha256"
-          sha256sum -c "$RUNNER_TEMP/g620/build/evidence/g620-sbom.spdx.sha256"
+          (
+            cd "$RUNNER_TEMP/g620/build/evidence"
+            sha256sum g620-release-manifest.json > g620-release-manifest.sha256
+            sha256sum g620-sbom.spdx.json > g620-sbom.spdx.sha256
+            sha256sum -c g620-release-manifest.sha256
+            sha256sum -c g620-sbom.spdx.sha256
+          )
 
       - name: P34 classify distribution state
         shell: bash
