@@ -25,3 +25,9 @@ A green CI run proves only the steps executed by that run. Emulator, JVM or host
 ## Promotion gates
 
 P19–P21 may be developed while P18 physical acceptance is pending, but P22–P27 cannot be marked accepted from Android-only CI. P27 requires the exact candidate SHA, complete automated evidence and separately captured physical-platform acceptance.
+
+## P19 implementation evidence
+
+P19's first production observability boundary is implemented by `NavigationAdmissionHealth` and `NavigationRuntimeHealth`. Both are deliberately bounded semantic projections. Runtime health excludes route/position data, horizontal accuracy values, raw sensor/radio evidence, native failure messages and security evidence. Constructor invariants reject internally contradictory health claims such as an accepted native update without an attempted update, or automatic progress while the pipeline is stopped.
+
+P19 automated acceptance requires Core CI and Android CI to pass on the same immutable candidate SHA containing these contracts and tests. The P1–P27 candidate workflow is additional release evidence; it does not convert CI into physical-device evidence.
