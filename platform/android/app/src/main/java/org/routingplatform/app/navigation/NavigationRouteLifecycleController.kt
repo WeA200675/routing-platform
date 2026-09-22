@@ -201,7 +201,8 @@ class NavigationRouteLifecycleController(
         val decision =
             rerouteDecisionEngine
                 .observe(
-                    telemetry
+                    telemetry = telemetry,
+                    sessionId = snapshotProvider().sessionId,
                 )
 
         NavigationTrustedRefreshOrigin
