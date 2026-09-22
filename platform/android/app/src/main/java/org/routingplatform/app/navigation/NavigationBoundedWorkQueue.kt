@@ -10,6 +10,7 @@ class NavigationBoundedWorkQueue<T>(
 ) {
     private val queued = ArrayDeque<T>()
 
+    @Synchronized
     fun offer(item: T, bufferedSamples: Int): NavigationBackpressureDecision {
         val decision = NavigationResourceGovernor.admit(
             NavigationResourceSnapshot(
@@ -36,8 +37,10 @@ class NavigationBoundedWorkQueue<T>(
         return decision
     }
 
+    @Synchronized
     fun poll(): T? = if (queued.isEmpty()) null else queued.removeFirst()
 
+    @Synchronized
     fun cancelAll() = queued.clear()
 
     val size: Int get() = queued.size
