@@ -13,7 +13,7 @@ internal object NavigationTrustedEvidencePosition {
     ): EvidenceVehiclePosition? {
         val observation = NavigationTrustedRefreshOrigin.fromTelemetry(telemetry) ?: return null
         val point = NavigationTrustedRefreshOrigin.current(observation, nowElapsedRealtimeNanos) ?: return null
-        val accuracy = telemetry.horizontalAccuracyM ?: return null
+        val accuracy = telemetry.lastLocationAccuracyM ?: return null
         if (!accuracy.isFinite() || accuracy < 0.0) return null
         return EvidenceVehiclePosition(
             latitude = point.latitude,
