@@ -198,11 +198,17 @@ class NavigationRouteLifecycleController(
                 NavigationRouteAcquisitionTelemetry
             ) -> Unit,
     ) {
+        val current = snapshotProvider()
+        if (current.state != NavigationSessionState.Navigating) {
+            rerouteDecisionEngine.reset()
+            return
+        }
+
         val decision =
             rerouteDecisionEngine
                 .observe(
                     telemetry = telemetry,
-                    sessionId = snapshotProvider().sessionId,
+                    sessionId = current.sessionId,
                 )
 
         NavigationTrustedRefreshOrigin
@@ -247,16 +253,6 @@ class NavigationRouteLifecycleController(
                 )
             )
 
-            return
-        }
-
-        val current =
-            snapshotProvider()
-
-        if (
-            current.state !=
-                NavigationSessionState.Navigating
-        ) {
             return
         }
 
