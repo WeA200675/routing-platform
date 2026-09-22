@@ -12,7 +12,5 @@ object AndroidNavigationDeviceCapabilities {
         )
 
     fun calibrationAvailable(capabilities: NavigationDeviceCapabilities): Boolean =
-        capabilities.preciseLocationAvailable &&
-            capabilities.directObservationAvailable &&
-            capabilities.monotonicTimestampAvailable
+        NavigationObservationAdmission.calibrationAvailable(capabilities)
 }
