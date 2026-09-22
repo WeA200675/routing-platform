@@ -6,6 +6,8 @@ import android.security.keystore.KeyProperties
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.io.FileOutputStream
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -20,7 +22,12 @@ import javax.crypto.spec.GCMParameterSpec
  */
 class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEvidenceStore {
     private val appContext = context.applicationContext
-    private val file = java.io.File(appContext.noBackupFilesDir, "driving-interference-evidence.v1")
+    private val file = java.io.File(appContext.noBackupFilesDir, "driving-interference-evidence.v2")
+
+    init {
+        // v1 did not bind its schema as AES-GCM AAD and is intentionally not parsed as v2.
+        java.io.File(appContext.noBackupFilesDir, "driving-interference-evidence.v1").delete()
+    }
 
     @Synchronized
     override fun append(record: DrivingInterferenceEvidenceRecord) {
@@ -60,6 +67,7 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
 
     private fun readAll(): List<DrivingInterferenceEvidenceRecord> {
         if (!file.exists()) return emptyList()
+        require(file.length() in (IV_BYTES + 1)..MAX_FILE_BYTES) { "Invalid security evidence size" }
         val bytes = file.readBytes()
         require(bytes.size > IV_BYTES)
         val iv = bytes.copyOfRange(0, IV_BYTES)
@@ -80,9 +88,11 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
         val encrypted = cipher.doFinal(array.toString().toByteArray(StandardCharsets.UTF_8))
         val tmp = java.io.File(file.parentFile, file.name + ".tmp")
         FileOutputStream(tmp).use { out -> out.write(cipher.iv); out.write(encrypted); out.fd.sync() }
-        if (!tmp.renameTo(file)) {
+        try {
+            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (failure: Exception) {
             tmp.delete()
-            throw java.io.IOException("Unable to atomically persist security evidence")
+            throw java.io.IOException("Unable to atomically persist security evidence", failure)
         }
     }
 
@@ -109,9 +119,10 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
     }
 
     companion object {
-        private const val KEY_ALIAS = "routing_platform_driving_evidence_v1"
+        private const val KEY_ALIAS = "routing_platform_driving_evidence_v2"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val IV_BYTES = 12
-        private val AAD = "routing-platform:driving-evidence:v1".toByteArray(StandardCharsets.UTF_8)
+        private const val MAX_FILE_BYTES = 4L * 1024L * 1024L
+        private val AAD = "routing-platform:driving-evidence:v2".toByteArray(StandardCharsets.UTF_8)
     }
 }
