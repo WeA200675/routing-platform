@@ -50,11 +50,11 @@ object NavigationDeviceCalibration {
                 accuracy in 0.0..100.0
 
         if (!admissible) {
-            return profile.copy(rejectedSamples = profile.rejectedSamples + 1)
+            return profile.copy(rejectedSamples = if (profile.rejectedSamples == Int.MAX_VALUE) Int.MAX_VALUE else profile.rejectedSamples + 1)
         }
 
         return profile.copy(
-            acceptedDirectSamples = profile.acceptedDirectSamples + 1,
+            acceptedDirectSamples = if (profile.acceptedDirectSamples == Int.MAX_VALUE) Int.MAX_VALUE else profile.acceptedDirectSamples + 1,
             bestObservedAccuracyM =
                 profile.bestObservedAccuracyM?.let { minOf(it, accuracy!!) } ?: accuracy,
         )
