@@ -32,4 +32,34 @@ class NavigationObservationAdmissionTest {
         assertTrue(NavigationObservationAdmission.directFreshObservation(valid.copy(horizontalAccuracyM = 0.0, elapsedRealtimeNanos = 0L)))
         assertTrue(NavigationObservationAdmission.directFreshObservation(valid.copy(horizontalAccuracyM = 100.0)))
     }
+
+    @Test fun healthSnapshotFailsClosedWithoutObservation() {
+        val capabilities = NavigationDeviceCapabilities(true, true, true)
+        val health = NavigationObservationAdmission.healthSnapshot(capabilities, null)
+
+        assertTrue(health.calibrationAvailable)
+        assertFalse(health.directFreshObservationAvailable)
+    }
+
+    @Test fun healthSnapshotReflectsSemanticAdmissionOnly() {
+        val valid = NavigationCalibrationObservation(
+            NavigationPositionConfidence.High,
+            NavigationFusionMode.DirectObservation,
+            4.0,
+            1L,
+        )
+        val available = NavigationObservationAdmission.healthSnapshot(
+            NavigationDeviceCapabilities(true, true, true),
+            valid,
+        )
+        val unavailable = NavigationObservationAdmission.healthSnapshot(
+            NavigationDeviceCapabilities(false, true, true),
+            valid.copy(horizontalAccuracyM = 101.0),
+        )
+
+        assertTrue(available.calibrationAvailable)
+        assertTrue(available.directFreshObservationAvailable)
+        assertFalse(unavailable.calibrationAvailable)
+        assertFalse(unavailable.directFreshObservationAvailable)
+    }
 }
