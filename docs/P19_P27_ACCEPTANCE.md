@@ -31,3 +31,9 @@ P19–P21 may be developed while P18 physical acceptance is pending, but P22–P
 P19's first production observability boundary is implemented by `NavigationAdmissionHealth` and `NavigationRuntimeHealth`. Both are deliberately bounded semantic projections. Runtime health excludes route/position data, horizontal accuracy values, raw sensor/radio evidence, native failure messages and security evidence. Constructor invariants reject internally contradictory health claims such as an accepted native update without an attempted update, or automatic progress while the pipeline is stopped.
 
 P19 automated acceptance requires Core CI and Android CI to pass on the same immutable candidate SHA containing these contracts and tests. The P1–P27 candidate workflow is additional release evidence; it does not convert CI into physical-device evidence.
+
+## P20 implementation evidence
+
+P20 defines a platform-neutral `OfflineRoutingAdmission` and deterministic `OfflineRoutingRecovery`. Dataset identity and version must be explicit, integrity must already be verified, timestamps must be monotonic/non-future and age must remain within a reviewed budget. Recovery publishes dataset identity only after successful admission; rejected data cannot survive as an active offline source.
+
+Automated tests cover missing/blank identity, failed integrity, future timestamps, stale data, invalid clock/budget input, the inclusive freshness boundary and recovery identity clearing. CI proves only these host/JVM contracts; it does not prove completeness or freshness of real map packages on a physical device.
