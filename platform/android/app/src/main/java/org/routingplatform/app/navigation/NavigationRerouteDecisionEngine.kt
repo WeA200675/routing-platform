@@ -73,7 +73,10 @@ class NavigationRerouteDecisionEngine(
     ): NavigationRerouteDecision {
 
         if (sessionId != null) {
-            if (sessionId.isBlank()) return resetAndHold()
+            if (sessionId.isBlank()) {
+                reset()
+                return NavigationRerouteDecision.Hold
+            }
             val previousSessionId = activeSessionId
             if (previousSessionId != null && previousSessionId != sessionId) {
                 reset()
