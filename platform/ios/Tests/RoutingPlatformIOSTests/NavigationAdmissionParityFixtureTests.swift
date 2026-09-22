@@ -4,7 +4,7 @@ import XCTest
 final class NavigationAdmissionParityFixtureTests: XCTestCase {
     private func rows() throws -> [[String]] {
         var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<5 { url.deleteLastPathComponent() }
+        for _ in 0..<4 { url.deleteLastPathComponent() }
         url.appendPathComponent("shared/parity/navigation-admission-fixtures.csv")
         let text = try String(contentsOf: url, encoding: .utf8)
         return text.split(separator: "\n").map(String.init)
