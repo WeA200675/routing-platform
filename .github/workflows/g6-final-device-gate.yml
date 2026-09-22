@@ -23,8 +23,8 @@ jobs:
           cat > g6-device-test.txt <<'EOF'
           G6 FINAL PHYSICAL DEVICE GATE
           
-          1. Download the latest successful G6.20 Real Candidate artifact: g620-candidate-evidence
-          2. Extract g620-release.apk to C:\g620-rc\g620-release.apk
+          1. Select one successful immutable Production Candidate run and record its exact 40-character source SHA.\n          2. Download g620-candidate-evidence from that exact run; do not use a moving 'latest' artifact.
+          3. Extract g620-release.apk to C:\g620-rc\g620-release.apk
           3. Run: C:\platform-tools\adb.exe uninstall org.routingplatform.app
           4. Run: C:\platform-tools\adb.exe install C:\g620-rc\g620-release.apk
           5. Run: C:\platform-tools\adb.exe shell am start -n org.routingplatform.app/.ai.SocialAiDeviceTestActivity
