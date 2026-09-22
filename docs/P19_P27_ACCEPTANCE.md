@@ -45,3 +45,11 @@ P21 hardens the existing sustained-evidence reroute engine by binding accumulate
 Existing reroute admission still requires sustained `HeldOffRoute` evidence, trusted position confidence, non-dead-reckoning fusion, strictly increasing monotonic timestamps and an attempt interval. Via-point rerouting and incomparable periodic route replacement remain deliberately unavailable rather than guessed.
 
 P21 automated acceptance requires the Android unit/lint/build gate on the immutable SHA containing the session-isolation tests. Core CI is complementary. Physical-drive behavior remains separate device evidence and is not inferred from JVM/CI results.
+
+## P22 implementation evidence
+
+P22 now has a buildable Swift package, fail-closed navigation admission types, XCTest coverage and an Apple Core Location capability adapter. The adapter maps denied/not-determined authorization to unavailable direct observation and requires full-accuracy authorization before calibration can be admitted. A dedicated macOS GitHub Actions gate builds and tests the Swift package. This proves source/build contract behavior only; it is not an iPhone application, device run, secure-storage implementation or physical iOS acceptance.
+
+## P23 implementation evidence
+
+P23 starts a common platform-neutral admission fixture corpus at `platform/shared/parity/navigation-admission-fixtures.csv`. The corpus records identical capability and observation cases that Android and iOS parity tests must consume. P23 is not accepted until both platform test suites consume the same fixtures and the iOS CI gate is green on the immutable candidate SHA.
