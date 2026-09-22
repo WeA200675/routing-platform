@@ -59,3 +59,41 @@ object OfflineRoutingAdmission {
         availability(dataset, nowElapsedRealtimeNanos, maximumAgeNanos) ==
             OfflineRoutingAvailability.Available
 }
+
+
+data class OfflineRoutingRecoveryState(
+    val activeDatasetId: String?,
+    val activeVersion: String?,
+    val availability: OfflineRoutingAvailability,
+) {
+    val routingAvailable: Boolean
+        get() = availability == OfflineRoutingAvailability.Available
+}
+
+object OfflineRoutingRecovery {
+    fun recover(
+        dataset: OfflineRoutingDataset?,
+        nowElapsedRealtimeNanos: Long,
+        maximumAgeNanos: Long,
+    ): OfflineRoutingRecoveryState {
+        val availability = OfflineRoutingAdmission.availability(
+            dataset,
+            nowElapsedRealtimeNanos,
+            maximumAgeNanos,
+        )
+        return if (availability == OfflineRoutingAvailability.Available && dataset != null) {
+            OfflineRoutingRecoveryState(
+                activeDatasetId = dataset.datasetId,
+                activeVersion = dataset.version,
+                availability = availability,
+            )
+        } else {
+            // Never retain identity from data that failed admission.
+            OfflineRoutingRecoveryState(
+                activeDatasetId = null,
+                activeVersion = null,
+                availability = availability,
+            )
+        }
+    }
+}
