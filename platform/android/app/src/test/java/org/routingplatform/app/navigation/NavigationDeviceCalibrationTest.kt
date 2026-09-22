@@ -70,6 +70,26 @@ class NavigationDeviceCalibrationTest {
     }
 
     @Test
+    fun rejectsNegativeMonotonicTimestamp() {
+        val rejected = NavigationDeviceCalibration.observe(
+            NavigationDeviceCalibrationProfile(),
+            NavigationCalibrationObservation(
+                confidence = NavigationPositionConfidence.High,
+                fusionMode = NavigationFusionMode.DirectObservation,
+                horizontalAccuracyM = 3.0,
+                elapsedRealtimeNanos = -1L,
+            ),
+        )
+        assertEquals(0, rejected.acceptedDirectSamples)
+        assertEquals(1, rejected.rejectedSamples)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun profileRejectsInfiniteStoredAccuracy() {
+        NavigationDeviceCalibrationProfile(bestObservedAccuracyM = Double.POSITIVE_INFINITY)
+    }
+
+    @Test
     fun keepsBestObservedAccuracyDeterministically() {
         var profile = NavigationDeviceCalibrationProfile()
         for (accuracy in listOf(8.0, 12.0, 5.0)) {
