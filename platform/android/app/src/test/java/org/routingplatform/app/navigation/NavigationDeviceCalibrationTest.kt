@@ -108,4 +108,27 @@ class NavigationDeviceCalibrationTest {
         assertEquals(3, profile.acceptedDirectSamples)
         assertEquals(5.0, profile.bestObservedAccuracyM!!, 0.0)
     }
+    @Test
+    fun countersSaturateInsteadOfOverflowing() {
+        val accepted = NavigationDeviceCalibration.observe(
+            NavigationDeviceCalibrationProfile(acceptedDirectSamples = Int.MAX_VALUE),
+            NavigationCalibrationObservation(
+                NavigationPositionConfidence.High,
+                NavigationFusionMode.DirectObservation,
+                3.0,
+                10L,
+            ),
+        )
+        val rejected = NavigationDeviceCalibration.observe(
+            NavigationDeviceCalibrationProfile(rejectedSamples = Int.MAX_VALUE),
+            NavigationCalibrationObservation(
+                NavigationPositionConfidence.Lost,
+                null,
+                null,
+                null,
+            ),
+        )
+        assertEquals(Int.MAX_VALUE, accepted.acceptedDirectSamples)
+        assertEquals(Int.MAX_VALUE, rejected.rejectedSamples)
+    }
 }
