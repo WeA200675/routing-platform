@@ -21,7 +21,7 @@ class NavigationObservationAdmissionTest {
         )
         assertTrue(NavigationObservationAdmission.directFreshObservation(valid))
         assertFalse(NavigationObservationAdmission.directFreshObservation(valid.copy(confidence = NavigationPositionConfidence.Medium)))
-        assertFalse(NavigationObservationAdmission.directFreshObservation(valid.copy(fusionMode = NavigationFusionMode.FusedEstimate)))
+        assertFalse(NavigationObservationAdmission.directFreshObservation(valid.copy(fusionMode = NavigationFusionMode.DeadReckoning)))
         assertFalse(NavigationObservationAdmission.directFreshObservation(valid.copy(horizontalAccuracyM = null)))
         assertFalse(NavigationObservationAdmission.directFreshObservation(valid.copy(horizontalAccuracyM = Double.NaN)))
         assertFalse(NavigationObservationAdmission.directFreshObservation(valid.copy(horizontalAccuracyM = Double.POSITIVE_INFINITY)))
@@ -93,7 +93,7 @@ class NavigationObservationAdmissionTest {
                         }
                         val fusion = when (p[2]) {
                             "direct" -> NavigationFusionMode.DirectObservation
-                            "fused" -> NavigationFusionMode.FusedEstimate
+                            "fused" -> NavigationFusionMode.DeadReckoning
                             "dead_reckoning" -> NavigationFusionMode.DeadReckoning
                             else -> error("unknown fusion: ${p[2]}")
                         }
