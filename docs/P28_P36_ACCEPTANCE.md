@@ -43,3 +43,9 @@ P34 emits an explicit machine-readable distribution state. The current Android c
 P35 defines a strict physical-device acceptance record verifier. A passing record must bind a 40-hex candidate source SHA and 64-hex artifact digest to an explicit platform/version, assert `physicalDevice=true`, and contain `result=pass`. The repository example is deliberately non-passing with placeholder identities, so it cannot be mistaken for real hardware evidence.
 
 P36 adds a fail-closed GA promotion verifier. It requires an immutable candidate identity and both Android and iOS physical-acceptance record inputs; when production distribution is required it additionally requires explicit production-signing and store-publication state. Missing evidence blocks promotion rather than being inferred. These tools define the promotion boundary but do not manufacture the external evidence needed to cross it.
+
+## Completion hardening
+
+P28 now has a candidate-CI corpus gate that validates the single shared parity fixture file before release evidence is produced. P29 now also has a byte-level dataset provenance verifier that computes SHA-256 from the actual dataset and rejects identity/version omissions or digest mismatches. These close earlier evidence gaps without converting host CI into device evidence.
+
+The repository implementation can be completed only up to externally controlled boundaries. P35/P36 deliberately require real physical Android/iOS records, and production distribution requires real signing/store state. Placeholder records, host tests or test signing are structurally rejected as substitutes.
