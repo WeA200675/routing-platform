@@ -779,14 +779,30 @@ class MainActivity :
                                                                                             onTelemetry = { updated -> routeAcquisitionTelemetry = updated },
                                                                                         )
                                                                                 }
-                                                                                is NavigationViaCandidateSelection.ClarificationRequired ->
+                                                                                is NavigationViaCandidateSelection.ClarificationRequired -> {
+                                                                                    /*
+                                                                                     * Manual continuation is restricted to candidates
+                                                                                     * that actually survived real route acquisition and
+                                                                                     * the deterministic selector. Failed/unroutable
+                                                                                     * search results must never re-enter AI continuation.
+                                                                                     */
+                                                                                    pendingSocialAiAllowedResultIds =
+                                                                                        selection.candidates
+                                                                                            .map { it.candidateId }
+                                                                                            .toSet()
                                                                                     socialAiMessage =
                                                                                         "Mehrere ähnlich geeignete Zwischenstopps gefunden. Bitte einen Treffer auswählen."
+                                                                                }
                                                                                 NavigationViaCandidateSelection.NoRoutableCandidate,
-                                                                                null ->
+                                                                                null -> {
+                                                                                    pendingSocialAiIntent = null
+                                                                                    pendingSocialAiCategory = null
+                                                                                    pendingSocialAiOrigin = null
+                                                                                    pendingSocialAiAllowedResultIds = emptySet()
                                                                                     socialAiMessage =
                                                                                         routedResult.exceptionOrNull()?.message
                                                                                             ?: "Kein Zwischenstopp konnte sicher geroutet werden."
+                                                                                }
                                                                             }
                                                                         }
                                                                     }
