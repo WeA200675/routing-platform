@@ -52,10 +52,11 @@ object DrivingInterferenceEvidence {
     ): DrivingInterferenceEvidenceRecord {
         require(utcEpochMillis >= 0L)
         require(elapsedRealtimeNanos >= 0L)
-        require(sessionReference.isNotBlank())
-        require(source.isNotBlank())
-        require(action.isNotBlank())
-        require(integrityState.isNotBlank())
+        require(sessionReference.isNotBlank() && sessionReference.length <= 256)
+        require(source.isNotBlank() && source.length <= 128)
+        require(action.isNotBlank() && action.length <= 128)
+        require(integrityState.isNotBlank() && integrityState.length <= 128)
+        require(payload.size <= 4096)
 
         val payloadDigest = MessageDigest.getInstance("SHA-256").digest(payload).joinToString("") { "%02x".format(it) }
         val canonical = listOf(
