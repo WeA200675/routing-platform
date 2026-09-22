@@ -21,6 +21,10 @@ on:
       - docs/G*_ACCEPTANCE.md
       - backend/**
 
+concurrency:
+  group: g620-real-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
