@@ -33,3 +33,18 @@ object NavigationResourceGovernor {
         return NavigationResourceAdmission.Available
     }
 }
+
+data class NavigationBackpressureDecision(
+    val admitNewWork: Boolean,
+    val cancelQueuedWork: Boolean,
+)
+
+fun NavigationResourceAdmission.toBackpressureDecision(): NavigationBackpressureDecision =
+    when (this) {
+        NavigationResourceAdmission.Available ->
+            NavigationBackpressureDecision(admitNewWork = true, cancelQueuedWork = false)
+        NavigationResourceAdmission.Exhausted ->
+            NavigationBackpressureDecision(admitNewWork = false, cancelQueuedWork = true)
+        NavigationResourceAdmission.Invalid ->
+            NavigationBackpressureDecision(admitNewWork = false, cancelQueuedWork = true)
+    }
