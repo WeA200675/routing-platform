@@ -16,6 +16,12 @@
             android:name="org.routingplatform.navigation.ROUTE_ENDPOINT"
             android:value="http://127.0.0.1:8787/v1/navigation/route" />
 
+        <!-- Local-AI acceptance surface: debug/device candidate only. -->
+        <activity
+            android:name=".ai.SocialAiDeviceTestActivity"
+            android:exported="true"
+            android:label="G6 Local AI Test" />
+
         <!--
             G5R5 device fault probe.
             Debug build only; never merged into release/production manifest.
