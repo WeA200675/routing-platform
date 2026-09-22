@@ -37,6 +37,25 @@ class DrivingInterferenceEvidenceTest {
         EvidenceVehiclePosition(91.0, 11.0, 5.0, 10L)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsOversizedRawPayload() {
+        record(ByteArray(64 * 1024 + 1))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsUnboundedEvidenceMetadata() {
+        DrivingInterferenceEvidence.create(
+            kind = DrivingInterferenceKind.ConnectivityChange,
+            utcEpochMillis = 1L,
+            elapsedRealtimeNanos = 1L,
+            sessionReference = "s".repeat(129),
+            source = "android-connectivity",
+            action = "record-only",
+            integrityState = "unchanged",
+            payload = byteArrayOf(1),
+        )
+    }
+
     private fun record(
         payload: ByteArray,
         kind: DrivingInterferenceKind = DrivingInterferenceKind.ConnectivityChange,
