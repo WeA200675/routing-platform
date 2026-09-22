@@ -434,88 +434,16 @@ class NavigationRouteLifecycleController(
             return
         }
 
-        // Traffic-refresh replacement is intentionally disabled here: a route acquired\n        // from the moving vehicle origin is not duration-comparable with the active\n        // route that was acquired from the trip origin. Installing it would make the\n        // hysteresis decision mathematically invalid. Off-route rerouting remains\n        // available through the separately gated reroute path.\n        return
-
-        val decision =
-            trafficReevaluationPolicy.decide(
-                nowMs = nowMs,
-                lastSuccessfulRefreshMs = lastTrafficRefreshSuccessMs,
-                lastAttemptMs = lastTrafficRefreshAttemptMs,
-                requestInFlight = rerouteInFlight || activeHandle != null,
-            )
-        if (decision !is NavigationTrafficReevaluationDecision.Refresh) return
-
-        lastTrafficRefreshAttemptMs = nowMs
-        val expectedSessionId = current.sessionId
-        val generation = nextGeneration()
-
+        // A moving-origin candidate is not comparable with the active route's
+        // original-trip duration. Until the provider exposes an exact remaining-route
+        // baseline with matching provenance, periodic replacement must fail closed.
         onTelemetry(
             NavigationRouteAcquisitionTelemetry(
-                state = NavigationRouteAcquisitionState.Refreshing,
-                message = "Aktive Route wird von der Routing-Engine neu bewertet",
+                state = NavigationRouteAcquisitionState.LiveReady,
+                message = "Routenprüfung ausgesetzt: keine exakt vergleichbare Reststreckenmetrik",
             )
         )
-
-        activeHandle =
-            source.acquire(refreshRequest) { result ->
-                if (generation != requestGeneration) return@acquire
-                activeHandle = null
-
-                val latest = snapshotProvider()
-                if (
-                    latest.state != NavigationSessionState.Navigating ||
-                    latest.sessionId != expectedSessionId
-                ) {
-                    return@acquire
-                }
-
-                result.fold(
-                    onSuccess = { route ->
-                        lastTrafficRefreshSuccessMs = nowMs
-                        val currentRoute = activeRouteContract
-                        if (
-                            currentRoute != null &&
-                            !trafficReplacementPolicy.shouldReplace(
-                                current = currentRoute,
-                                candidate = route,
-                            )
-                        ) {
-                            onTelemetry(
-                                NavigationRouteAcquisitionTelemetry(
-                                    state = NavigationRouteAcquisitionState.LiveReady,
-                                    message = "Routenprüfung aktuell – bestehende Route bleibt aktiv",
-                                )
-                            )
-                            return@fold
-                        }
-
-                        val replacement = bridge.replaceNavigatingRoute(route)
-                        activeRouteContract = route
-                        rerouteDecisionEngine.onRouteReplaced()
-                        onSnapshot(replacement)
-                        onTelemetry(
-                            NavigationRouteAcquisitionTelemetry(
-                                state = NavigationRouteAcquisitionState.LiveReady,
-                                message = "Aktive Route mit besserer Engine-Route aktualisiert",
-                            )
-                        )
-                    },
-                    onFailure = { error ->
-                        val fault =
-                            NavigationReliabilityClassifier.fromThrowable(error)
-                        onTelemetry(
-                            NavigationRouteAcquisitionTelemetry(
-                                state = NavigationRouteAcquisitionState.RerouteFailed,
-                                message =
-                                    "Routenaktualisierung fehlgeschlagen – alte Route bleibt aktiv: " +
-                                        fault.userMessage,
-                                fault = fault,
-                            )
-                        )
-                    },
-                )
-            }
-    }
+        return
 
     fun resetRerouteEvidence() {
         rerouteDecisionEngine.reset()
