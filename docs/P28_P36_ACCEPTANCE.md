@@ -24,25 +24,25 @@ P28–P34 may implement automatable contracts while physical P27 acceptance is o
 
 ## P29–P31 implementation evidence
 
-P29 adds a canonical offline provenance admission boundary requiring an explicit source identity and lowercase 64-hex SHA-256 before provenance can be represented as verified. This contract does not itself calculate a dataset digest; storage/download adapters must supply and verify the digest before admission.
+P29 binds admitted offline datasets to explicit source identity, dataset version and canonical lowercase SHA-256 provenance. Missing, malformed or version-mismatched provenance makes the dataset unavailable. The byte-level release verifier remains the boundary that computes and compares actual dataset bytes.
 
-P30 adds a versioned persisted-navigation restore boundary. Restore requires the current schema, non-blank session identity, valid monotonic timestamps and an inclusive freshness budget. Future, stale, malformed and incompatible state fails closed.
+P30 has a versioned restore boundary plus an Android persistence adapter. Persisted records are bounded, schema checked, freshness gated and bound to an explicit boot identity so monotonic timestamps cannot be trusted across reboot. Corrupt, stale, future-dated, cross-boot or incompatible state is cleared and never authoritative.
 
-P31 maps resource admission into an explicit backpressure decision. Available capacity admits work; exhausted or malformed resource state rejects new work and requests queued-work cancellation. Unit tests cover both pressure and invalid-state behavior. A concrete `NavigationBoundedWorkQueue` now enforces the pending-work budget and clears queued work on exhausted or invalid pressure. Physical CPU, battery and wakeup measurements remain external device evidence.
+P31 maps resource admission into explicit backpressure and now wires the bounded pending-work queue into the Android location callback path. Queue exhaustion rejects work and clears queued work; independently bounded sensor histories remain separate. Physical CPU, battery and wakeup measurements remain external device evidence.
 
 ## P32–P34 implementation evidence
 
-P32 introduces an explicit secure-storage admission contract: sensitive evidence may be stored only when the platform reports OS- or hardware-backed storage and authenticated access is available. Unavailable storage and unauthenticated access fail closed. This contract does not by itself prove Android Keystore or Apple Keychain integration; those adapters remain separate platform evidence.
+P32 retains the platform-neutral secure-storage admission contract and now has concrete platform adapters on both sides: Android Keystore for Android, and Apple Keychain plus LocalAuthentication capability detection for the Swift package. The Apple Keychain adapter uses device-only, when-unlocked accessibility and fails closed on unavailable/invalid operations. This is OS-backed adapter evidence, not a claim of Secure Enclave hardware backing.
 
-P33 extends the production candidate with portable, relative-path reproducibility identity files for the generated release manifest and SBOM and immediately verifies those SHA-256 records. These records prove integrity of the generated evidence within a run; cross-run byte-for-byte reproducibility still requires a second independent build comparison.
+P33 regenerates deterministic release evidence independently into a second directory from the same pinned inputs and candidate SHA and byte-compares both SBOM and release manifest before packaging. Portable relative-path SHA-256 identity files are then generated for the final evidence. Full APK cross-run reproducibility is not claimed because the installable RC is test-signed.
 
-P34 emits an explicit machine-readable distribution state. The current Android candidate is classified as `test-signed-installable-rc`, with `productionSigned=false` and `storePublished=false`. Promotion logic therefore has concrete evidence that prevents the existing debug-key RC from being represented as a production-signed or store-published artifact.
+P34 emits an explicit machine-readable distribution state and validates it against a closed state machine. Impossible combinations of test signing, production signing and publication fail. The current Android candidate remains `test-signed-installable-rc`, with `productionSigned=false` and `storePublished=false`.
 
 ## P35–P36 implementation evidence
 
 P35 defines a strict physical-device acceptance record verifier. A passing record must bind a 40-hex candidate source SHA and 64-hex artifact digest to canonical `android` or `ios` platform identity plus a non-empty platform version, assert `physicalDevice=true`, and contain `result=pass`. The repository example is deliberately non-passing with placeholder identities, so it cannot be mistaken for real hardware evidence.
 
-P36 adds a fail-closed GA promotion verifier. It requires an immutable candidate identity and both Android and iOS physical-acceptance record inputs; when production distribution is required it additionally requires explicit production-signing and store-publication state. Missing evidence blocks promotion rather than being inferred. These tools define the promotion boundary but do not manufacture the external evidence needed to cross it.
+P36 is fail closed by default. GA eligibility always requires immutable Android and iOS artifact identities, matching physical-device acceptance for both platforms, production signing and store publication. There is no flag that can downgrade those GA requirements. The current candidate cannot pass GA because it intentionally lacks production distribution and an immutable iOS release artifact identity.
 
 ## Completion hardening
 
