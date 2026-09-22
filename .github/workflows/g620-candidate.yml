@@ -1,4 +1,4 @@
-name: G6.20 Real Candidate
+name: P1-P9 Production Candidate
 
 on:
   workflow_dispatch:
@@ -7,6 +7,7 @@ on:
       - g6.20/local-open-source-llm
     paths:
       - .github/workflows/g620-candidate.yml
+      - MILESTONES.md
       - tools/g620/**
       - platform/android/app/build.gradle.kts
       - platform/android/app/src/main/java/org/routingplatform/app/ai/**
