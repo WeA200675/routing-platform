@@ -21,3 +21,7 @@ Routing, safety and security enforcement are deterministic. AI is advisory/inten
 ## Release completion
 
 P1–P9 automated implementation is accepted only when Core CI, Android CI and the unified release-candidate workflow all succeed on the same immutable SHA. P9 as a whole additionally requires the documented physical-device run; hardware evidence must never be fabricated.
+
+## P10–P18
+
+P10 Runtime Resilience → P11 Navigation Quality → P12 Routing Intelligence → P13 Local AI 2.0 → P14 Privacy & Security Hardening → P15 Shared Platform Core → P16 iOS Runtime Boundary → P17 Cross-Platform Parity → P18 Production Release. Their normative acceptance contract is `docs/P10_P18_ACCEPTANCE.md`.
