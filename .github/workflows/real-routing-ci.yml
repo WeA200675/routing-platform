@@ -24,6 +24,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Verify immutable workflow action revisions
+        run: python3 tools/g620/verify_workflow_action_pins.py
       - name: Adapter contract tests
         run: python3 -m unittest backend/test_osrm_adapter.py
       - name: Compile adapter
