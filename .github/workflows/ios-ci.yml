@@ -3,12 +3,18 @@ name: iOS Contract CI
 on:
   push:
     branches:
-      - g6.20/local-open-source-llm
+      - main
+      - "g6.*/*"
+  pull_request:
+    branches:
+      - main
     paths:
       - 'platform/ios/**'
       - 'platform/shared/parity/**'
       - '.github/workflows/ios-ci.yml'
       - 'docs/P19_P27_ACCEPTANCE.md'
+      - 'docs/P28_P36_ACCEPTANCE.md'
+      - '.github/workflows/g620-candidate.yml'
   workflow_dispatch:
 
 permissions:
