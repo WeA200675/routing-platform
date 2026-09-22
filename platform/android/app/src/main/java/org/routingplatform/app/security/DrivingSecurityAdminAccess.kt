@@ -20,7 +20,9 @@ class DrivingSecurityAdminAccess(private val store: DrivingInterferenceEvidenceS
         nowUtcEpochMillis: Long,
     ): List<DrivingInterferenceEvidenceRecord> {
         require(nowElapsedRealtimeNanos >= 0L)
-        if (nowElapsedRealtimeNanos > authorization.expiresElapsedRealtimeNanos) {
+        if (nowElapsedRealtimeNanos > authorization.expiresElapsedRealtimeNanos ||
+            nowElapsedRealtimeNanos + AUTH_WINDOW_NANOS < authorization.expiresElapsedRealtimeNanos
+        ) {
             throw SecurityException("Local admin authorization expired")
         }
         return store.readForAuthenticatedAdmin(nowUtcEpochMillis)
