@@ -69,6 +69,9 @@ internal fun NavigationScreen(
     onStopNavigation: () -> Unit,
     onAdvanceProgress: () -> Unit,
 
+    calibrationDisclosureRequired: Boolean = false,
+    onAcceptCalibrationDisclosure: () -> Unit = {},
+
     navigationStartEnabled:
         Boolean =
         true,
@@ -285,6 +288,20 @@ internal fun NavigationScreen(
         (Int) -> Unit =
         {},
 ) {
+    if (calibrationDisclosureRequired) {
+        Dialog(onDismissRequest = {}) {
+            Surface {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text("Lokale Navigationskalibrierung", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Die App kann während der Navigation lokale Qualitätswerte aus freigegebenen Standortbeobachtungen lernen. Es werden dafür keine Koordinaten gespeichert oder hochgeladen. Die Kalibrierung verändert keine Route, Position, ETA oder Fahranweisung.")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = onAcceptCalibrationDisclosure) { Text("Verstanden") }
+                }
+            }
+        }
+    }
+
     var plannerOpen by
         remember {
             mutableStateOf(
