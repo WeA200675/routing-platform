@@ -23,7 +23,8 @@ jobs:
           cat > g6-device-test.txt <<'EOF'
           G6 FINAL PHYSICAL DEVICE GATE
           
-          1. Select one successful immutable Production Candidate run and record its exact 40-character source SHA.\n          2. Download g620-candidate-evidence from that exact run; do not use a moving 'latest' artifact.
+          1. Select one successful immutable Production Candidate run and record its exact 40-character source SHA.
+          2. Download g620-candidate-evidence from that exact run; do not use a moving 'latest' artifact.
           3. Extract g620-release.apk to C:\g620-rc\g620-release.apk
           4. Run: C:\platform-tools\adb.exe uninstall org.routingplatform.app
           5. Run: C:\platform-tools\adb.exe install C:\g620-rc\g620-release.apk
