@@ -26,7 +26,7 @@ data class NavigationDeviceCalibrationProfile(
     init {
         require(schemaVersion == 1)
         require(acceptedDirectSamples >= 0 && rejectedSamples >= 0)
-        require(bestObservedAccuracyM == null || bestObservedAccuracyM >= 0.0)
+        require(bestObservedAccuracyM == null || (bestObservedAccuracyM.isFinite() && bestObservedAccuracyM >= 0.0))
     }
 }
 
@@ -44,6 +44,7 @@ object NavigationDeviceCalibration {
             observation.confidence == NavigationPositionConfidence.High &&
                 observation.fusionMode == NavigationFusionMode.DirectObservation &&
                 observation.elapsedRealtimeNanos != null &&
+                observation.elapsedRealtimeNanos >= 0L &&
                 accuracy != null &&
                 accuracy.isFinite() &&
                 accuracy in 0.0..100.0
