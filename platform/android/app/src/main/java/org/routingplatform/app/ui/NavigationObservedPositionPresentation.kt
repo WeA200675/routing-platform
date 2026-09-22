@@ -155,8 +155,23 @@ data class NavigationObservedPositionPresentation(
                     null ->
                         "Safety: prüft"
 
-                    else ->
-                        "Safety: Hold"
+                    NavigationRouteProgressSafetyStatus.HeldLowConfidence ->
+                        "Safety: Hold (Ortungs-Konfidenz)"
+
+                    NavigationRouteProgressSafetyStatus.HeldOffRoute ->
+                        "Safety: Hold (außerhalb Route)"
+
+                    NavigationRouteProgressSafetyStatus.HeldAmbiguous ->
+                        "Safety: Hold (Route mehrdeutig)"
+
+                    NavigationRouteProgressSafetyStatus.HeldBackward ->
+                        "Safety: Hold (Rücksprung)"
+
+                    NavigationRouteProgressSafetyStatus.HeldForwardJump ->
+                        "Safety: Hold (Vorwärtssprung)"
+
+                    NavigationRouteProgressSafetyStatus.HeldNoEstimate ->
+                        "Safety: Hold (keine Positionsschätzung)"
                 }
 
             return NavigationObservedPositionPresentation(
