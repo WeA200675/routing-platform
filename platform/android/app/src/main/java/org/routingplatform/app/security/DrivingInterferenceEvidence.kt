@@ -57,14 +57,14 @@ object DrivingInterferenceEvidence {
         require(action.isNotBlank())
         require(integrityState.isNotBlank())
 
-        val payloadDigest = MessageDigest.getInstance("SHA-256").digest(payload).hex()
+        val payloadDigest = MessageDigest.getInstance("SHA-256").digest(payload).joinToString("") { "%02x".format(it) }
         val canonical = listOf(
             kind.name, utcEpochMillis.toString(), elapsedRealtimeNanos.toString(),
             sessionReference, source, action, integrityState, payloadDigest,
             vehiclePosition?.let { "${it.latitude},${it.longitude},${it.accuracyM},${it.observedElapsedRealtimeNanos}" } ?: "-"
         ).joinToString("\u0000")
         val eventId = MessageDigest.getInstance("SHA-256")
-            .digest(canonical.toByteArray(StandardCharsets.UTF_8)).hex()
+            .digest(canonical.toByteArray(StandardCharsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
         return DrivingInterferenceEvidenceRecord(
             eventId = eventId,
