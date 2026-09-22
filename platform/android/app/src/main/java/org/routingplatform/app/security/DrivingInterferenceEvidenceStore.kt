@@ -17,6 +17,7 @@ interface DrivingInterferenceEvidenceStore {
 
 object DrivingInterferenceRetention {
     const val MAX_AGE_MILLIS: Long = 30L * 24L * 60L * 60L * 1000L
+    const val MAX_RECORDS: Int = 2048
 
     fun isRetained(record: DrivingInterferenceEvidenceRecord, nowUtcEpochMillis: Long): Boolean {
         if (nowUtcEpochMillis < record.utcEpochMillis) return false
@@ -28,5 +29,6 @@ object DrivingInterferenceRetention {
         nowUtcEpochMillis: Long,
     ): List<DrivingInterferenceEvidenceRecord> =
         records.filter { isRetained(it, nowUtcEpochMillis) }
-            .sortedWith(compareBy({ it.utcEpochMillis }, { it.eventId }))
+            .sortedWith(compareBy<DrivingInterferenceEvidenceRecord>({ it.utcEpochMillis }, { it.eventId }))
+            .takeLast(MAX_RECORDS)
 }
