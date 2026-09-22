@@ -6,6 +6,7 @@ on:
       - g6.20/local-open-source-llm
     paths:
       - 'platform/ios/**'
+      - 'platform/shared/parity/**'
       - '.github/workflows/ios-ci.yml'
       - 'docs/P19_P27_ACCEPTANCE.md'
   workflow_dispatch:
