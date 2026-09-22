@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Verify immutable workflow action revisions
+        run: python3 tools/g620/verify_workflow_action_pins.py
       - name: Verify G6 acceptance plan exists
         run: test -f docs/G6_ACCEPTANCE.md
       - name: Create one-click Pixel test instructions
