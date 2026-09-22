@@ -41,7 +41,6 @@ class DrivingSecurityObserver(
             payload = event.payload,
             vehiclePosition = trustedVehiclePosition,
         )
-        store.append(record)
-        return record
+        return runCatching { store.append(record); record }.getOrNull()
     }
 }
