@@ -62,10 +62,24 @@ class NavigationRerouteDecisionEngine(
         Long? =
         null
 
+    private var activeSessionId:
+        String? =
+        null
+
     fun observe(
         telemetry:
             NavigationRuntimeTelemetry,
+        sessionId: String? = null,
     ): NavigationRerouteDecision {
+
+        if (sessionId != null) {
+            if (sessionId.isBlank()) return resetAndHold()
+            val previousSessionId = activeSessionId
+            if (previousSessionId != null && previousSessionId != sessionId) {
+                reset()
+            }
+            activeSessionId = sessionId
+        }
 
         val timestamp =
             telemetry
@@ -197,6 +211,9 @@ class NavigationRerouteDecisionEngine(
             0
 
         lastAttemptNanos =
+            null
+
+        activeSessionId =
             null
     }
 
