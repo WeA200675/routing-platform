@@ -35,11 +35,6 @@
         android:theme="@style/Theme.RoutingPlatform">
 
         <activity
-            android:name=".ai.SocialAiDeviceTestActivity"
-            android:exported="true"
-            android:label="G6 Local AI Test" />
-
-        <activity
             android:name=".MainActivity"
             android:exported="true">
 
