@@ -10,7 +10,9 @@ class DrivingInterferenceEvidenceTest {
         val first = record("probe".toByteArray())
         val second = record("probe".toByteArray())
         assertEquals(first.eventId, second.eventId)
+        assertEquals(first.payloadDigest, second.payloadDigest)
         assertEquals(64, first.eventId.length)
+        assertEquals(64, first.payloadDigest.length)
     }
 
     @Test
@@ -18,7 +20,9 @@ class DrivingInterferenceEvidenceTest {
         val first = record("probe".toByteArray())
         val second = record("other".toByteArray())
         val integrity = record("probe".toByteArray(), DrivingInterferenceKind.IntegrityFailure)
+        assert(first.payloadDigest != second.payloadDigest)
         assert(first.eventId != second.eventId)
+        assert(first.payloadDigest == integrity.payloadDigest)
         assert(first.eventId != integrity.eventId)
     }
 
