@@ -444,6 +444,7 @@ class NavigationRouteLifecycleController(
             )
         )
         return
+    }
 
     fun resetRerouteEvidence() {
         rerouteDecisionEngine.reset()
