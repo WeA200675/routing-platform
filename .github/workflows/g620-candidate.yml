@@ -4,7 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - g6.20/local-open-source-llm
+      - main
+      - "g6.*/*"
     paths:
       - .github/workflows/g620-candidate.yml
       - MILESTONES.md
@@ -22,6 +23,20 @@ on:
       - platform/android/app/src/main/AndroidManifest.xml
       - platform/android/app/src/debug/AndroidManifest.xml
       - platform/android/app/src/release/**
+      - docs/G*_ACCEPTANCE.md
+      - docs/P*_ACCEPTANCE.md
+      - backend/**
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/g620-candidate.yml
+      - MILESTONES.md
+      - tools/g620/**
+      - tools/release/**
+      - platform/ios/**
+      - platform/shared/parity/**
+      - platform/android/**
       - docs/G*_ACCEPTANCE.md
       - docs/P*_ACCEPTANCE.md
       - backend/**
