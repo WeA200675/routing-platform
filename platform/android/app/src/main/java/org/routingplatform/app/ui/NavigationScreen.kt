@@ -71,6 +71,7 @@ internal fun NavigationScreen(
 
     calibrationDisclosureRequired: Boolean = false,
     onAcceptCalibrationDisclosure: () -> Unit = {},
+    onOpenSecurityDiagnostics: () -> Unit = {},
 
     navigationStartEnabled:
         Boolean =
@@ -888,6 +889,12 @@ internal fun NavigationScreen(
 
                             items =
                                 listOf(
+                                    NavigationSettingTile(
+                                        testTag = "security_diagnostics_open",
+                                        title = "Sicherheitsdiagnose",
+                                        value = "Lokal · Geräteauthentifizierung",
+                                        onClick = onOpenSecurityDiagnostics,
+                                    ),
                                     NavigationSettingTile(
                                         testTag =
                                             NavigationUiTestTags
