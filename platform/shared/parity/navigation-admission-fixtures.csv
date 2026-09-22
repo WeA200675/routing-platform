@@ -7,6 +7,6 @@ capability,true,true,false,false
 # observation: confidence,fusion,accuracy,timestampPresent => admitted
 observation,high,direct,4.0,true,true
 observation,medium,direct,4.0,true,false
-observation,high,fused,4.0,true,false
+observation,high,dead_reckoning,4.0,true,false
 observation,high,direct,100.1,true,false
 observation,high,direct,4.0,false,false
