@@ -204,13 +204,9 @@ class NavigationRouteLifecycleController(
                     telemetry
                 )
 
-        if (
-            telemetry.confidence == NavigationPositionConfidence.High &&
-            telemetry.fusionMode == NavigationFusionMode.DirectObservation &&
-            telemetry.lastObservedPosition != null
-        ) {
-            latestTrustedRerouteOrigin = telemetry.lastObservedPosition
-        }
+        NavigationTrustedRefreshOrigin
+            .fromTelemetry(telemetry)
+            ?.let { latestTrustedRerouteOrigin = it }
 
         if (
             decision !is
