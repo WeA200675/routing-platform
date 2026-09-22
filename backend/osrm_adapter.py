@@ -62,12 +62,17 @@ def route(request):
                 elif modifier == "right": kind = "turn_right"
                 elif modifier == "uturn": kind = "u_turn"
             loc = m.get("location")
-            begin = 0
-            if loc:
-                # Bind maneuver to an exact returned geometry vertex when present.
-                target = [loc[1], loc[0]]
-                try: begin = geometry.index(target)
-                except ValueError: begin = 0
+            if not loc:
+                raise RuntimeError("OSRM maneuver is missing its engine location")
+            # Never invent a shape index. A maneuver is admitted only when the
+            # engine location is an exact vertex of the returned route geometry.
+            target = [loc[1], loc[0]]
+            try:
+                begin = geometry.index(target)
+            except ValueError as exc:
+                raise RuntimeError(
+                    "OSRM maneuver location is not present in route geometry"
+                ) from exc
             maneuvers.append({
                 "type": kind,
                 "instruction": step.get("name") or m.get("type", "continue"),
@@ -80,11 +85,12 @@ def route(request):
                 "bearingAfterDeg": m.get("bearing_after"),
                 "engineType": None,
             })
-    # Contract requires route-ordered maneuver indices. OSRM steps are ordered;
-    # exact vertex misses inherit the previous verified index, never an invented coordinate.
-    last = 0
+    # Contract requires route-ordered maneuver indices. Fail closed if
+    # upstream steps contradict the geometry ordering instead of clamping them.
+    last = -1
     for m in maneuvers:
-        if m["beginShapeIndex"] < last: m["beginShapeIndex"] = last
+        if m["beginShapeIndex"] < last:
+            raise RuntimeError("OSRM maneuver order contradicts route geometry")
         last = m["beginShapeIndex"]
         m["endShapeIndex"] = last
     digest = hashlib.sha256(json.dumps(r, sort_keys=True).encode()).hexdigest()[:24]
@@ -114,12 +120,17 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
         except ValueError as error:
             self.send_error(422, str(error))
-        except Exception as error:
-            self.send_error(502, str(error))
+        except Exception:
+            # Do not expose upstream URLs, payload details or infrastructure
+            # exceptions to clients.
+            self.send_error(502, "routing provider failure")
 
     def log_message(self, fmt, *args):
         print(fmt % args)
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", int(os.environ.get("PORT", "8080"))), Handler).serve_forever()
+    bind_host = os.environ.get("BIND_HOST", "127.0.0.1")
+    if bind_host not in {"127.0.0.1", "0.0.0.0"}:
+        raise SystemExit("BIND_HOST must be 127.0.0.1 or 0.0.0.0")
+    ThreadingHTTPServer((bind_host, int(os.environ.get("PORT", "8080"))), Handler).serve_forever()
