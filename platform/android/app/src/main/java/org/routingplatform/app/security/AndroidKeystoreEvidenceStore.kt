@@ -3,7 +3,6 @@ package org.routingplatform.app.security
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
@@ -27,7 +26,7 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
     override fun append(record: DrivingInterferenceEvidenceRecord) {
         val records = readAll().toMutableList()
         records += record
-        writeAll(records)
+        writeAll(DrivingInterferenceRetention.retained(records, record.utcEpochMillis))
     }
 
     @Synchronized
@@ -67,6 +66,7 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
         val encrypted = bytes.copyOfRange(IV_BYTES, bytes.size)
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, iv))
+        cipher.updateAAD(AAD)
         val array = JSONArray(String(cipher.doFinal(encrypted), StandardCharsets.UTF_8))
         return (0 until array.length()).map { decode(array.getJSONObject(it)) }
     }
@@ -76,6 +76,7 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
         records.forEach { array.put(encode(it)) }
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, key())
+        cipher.updateAAD(AAD)
         val encrypted = cipher.doFinal(array.toString().toByteArray(StandardCharsets.UTF_8))
         val tmp = java.io.File(file.parentFile, file.name + ".tmp")
         FileOutputStream(tmp).use { out -> out.write(cipher.iv); out.write(encrypted); out.fd.sync() }
@@ -111,5 +112,6 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
         private const val KEY_ALIAS = "routing_platform_driving_evidence_v1"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val IV_BYTES = 12
+        private val AAD = "routing-platform:driving-evidence:v1".toByteArray(StandardCharsets.UTF_8)
     }
 }
