@@ -51,16 +51,25 @@ class OfflineRoutingAdmissionTest {
         )
     }
 
-    @Test fun invalidClockOrBudgetFailsClosed() {
-        assertFalse(OfflineRoutingAdmission.mayRouteOffline(valid, -1L, 100L))
-        assertFalse(OfflineRoutingAdmission.mayRouteOffline(valid, 200L, -1L))
-        assertFalse(
-            OfflineRoutingAdmission.mayRouteOffline(
+    @Test fun invalidClockOrBudgetFailsClosedWithPreciseReason() {
+        assertEquals(
+            OfflineRoutingAvailability.InvalidClock,
+            OfflineRoutingAdmission.availability(valid, -1L, 100L),
+        )
+        assertEquals(
+            OfflineRoutingAvailability.InvalidFreshnessBudget,
+            OfflineRoutingAdmission.availability(valid, 200L, -1L),
+        )
+        assertEquals(
+            OfflineRoutingAvailability.InvalidTimestamp,
+            OfflineRoutingAdmission.availability(
                 valid.copy(capturedAtElapsedRealtimeNanos = -1L),
                 200L,
                 100L,
-            )
+            ),
         )
+        assertFalse(OfflineRoutingAdmission.mayRouteOffline(valid, -1L, 100L))
+        assertFalse(OfflineRoutingAdmission.mayRouteOffline(valid, 200L, -1L))
     }
 
     @Test fun recoveryPublishesIdentityOnlyForAdmittedDataset() {
