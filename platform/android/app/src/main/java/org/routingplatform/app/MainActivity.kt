@@ -2,6 +2,7 @@ package org.routingplatform.app
 
 import android.Manifest
 import android.os.Bundle
+import android.content.Intent
 import android.os.SystemClock
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -67,6 +68,7 @@ import org.routingplatform.app.profile.AndroidUserProfileStore
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.ExperiencePackSelectionSource
 import org.routingplatform.app.ui.NavigationAssistOverlay
+import org.routingplatform.app.security.SecurityDiagnosticsActivity
 import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
@@ -1638,6 +1640,10 @@ class MainActivity :
                         onAcceptCalibrationDisclosure = {
                             calibrationDisclosureStore.accept()
                             calibrationDisclosureAccepted = true
+                        },
+
+                        onOpenSecurityDiagnostics = {
+                            startActivity(Intent(this@MainActivity, SecurityDiagnosticsActivity::class.java))
                         },
 
                         navigationStartEnabled =
