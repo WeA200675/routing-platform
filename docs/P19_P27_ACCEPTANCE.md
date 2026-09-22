@@ -61,3 +61,11 @@ P24 introduces explicit navigation resource budgets and a fail-closed governor f
 ## P25 implementation evidence
 
 P25 retains the existing repository-wide immutable GitHub Action pin verifier as an explicit production-candidate gate. Candidate generation already binds pinned runtime inputs to source digests, SBOM and release evidence, while release checks reject unsafe manifest/network/diagnostic exposure. Production secrets and signing credentials remain outside repository evidence. P25 acceptance requires these gates to pass on the immutable candidate SHA; repository branch-protection administration is separate evidence.
+
+## P26 implementation evidence
+
+P26 now binds deterministic release evidence directly to the immutable GitHub candidate source SHA through `candidateSourceSha` in the release manifest. The production-candidate workflow supplies `GITHUB_SHA`, then packages the reviewed runtime/model inputs, SBOM and Android artifact and records their hashes. The installable Android RC remains deliberately test-signed with the SDK debug key; this is not production-store signing and no production signing credential is stored in repository evidence.
+
+## P27 implementation evidence
+
+P27 adds a final automated GA-evidence binding gate that rejects a release manifest whose candidate source SHA differs from the workflow SHA or whose APK/SBOM digests are absent. This closes the automatable identity chain from source candidate to release evidence. P27 is intentionally not marked fully accepted by this gate: GA still requires all relevant workflows green on one immutable SHA plus separately recorded physical Android and iOS acceptance and, where required for distribution, production signing/publication evidence.
