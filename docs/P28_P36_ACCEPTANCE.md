@@ -37,3 +37,9 @@ P32 introduces an explicit secure-storage admission contract: sensitive evidence
 P33 extends the production candidate with reproducibility identity files for the generated release manifest and SBOM and immediately verifies those SHA-256 records. These records prove integrity of the generated evidence within a run; cross-run byte-for-byte reproducibility still requires a second independent build comparison.
 
 P34 emits an explicit machine-readable distribution state. The current Android candidate is classified as `test-signed-installable-rc`, with `productionSigned=false` and `storePublished=false`. Promotion logic therefore has concrete evidence that prevents the existing debug-key RC from being represented as a production-signed or store-published artifact.
+
+## P35–P36 implementation evidence
+
+P35 defines a strict physical-device acceptance record verifier. A passing record must bind a 40-hex candidate source SHA and 64-hex artifact digest to an explicit platform/version, assert `physicalDevice=true`, and contain `result=pass`. The repository example is deliberately non-passing with placeholder identities, so it cannot be mistaken for real hardware evidence.
+
+P36 adds a fail-closed GA promotion verifier. It requires an immutable candidate identity and both Android and iOS physical-acceptance record inputs; when production distribution is required it additionally requires explicit production-signing and store-publication state. Missing evidence blocks promotion rather than being inferred. These tools define the promotion boundary but do not manufacture the external evidence needed to cross it.
