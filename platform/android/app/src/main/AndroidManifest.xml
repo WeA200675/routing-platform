@@ -32,6 +32,10 @@
         android:theme="@style/Theme.RoutingPlatform">
 
         <activity
+            android:name=".security.SecurityDiagnosticsActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
 
