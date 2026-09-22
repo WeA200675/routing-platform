@@ -1,0 +1,12 @@
+# Cross-platform admission fixtures
+# capability: precise,direct,monotonic => calibration
+capability,true,true,true,true
+capability,false,true,true,false
+capability,true,false,true,false
+capability,true,true,false,false
+# observation: confidence,fusion,accuracy,timestampPresent => admitted
+observation,high,direct,4.0,true,true
+observation,medium,direct,4.0,true,false
+observation,high,fused,4.0,true,false
+observation,high,direct,100.1,true,false
+observation,high,direct,4.0,false,false
