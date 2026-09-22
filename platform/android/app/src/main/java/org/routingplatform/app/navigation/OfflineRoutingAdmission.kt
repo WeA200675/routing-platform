@@ -12,6 +12,7 @@ data class OfflineRoutingDataset(
     val version: String,
     val capturedAtElapsedRealtimeNanos: Long,
     val integrityVerified: Boolean,
+    val provenance: OfflineRoutingProvenance,
 )
 
 enum class OfflineRoutingAvailability {
@@ -19,6 +20,7 @@ enum class OfflineRoutingAvailability {
     Missing,
     InvalidIdentity,
     IntegrityFailure,
+    InvalidProvenance,
     InvalidClock,
     InvalidFreshnessBudget,
     InvalidTimestamp,
@@ -37,6 +39,8 @@ object OfflineRoutingAdmission {
             return OfflineRoutingAvailability.InvalidIdentity
         }
         if (!dataset.integrityVerified) return OfflineRoutingAvailability.IntegrityFailure
+        if (!OfflineRoutingProvenanceAdmission.verified(dataset.provenance) ||
+            dataset.provenance.version != dataset.version) return OfflineRoutingAvailability.InvalidProvenance
         if (nowElapsedRealtimeNanos < 0L) {
             return OfflineRoutingAvailability.InvalidClock
         }
