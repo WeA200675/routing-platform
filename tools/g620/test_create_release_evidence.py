@@ -41,10 +41,12 @@ with tempfile.TemporaryDirectory() as directory:
         "--native-capture", str(d / "native.json"),
         "--source-sha256", "3" * 64,
         "--output-dir", str(d / "out"),
+        "--candidate-source-sha", "4" * 40,
     ]
     subprocess.run(cmd, check=True)
     sbom = (d / "out/g620-sbom.spdx.json").read_bytes()
     manifest = json.loads((d / "out/g620-release-manifest.json").read_text())
+    assert manifest["candidateSourceSha"] == "4" * 40
     assert manifest["runtimeRevision"] == lock["RUNTIME_REVISION"]
     assert manifest["modelSha256"] == lock["MODEL_SHA256"]
     assert manifest["runtimeArtifactSha256ByAbi"]["arm64-v8a"] == "2" * 64
