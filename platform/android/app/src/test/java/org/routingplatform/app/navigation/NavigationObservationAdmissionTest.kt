@@ -62,4 +62,50 @@ class NavigationObservationAdmissionTest {
         assertFalse(unavailable.calibrationAvailable)
         assertFalse(unavailable.directFreshObservationAvailable)
     }
+    @Test fun sharedParityCorpusMatchesAndroidSemantics() {
+        var dir = java.io.File(System.getProperty("user.dir")).absoluteFile
+        var fixture: java.io.File? = null
+        repeat(8) {
+            val candidate = java.io.File(dir, "platform/shared/parity/navigation-admission-fixtures.csv")
+            if (candidate.isFile) fixture = candidate
+            dir = dir.parentFile ?: dir
+        }
+        val file = requireNotNull(fixture) { "shared parity corpus not found" }
+        file.readLines().map(String::trim)
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .forEach { line ->
+                val p = line.split(",")
+                when (p[0]) {
+                    "capability" -> {
+                        require(p.size == 5)
+                        val actual = NavigationObservationAdmission.calibrationAvailable(
+                            NavigationDeviceCapabilities(p[1].toBoolean(), p[2].toBoolean(), p[3].toBoolean())
+                        )
+                        assertTrue("fixture: $line", actual == p[4].toBoolean())
+                    }
+                    "observation" -> {
+                        require(p.size == 6)
+                        val confidence = when (p[1]) {
+                            "high" -> NavigationPositionConfidence.High
+                            "medium" -> NavigationPositionConfidence.Medium
+                            "low" -> NavigationPositionConfidence.Low
+                            else -> error("unknown confidence: ${p[1]}")
+                        }
+                        val fusion = when (p[2]) {
+                            "direct" -> NavigationFusionMode.DirectObservation
+                            "fused" -> NavigationFusionMode.FusedEstimate
+                            "dead_reckoning" -> NavigationFusionMode.DeadReckoning
+                            else -> error("unknown fusion: ${p[2]}")
+                        }
+                        val observation = NavigationCalibrationObservation(
+                            confidence, fusion, p[3].toDouble(),
+                            if (p[4].toBoolean()) 1L else null,
+                        )
+                        assertTrue("fixture: $line",
+                            NavigationObservationAdmission.directFreshObservation(observation) == p[5].toBoolean())
+                    }
+                    else -> error("unknown fixture type: ${p[0]}")
+                }
+            }
+    }
 }
