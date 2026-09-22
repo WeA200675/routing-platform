@@ -97,6 +97,18 @@ jobs:
             echo "Debug/device diagnostic activity leaked into release manifest" >&2
             exit 1
           fi
+          if ! grep -q 'SecurityDiagnosticsActivity' "$MERGED_MANIFEST" || ! grep -A4 'SecurityDiagnosticsActivity' "$MERGED_MANIFEST" | grep -q 'android:exported="false"'; then
+            echo "Authenticated security diagnostics surface missing or exported" >&2
+            exit 1
+          fi
+          if grep -Eq 'BLUETOOTH_SCAN|NEARBY_WIFI_DEVICES|CHANGE_WIFI_STATE' "$MERGED_MANIFEST"; then
+            echo "Release manifest contains prohibited active radio scan/change permission" >&2
+            exit 1
+          fi
+          if ! grep -q 'android:allowBackup="false"' "$MERGED_MANIFEST"; then
+            echo "Release manifest permits app-data backup" >&2
+            exit 1
+          fi
           APK="$(find platform/android/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
           test -n "$APK"
           python3 tools/g620/verify_release_apk.py "$APK" --release-manifest "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
