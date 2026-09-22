@@ -17,10 +17,13 @@ data class EvidenceVehiclePosition(
         require(accuracyM.isFinite() && accuracyM >= 0.0)
         require(observedElapsedRealtimeNanos >= 0L)
     }
+
+    private fun ByteArray.hex(): String = joinToString("") { "%02x".format(it) }
 }
 
 data class DrivingInterferenceEvidenceRecord(
     val eventId: String,
+    val payloadDigest: String,
     val kind: DrivingInterferenceKind,
     val utcEpochMillis: Long,
     val elapsedRealtimeNanos: Long,
@@ -54,16 +57,18 @@ object DrivingInterferenceEvidence {
         require(action.isNotBlank())
         require(integrityState.isNotBlank())
 
-        val digest = MessageDigest.getInstance("SHA-256")
-        digest.update(kind.name.toByteArray(StandardCharsets.UTF_8))
-        digest.update(0)
-        digest.update(source.toByteArray(StandardCharsets.UTF_8))
-        digest.update(0)
-        digest.update(payload)
-        val eventId = digest.digest().joinToString("") { "%02x".format(it) }
+        val payloadDigest = MessageDigest.getInstance("SHA-256").digest(payload).hex()
+        val canonical = listOf(
+            kind.name, utcEpochMillis.toString(), elapsedRealtimeNanos.toString(),
+            sessionReference, source, action, integrityState, payloadDigest,
+            vehiclePosition?.let { "${it.latitude},${it.longitude},${it.accuracyM},${it.observedElapsedRealtimeNanos}" } ?: "-"
+        ).joinToString("\u0000")
+        val eventId = MessageDigest.getInstance("SHA-256")
+            .digest(canonical.toByteArray(StandardCharsets.UTF_8)).hex()
 
         return DrivingInterferenceEvidenceRecord(
             eventId = eventId,
+            payloadDigest = payloadDigest,
             kind = kind,
             utcEpochMillis = utcEpochMillis,
             elapsedRealtimeNanos = elapsedRealtimeNanos,
