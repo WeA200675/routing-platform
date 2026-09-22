@@ -308,6 +308,48 @@ class NavigationRerouteDecisionEngineTest {
         )
     }
 
+    @Test
+    fun sessionChangeClearsAccumulatedRerouteEvidence() {
+        val engine = NavigationRerouteDecisionEngine(
+            NavigationReroutePolicy(
+                minimumEvidenceDurationNanos = 2_000_000_000L,
+                minimumConsecutiveSamples = 3,
+            )
+        )
+
+        fun sample(timestamp: Long, sessionId: String): NavigationRerouteDecision =
+            engine.observe(
+                telemetry = telemetry(
+                    timestamp = timestamp,
+                    status = NavigationRouteProgressSafetyStatus.HeldOffRoute,
+                    confidence = NavigationPositionConfidence.High,
+                ),
+                sessionId = sessionId,
+            )
+
+        assertTrue(sample(0L, "session-a") is NavigationRerouteDecision.Hold)
+        assertTrue(sample(1_000_000_000L, "session-a") is NavigationRerouteDecision.Hold)
+
+        // A new session must not inherit the previous route's evidence.
+        assertTrue(sample(2_000_000_000L, "session-b") is NavigationRerouteDecision.Hold)
+        assertTrue(sample(3_000_000_000L, "session-b") is NavigationRerouteDecision.Hold)
+        assertTrue(sample(4_000_000_000L, "session-b") is NavigationRerouteDecision.RequestReplacement)
+    }
+
+    @Test
+    fun blankSessionFailsClosed() {
+        val engine = NavigationRerouteDecisionEngine()
+        val decision = engine.observe(
+            telemetry = telemetry(
+                timestamp = 1L,
+                status = NavigationRouteProgressSafetyStatus.HeldOffRoute,
+                confidence = NavigationPositionConfidence.High,
+            ),
+            sessionId = " ",
+        )
+        assertTrue(decision is NavigationRerouteDecision.Hold)
+    }
+
     private fun telemetry(
         timestamp: Long,
         status:
