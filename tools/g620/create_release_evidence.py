@@ -10,7 +10,7 @@ parser.add_argument("--candidate-lock", required=True)
 parser.add_argument("--model-capture", required=True)
 parser.add_argument("--native-capture", required=True)
 parser.add_argument("--source-sha256", required=True)
-parser.add_argument("--output-dir", required=True)
+parser.add_argument("--output-dir", required=True)\nparser.add_argument("--candidate-source-sha", required=True)
 args = parser.parse_args()
 
 lock = {}
@@ -53,7 +53,7 @@ out.mkdir(parents=True, exist_ok=True)
 sbom_bytes = (json.dumps(sbom, indent=2, sort_keys=True) + "\n").encode()
 (out / "g620-sbom.spdx.json").write_bytes(sbom_bytes)
 sbom_sha = hashlib.sha256(sbom_bytes).hexdigest()
-manifest = {
+candidate_sha = args.candidate_source_sha.lower()\nif len(candidate_sha) != 40 or any(c not in "0123456789abcdef" for c in candidate_sha):\n    raise SystemExit("invalid immutable candidate source SHA")\nmanifest = {\n    "candidateSourceSha": candidate_sha,
     "runtimeComponentId": "ggml-org/llama.cpp",
     "runtimeRevision": lock["RUNTIME_REVISION"],
     "modelId": lock["MODEL_FAMILY"],
