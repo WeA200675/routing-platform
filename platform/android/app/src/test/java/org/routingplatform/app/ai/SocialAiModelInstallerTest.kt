@@ -19,6 +19,39 @@ class SocialAiModelInstallerTest {
     }
 
     @Test
+    fun rejectsWrongExactSizeAndPreservesPreviousModel() {
+        val dir = createTempDirectory("model-size").toFile()
+        val previous = byteArrayOf(9, 8, 7)
+        val destination = File(dir, "model.gguf").apply { writeBytes(previous) }
+        val staged = File(dir, "staged.gguf").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
+        val result = SocialAiModelInstaller.install(
+            stagedArtifact = staged,
+            destination = destination,
+            metadata = metadata(staged),
+            minimumFreeBytesAfterInstall = 0,
+            expectedSizeBytes = 5,
+        )
+        assertTrue(result is SocialAiModelInstallResult.Rejected)
+        assertArrayEquals(previous, destination.readBytes())
+    }
+
+    @Test
+    fun installsWhenExactSizeAndHashMatch() {
+        val dir = createTempDirectory("model-size-ok").toFile()
+        val staged = File(dir, "staged.gguf").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
+        val destination = File(dir, "model.gguf")
+        val result = SocialAiModelInstaller.install(
+            stagedArtifact = staged,
+            destination = destination,
+            metadata = metadata(staged),
+            minimumFreeBytesAfterInstall = 0,
+            expectedSizeBytes = staged.length(),
+        )
+        assertTrue(result is SocialAiModelInstallResult.Installed)
+        assertArrayEquals(staged.readBytes(), destination.readBytes())
+    }
+
+    @Test
     fun rejectsCorruptStagedArtifactAndPreservesPreviousModel() {
         val dir = createTempDirectory("model-rollback").toFile()
         val previous = byteArrayOf(9, 8, 7)
