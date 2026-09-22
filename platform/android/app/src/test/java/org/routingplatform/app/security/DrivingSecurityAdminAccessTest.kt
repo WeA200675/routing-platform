@@ -22,4 +22,11 @@ class DrivingSecurityAdminAccessTest {
         val token = access.authorizeAfterSuccessfulDeviceAuthentication(10)
         access.read(token, 60_000_000_011L, 1000)
     }
+
+    @Test(expected = SecurityException::class)
+    fun monotonicClockRollbackFailsClosed() {
+        val access = DrivingSecurityAdminAccess(Store())
+        val token = access.authorizeAfterSuccessfulDeviceAuthentication(100)
+        access.read(token, 99, 1000)
+    }
 }
