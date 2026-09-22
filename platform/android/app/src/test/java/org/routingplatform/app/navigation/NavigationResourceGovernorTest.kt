@@ -30,4 +30,18 @@ class NavigationResourceGovernorTest {
             NavigationResourceGovernor.admit(NavigationResourceSnapshot(-1, 0), budget),
         )
     }
+    @Test fun backpressureRejectsAndCancelsOnPressureOrInvalidState() {
+        val available = NavigationResourceAdmission.Available.toBackpressureDecision()
+        assertEquals(true, available.admitNewWork)
+        assertEquals(false, available.cancelQueuedWork)
+
+        for (admission in listOf(
+            NavigationResourceAdmission.Exhausted,
+            NavigationResourceAdmission.Invalid,
+        )) {
+            val decision = admission.toBackpressureDecision()
+            assertEquals(false, decision.admitNewWork)
+            assertEquals(true, decision.cancelQueuedWork)
+        }
+    }
 }
