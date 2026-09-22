@@ -37,3 +37,11 @@ P19 automated acceptance requires Core CI and Android CI to pass on the same imm
 P20 defines a platform-neutral `OfflineRoutingAdmission` and deterministic `OfflineRoutingRecovery`. Dataset identity and version must be explicit, integrity must already be verified, timestamps must be monotonic/non-future and age must remain within a reviewed budget. Recovery publishes dataset identity only after successful admission; rejected data cannot survive as an active offline source.
 
 Automated tests cover missing/blank identity, failed integrity, future timestamps, stale data, invalid clock/budget input, the inclusive freshness boundary and recovery identity clearing. CI proves only these host/JVM contracts; it does not prove completeness or freshness of real map packages on a physical device.
+
+## P21 implementation evidence
+
+P21 hardens the existing sustained-evidence reroute engine by binding accumulated reroute evidence to the active navigation session. A session transition resets candidate timestamps, sample counts and attempt history before new-session evidence can qualify. Blank explicit session identity fails closed. The lifecycle controller supplies the current snapshot session to the decision engine, while its existing generation and expected-session checks continue to discard stale asynchronous route responses.
+
+Existing reroute admission still requires sustained `HeldOffRoute` evidence, trusted position confidence, non-dead-reckoning fusion, strictly increasing monotonic timestamps and an attempt interval. Via-point rerouting and incomparable periodic route replacement remain deliberately unavailable rather than guessed.
+
+P21 automated acceptance requires the Android unit/lint/build gate on the immutable SHA containing the session-isolation tests. Core CI is complementary. Physical-drive behavior remains separate device evidence and is not inferred from JVM/CI results.
