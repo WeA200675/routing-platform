@@ -86,7 +86,7 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
     }
 
     private fun encode(r: DrivingInterferenceEvidenceRecord) = JSONObject()
-        .put("id", r.eventId).put("kind", r.kind.name).put("utc", r.utcEpochMillis)
+        .put("id", r.eventId).put("payloadDigest", r.payloadDigest).put("kind", r.kind.name).put("utc", r.utcEpochMillis)
         .put("elapsed", r.elapsedRealtimeNanos).put("session", r.sessionReference)
         .put("source", r.source).put("action", r.action).put("integrity", r.integrityState)
         .apply {
@@ -101,7 +101,7 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
             EvidenceVehiclePosition(it.getDouble("lat"), it.getDouble("lon"), it.getDouble("accuracy"), it.getLong("observed"))
         }
         return DrivingInterferenceEvidenceRecord(
-            o.getString("id"), DrivingInterferenceKind.valueOf(o.getString("kind")),
+            o.getString("id"), o.getString("payloadDigest"), DrivingInterferenceKind.valueOf(o.getString("kind")),
             o.getLong("utc"), o.getLong("elapsed"), o.getString("session"),
             o.getString("source"), o.getString("action"), o.getString("integrity"), p,
         )
