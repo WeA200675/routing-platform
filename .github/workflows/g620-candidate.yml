@@ -12,6 +12,7 @@ on:
       - platform/android/app/src/main/java/org/routingplatform/app/ai/**
       - platform/android/app/src/main/java/org/routingplatform/app/navigation/**
       - platform/android/app/src/main/java/org/routingplatform/app/security/**
+      - platform/android/app/src/test/**
       - platform/android/app/src/main/AndroidManifest.xml
       - platform/android/app/src/debug/AndroidManifest.xml
       - platform/android/app/src/release/**
