@@ -40,14 +40,7 @@ object NavigationDeviceCalibration {
         observation: NavigationCalibrationObservation,
     ): NavigationDeviceCalibrationProfile {
         val accuracy = observation.horizontalAccuracyM
-        val admissible =
-            observation.confidence == NavigationPositionConfidence.High &&
-                observation.fusionMode == NavigationFusionMode.DirectObservation &&
-                observation.elapsedRealtimeNanos != null &&
-                observation.elapsedRealtimeNanos >= 0L &&
-                accuracy != null &&
-                accuracy.isFinite() &&
-                accuracy in 0.0..100.0
+        val admissible = NavigationObservationAdmission.directFreshObservation(observation)
 
         if (!admissible) {
             return profile.copy(rejectedSamples = if (profile.rejectedSamples == Int.MAX_VALUE) Int.MAX_VALUE else profile.rejectedSamples + 1)
@@ -56,7 +49,7 @@ object NavigationDeviceCalibration {
         return profile.copy(
             acceptedDirectSamples = if (profile.acceptedDirectSamples == Int.MAX_VALUE) Int.MAX_VALUE else profile.acceptedDirectSamples + 1,
             bestObservedAccuracyM =
-                profile.bestObservedAccuracyM?.let { minOf(it, accuracy!!) } ?: accuracy,
+                profile.bestObservedAccuracyM?.let { minOf(it, requireNotNull(accuracy)) } ?: accuracy,
         )
     }
 }
