@@ -43,3 +43,21 @@ P19–P27 start only after the P18 automatable gates are green. Hardware-depende
 | P27 Production Validation & GA Readiness | Final cross-platform regression, device acceptance and release-readiness evidence | All automatable gates green on one immutable SHA plus explicit Android/iOS physical acceptance |
 
 Normative acceptance details are defined in `docs/P19_P27_ACCEPTANCE.md`.
+
+## P28–P36 — Advanced Platform
+
+P28–P36 begin after the P27 automatable evidence chain exists. Device-, store- and service-dependent acceptance remains separate evidence and must not be inferred from host CI.
+
+| Milestone | Scope | Acceptance |
+|---|---|---|
+| P28 Cross-Platform Fixture Execution | Make Android and iOS consume the same parity corpus | Both platform suites execute the same versioned cases and reject semantic drift |
+| P29 Routing Data Provenance | Bind offline datasets to explicit digest/version/provenance metadata | Unknown or mismatched provenance is unavailable and cannot become authoritative |
+| P30 Navigation State Persistence | Version and restore bounded navigation state safely | Corrupt, incompatible or stale persisted state fails closed |
+| P31 Runtime Backpressure | Apply resource budgets to runtime queues and cancellation | Pressure cannot create unbounded work or bypass safety admission |
+| P32 Platform Security Adapters | Implement platform-backed secure storage/authentication boundaries | Missing OS security capability is explicit; secrets never fall back to plaintext |
+| P33 Release Reproducibility | Verify deterministic evidence/package identity where supported | Rebuilt evidence mismatches are surfaced and block promotion |
+| P34 Distribution Readiness | Separate test, production-signing and store-distribution states | Test signing can never be represented as production distribution readiness |
+| P35 Device Validation Matrix | Define immutable Android/iOS physical acceptance records | Device results are tied to candidate SHA, platform/version and artifact digest |
+| P36 GA Promotion Control | Require all automated and external evidence before GA promotion | Promotion fails closed when any required evidence class is absent or mismatched |
+
+Normative acceptance details are defined in `docs/P28_P36_ACCEPTANCE.md`.
