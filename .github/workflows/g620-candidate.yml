@@ -61,6 +61,7 @@ jobs:
           python3 tools/g620/test_create_release_evidence.py
           python3 tools/release/test_verify_device_acceptance.py
           python3 tools/release/test_verify_ga_promotion.py
+          python3 tools/release/test_verify_distribution_state.py
       - name: P28 verify shared parity corpus
         run: python3 tools/release/verify_parity_corpus.py
 
@@ -98,6 +99,12 @@ jobs:
         shell: bash
         run: |
           python3 tools/g620/create_release_evidence.py --candidate-lock tools/g620/candidate.lock --model-capture "$RUNNER_TEMP/g620/build/model-capture.json" --native-capture "$RUNNER_TEMP/g620/build/native-capture.json" --source-sha256 "$(cat "$RUNNER_TEMP/g620/build/runtime-source.sha256")" --output-dir "$RUNNER_TEMP/g620/build/evidence" --candidate-source-sha "$GITHUB_SHA"
+      - name: P33 verify deterministic evidence regeneration
+        shell: bash
+        run: |
+          python3 tools/g620/create_release_evidence.py --candidate-lock tools/g620/candidate.lock --model-capture "$RUNNER_TEMP/g620/build/model-capture.json" --native-capture "$RUNNER_TEMP/g620/build/native-capture.json" --source-sha256 "$(cat "$RUNNER_TEMP/g620/build/runtime-source.sha256")" --output-dir "$RUNNER_TEMP/g620/build/evidence-second" --candidate-source-sha "$GITHUB_SHA"
+          cmp "$RUNNER_TEMP/g620/build/evidence/g620-sbom.spdx.json" "$RUNNER_TEMP/g620/build/evidence-second/g620-sbom.spdx.json"
+          cmp "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json" "$RUNNER_TEMP/g620/build/evidence-second/g620-release-manifest.json"
       - name: Show immutable evidence hashes
         shell: bash
         run: |
@@ -191,6 +198,7 @@ jobs:
             "storePublished": false
           }
           JSON
+          python3 tools/release/verify_distribution_state.py --distribution-state "$RUNNER_TEMP/g620/build/evidence/distribution-state.json"
 
       - name: Upload candidate evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
