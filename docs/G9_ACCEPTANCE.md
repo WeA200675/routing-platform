@@ -21,3 +21,11 @@ G9 is complete only when all criteria below are satisfied on the same final comm
 12. Calibration state is local to the device, versioned, resettable, and ignored when stale/incompatible. Navigation remains safe and functional with calibration absent or rejected.
 13. Platform sensor/location acquisition is behind an adapter boundary so the same authoritative navigation contracts can be implemented by Android and a future Apple platform implementation without duplicating routing decisions.
 14. First-use calibration is disclosed in product UX; it is not hidden data collection. No calibration observation is uploaded by the calibration layer.
+
+## Driving interference evidence
+
+15. During an active navigation session the app may record only OS-authorized connectivity/system events needed for driving-interference diagnostics. It must not perform covert packet interception or continuous radio scanning merely for surveillance.
+16. Evidence records distinguish ordinary connectivity changes, interference anomalies, and verified security-integrity failures. Presence of an unknown Bluetooth/Wi-Fi device alone is never classified as an attack.
+17. A location attached to an evidence record is explicitly the vehicle/device navigation observation at event time, never an inferred source/attacker location. It is included only when the authoritative observation passes the same freshness/provenance safety gates; otherwise location is absent.
+18. Precise evidence stays encrypted/local by default, is excluded from AI prompts and normal telemetry, has bounded retention, and is accessible only through an authenticated local admin diagnostic surface. Driving mode must not introduce distracting full-screen or extreme-audio alerts.
+19. Evidence uses deterministic event identifiers/digests, UTC and monotonic timestamps, source/provenance, navigation-session pseudonymous reference, action taken, and integrity state sufficient for an auditable post-drive timeline.
