@@ -68,7 +68,6 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
     private fun readAll(): List<DrivingInterferenceEvidenceRecord> {
         if (!file.exists()) return emptyList()
         require(file.length() in (IV_BYTES + 1)..MAX_FILE_BYTES) { "Invalid security evidence size" }
-        if (file.length() > MAX_FILE_BYTES) throw SecurityException("Security evidence store exceeds local safety bound")
         val bytes = file.readBytes()
         require(bytes.size > IV_BYTES)
         val iv = bytes.copyOfRange(0, IV_BYTES)
@@ -123,7 +122,6 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
         private const val KEY_ALIAS = "routing_platform_driving_evidence_v2"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val IV_BYTES = 12
-        private const val MAX_FILE_BYTES = 8L * 1024L * 1024L
         private const val MAX_FILE_BYTES = 4L * 1024L * 1024L
         private val AAD = "routing-platform:driving-evidence:v2".toByteArray(StandardCharsets.UTF_8)
     }
