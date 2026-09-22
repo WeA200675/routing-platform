@@ -38,6 +38,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: P28 verify shared parity corpus
+        run: python3 tools/release/verify_parity_corpus.py
+
       - name: P25 verify immutable workflow action revisions
         run: python3 tools/g620/verify_workflow_action_pins.py
       - name: Set up Android SDK
