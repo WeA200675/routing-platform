@@ -62,4 +62,29 @@ class OfflineRoutingAdmissionTest {
             )
         )
     }
+
+    @Test fun recoveryPublishesIdentityOnlyForAdmittedDataset() {
+        val recovered = OfflineRoutingRecovery.recover(valid, 200L, 100L)
+        assertTrue(recovered.routingAvailable)
+        assertEquals("region-de-by", recovered.activeDatasetId)
+        assertEquals("2026-09-22", recovered.activeVersion)
+
+        val rejected = OfflineRoutingRecovery.recover(
+            valid.copy(integrityVerified = false),
+            200L,
+            100L,
+        )
+        assertFalse(rejected.routingAvailable)
+        assertEquals(null, rejected.activeDatasetId)
+        assertEquals(null, rejected.activeVersion)
+        assertEquals(OfflineRoutingAvailability.IntegrityFailure, rejected.availability)
+    }
+
+    @Test fun recoveryDoesNotRetainStaleDatasetIdentity() {
+        val rejected = OfflineRoutingRecovery.recover(valid, 201L, 100L)
+        assertFalse(rejected.routingAvailable)
+        assertEquals(null, rejected.activeDatasetId)
+        assertEquals(null, rejected.activeVersion)
+        assertEquals(OfflineRoutingAvailability.Stale, rejected.availability)
+    }
 }
