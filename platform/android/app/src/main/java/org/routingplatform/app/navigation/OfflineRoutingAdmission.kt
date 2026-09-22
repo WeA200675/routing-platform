@@ -19,6 +19,9 @@ enum class OfflineRoutingAvailability {
     Missing,
     InvalidIdentity,
     IntegrityFailure,
+    InvalidClock,
+    InvalidFreshnessBudget,
+    InvalidTimestamp,
     FutureDated,
     Stale,
 }
@@ -34,12 +37,16 @@ object OfflineRoutingAdmission {
             return OfflineRoutingAvailability.InvalidIdentity
         }
         if (!dataset.integrityVerified) return OfflineRoutingAvailability.IntegrityFailure
-        if (nowElapsedRealtimeNanos < 0L || maximumAgeNanos < 0L) {
-            return OfflineRoutingAvailability.Stale
+        if (nowElapsedRealtimeNanos < 0L) {
+            return OfflineRoutingAvailability.InvalidClock
         }
-        if (dataset.capturedAtElapsedRealtimeNanos < 0L ||
-            dataset.capturedAtElapsedRealtimeNanos > nowElapsedRealtimeNanos
-        ) {
+        if (maximumAgeNanos < 0L) {
+            return OfflineRoutingAvailability.InvalidFreshnessBudget
+        }
+        if (dataset.capturedAtElapsedRealtimeNanos < 0L) {
+            return OfflineRoutingAvailability.InvalidTimestamp
+        }
+        if (dataset.capturedAtElapsedRealtimeNanos > nowElapsedRealtimeNanos) {
             return OfflineRoutingAvailability.FutureDated
         }
 
