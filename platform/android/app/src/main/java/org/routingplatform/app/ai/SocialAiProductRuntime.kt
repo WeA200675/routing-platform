@@ -30,7 +30,10 @@ class SocialAiProductRuntime(
         }
 
         val target = File(context.filesDir, MODEL_FILE)
-        if (!target.isFile || !SocialAiModelIntegrity.verify(target, MODEL_METADATA)) {
+        if (!target.isFile || target.length() != MODEL_SIZE_BYTES || !SocialAiModelIntegrity.verify(target, MODEL_METADATA)) {
+            require(context.filesDir.usableSpace >= MODEL_SIZE_BYTES * 2L + MINIMUM_FREE_STORAGE_AFTER_INSTALL_BYTES) {
+                "Nicht genügend Speicherplatz für die verifizierte lokale KI-Installation."
+            }
             val staged = File(context.filesDir, "$MODEL_FILE.staged")
             runCatching {
                 context.assets.open(MODEL_ASSET).use { input ->
@@ -41,6 +44,7 @@ class SocialAiProductRuntime(
                 throw IllegalStateException("Lokales KI-Modell konnte nicht bereitgestellt werden.", error)
             }
 
+            try {
             when (
                 val install =
                     SocialAiModelInstaller.install(
@@ -48,13 +52,16 @@ class SocialAiProductRuntime(
                         destination = target,
                         metadata = MODEL_METADATA,
                         minimumFreeBytesAfterInstall = MINIMUM_FREE_STORAGE_AFTER_INSTALL_BYTES,
+                        expectedSizeBytes = MODEL_SIZE_BYTES,
                     )
             ) {
                 is SocialAiModelInstallResult.Installed -> Unit
                 is SocialAiModelInstallResult.Rejected ->
                     throw IllegalStateException(install.reason)
             }
-            staged.delete()
+            } finally {
+                staged.delete()
+            }
         }
 
         val loadedEngine = JniSocialAiNativeEngine()
@@ -77,6 +84,7 @@ class SocialAiProductRuntime(
         private const val MODEL_ASSET = "g620/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
         private const val MODEL_FILE = "social-ai-qwen2.5-1.5b-q4_k_m.gguf"
         private const val MODEL_SHA256 = "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370"
+        private const val MODEL_SIZE_BYTES = 986048768L
         private const val CONTEXT_TOKENS = 4096
         private const val MINIMUM_AVAILABLE_MEMORY_BYTES = 768L * 1024 * 1024
         private const val MINIMUM_FREE_STORAGE_AFTER_INSTALL_BYTES = 256L * 1024 * 1024
