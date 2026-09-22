@@ -9,12 +9,10 @@ class NavigationTrustedRefreshOriginTest {
 
     @Test
     fun highConfidenceDirectObservationIsAdmittedExactly() {
-        assertEquals(
-            point,
-            NavigationTrustedRefreshOrigin.fromTelemetry(
-                telemetry(NavigationPositionConfidence.High, NavigationFusionMode.DirectObservation, point)
-            )
+        val observation = NavigationTrustedRefreshOrigin.fromTelemetry(
+            telemetry(NavigationPositionConfidence.High, NavigationFusionMode.DirectObservation, point)
         )
+        assertEquals(point, NavigationTrustedRefreshOrigin.current(observation, 1L))
     }
 
     @Test
@@ -44,10 +42,46 @@ class NavigationTrustedRefreshOriginTest {
         )
     }
 
+    @Test
+    fun staleObservationFailsClosed() {
+        val observation = NavigationTrustedRefreshOrigin.fromTelemetry(
+            telemetry(NavigationPositionConfidence.High, NavigationFusionMode.DirectObservation, point)
+        )
+        assertNull(
+            NavigationTrustedRefreshOrigin.current(
+                observation,
+                1L + NavigationTrustedRefreshOrigin.MAX_AGE_NANOS + 1L,
+            )
+        )
+    }
+
+    @Test
+    fun futureObservationFailsClosed() {
+        val observation = NavigationTrustedRefreshOrigin.fromTelemetry(
+            telemetry(NavigationPositionConfidence.High, NavigationFusionMode.DirectObservation, point)
+        )
+        assertNull(NavigationTrustedRefreshOrigin.current(observation, 0L))
+    }
+
+    @Test
+    fun missingMonotonicTimestampFailsClosed() {
+        assertNull(
+            NavigationTrustedRefreshOrigin.fromTelemetry(
+                telemetry(
+                    NavigationPositionConfidence.High,
+                    NavigationFusionMode.DirectObservation,
+                    point,
+                    elapsedRealtimeNanos = null,
+                )
+            )
+        )
+    }
+
     private fun telemetry(
         confidence: NavigationPositionConfidence,
         fusionMode: NavigationFusionMode,
         observed: RoutePoint?,
+        elapsedRealtimeNanos: Long? = 1L,
     ) = NavigationRuntimeTelemetry(
         pipelineStatus = NavigationRuntimePipelineStatus.Running,
         automaticProgressActive = true,
@@ -60,6 +94,6 @@ class NavigationTrustedRefreshOriginTest {
         acceptedProgress = null,
         lastLocationAccuracyM = 5.0,
         lastObservedPosition = observed,
-        lastLocationElapsedRealtimeNanos = 1L,
+        lastLocationElapsedRealtimeNanos = elapsedRealtimeNanos,
     )
 }
