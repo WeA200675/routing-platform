@@ -27,6 +27,7 @@ import org.routingplatform.app.ai.SocialAiRoutingIntent
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
 import org.routingplatform.app.navigation.AndroidNavigationCalibrationDisclosureStore
 import org.routingplatform.app.navigation.AndroidNavigationCalibrationStore
+import org.routingplatform.app.navigation.AndroidNavigationDeviceCapabilities
 import org.routingplatform.app.navigation.NavigationCalibrationObservation
 import org.routingplatform.app.navigation.NavigationDeviceCalibration
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
@@ -450,7 +451,11 @@ class MainActivity :
                 telemetry.fusionMode,
                 telemetry.lastLocationAccuracyM,
             ) {
-                if (calibrationDisclosureAccepted && snapshot.state == NavigationSessionState.Navigating) {
+                val calibrationCapabilities = AndroidNavigationDeviceCapabilities.detect(applicationContext)
+                if (calibrationDisclosureAccepted &&
+                    snapshot.state == NavigationSessionState.Navigating &&
+                    AndroidNavigationDeviceCapabilities.calibrationAvailable(calibrationCapabilities)
+                ) {
                     val nowUtc = System.currentTimeMillis()
                     val updated = NavigationDeviceCalibration.observe(
                         calibrationStore.load(nowUtc),
