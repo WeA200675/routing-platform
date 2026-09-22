@@ -82,8 +82,11 @@ class SocialAiProductRuntime(
         private const val MINIMUM_FREE_STORAGE_AFTER_INSTALL_BYTES = 256L * 1024 * 1024
         private val MODEL_METADATA =
             LocalModelArtifactMetadata(
+                modelId = "Qwen2.5-1.5B-Instruct",
+                revision = "ec7a7a1a4d6ff0f562a01d41672912bacd9a56b3",
+                licenseSpdx = "Apache-2.0",
                 sha256 = MODEL_SHA256,
-                sizeBytes = 986048768L,
+                sourceUrl = "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF",
             )
     }
 }
