@@ -46,13 +46,6 @@ internal fun NavigationSettingsGrid(
         Modifier =
         Modifier,
 ) {
-    require(
-        items.size ==
-            10
-    ) {
-        "Navigation settings grid requires exactly 10 items."
-    }
-
     val dark =
         MaterialTheme
             .colorScheme
