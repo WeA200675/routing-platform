@@ -56,7 +56,7 @@ class NavigationRouteLifecycleController(
 
     private var activeRouteContract: NavigationRouteContract? = null
 
-    private var latestTrustedRerouteOrigin: RoutePoint? = null
+    private var latestTrustedRerouteOrigin: NavigationTrustedRefreshObservation? = null
 
     private var lastTrafficRefreshSuccessMs: Long? = null
     private var lastTrafficRefreshAttemptMs: Long? = null
@@ -434,8 +434,7 @@ class NavigationRouteLifecycleController(
             return
         }
 
-        val trustedOrigin = latestTrustedRerouteOrigin ?: return
-        val refreshRequest = request.copy(origin = trustedOrigin)
+        // Traffic-refresh replacement is intentionally disabled here: a route acquired\n        // from the moving vehicle origin is not duration-comparable with the active\n        // route that was acquired from the trip origin. Installing it would make the\n        // hysteresis decision mathematically invalid. Off-route rerouting remains\n        // available through the separately gated reroute path.\n        return
 
         val decision =
             trafficReevaluationPolicy.decide(
