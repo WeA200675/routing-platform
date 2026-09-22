@@ -98,16 +98,22 @@ jobs:
             echo "Debug/device diagnostic activity leaked into release manifest" >&2
             exit 1
           fi
-          if ! grep -q 'SecurityDiagnosticsActivity' "$MERGED_MANIFEST" || ! grep -A4 'SecurityDiagnosticsActivity' "$MERGED_MANIFEST" | grep -q 'android:exported="false"'; then
+          python3 - "$MERGED_MANIFEST" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          android = "{http://schemas.android.com/apk/res/android}"
+          app = root.find("application")
+          assert app is not None
+          assert app.get(android + "allowBackup") == "false", "Release manifest permits app-data backup"
+          activities = {a.get(android + "name"): a for a in app.findall("activity")}
+          diag = next((a for n,a in activities.items() if n and n.endswith(".security.SecurityDiagnosticsActivity")), None)
+          assert diag is not None and diag.get(android + "exported") == "false", "Authenticated security diagnostics surface missing or exported"
+          permissions = {p.get(android + "name") for p in root.findall("uses-permission")}
+          forbidden = {"android.permission.BLUETOOTH_SCAN", "android.permission.NEARBY_WIFI_DEVICES", "android.permission.CHANGE_WIFI_STATE"}
+          assert not (permissions & forbidden), "Release manifest contains prohibited active radio scan/change permission"
+          PY
+          if false; then
             echo "Authenticated security diagnostics surface missing or exported" >&2
-            exit 1
-          fi
-          if grep -Eq 'BLUETOOTH_SCAN|NEARBY_WIFI_DEVICES|CHANGE_WIFI_STATE' "$MERGED_MANIFEST"; then
-            echo "Release manifest contains prohibited active radio scan/change permission" >&2
-            exit 1
-          fi
-          if ! grep -q 'android:allowBackup="false"' "$MERGED_MANIFEST"; then
-            echo "Release manifest permits app-data backup" >&2
             exit 1
           fi
           APK="$(find platform/android/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
