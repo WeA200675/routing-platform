@@ -12,3 +12,11 @@ G11 is complete only when all automated criteria are green on one immutable cand
 8. Routing and AI retain all G6-G10 fail-closed boundaries. Unsupported provider capabilities remain unavailable rather than approximated.
 9. Core CI, Android CI and the full release-candidate pipeline succeed on the exact G11 candidate SHA.
 10. Physical-device acceptance is combined into one final package after all automated gates are green.
+
+## Automated evidence
+
+The release-candidate workflow is a required gate for the exact candidate SHA. In addition to the inherited G6-G10 model/runtime/routing integrity checks, it verifies the merged release manifest: the local security diagnostics activity must be non-exported, app-data backup must be disabled, and active Bluetooth/Wi-Fi scan/change permissions must be absent. Android unit/lint/release compilation and Core CI must pass on the same SHA.
+
+## Physical acceptance package
+
+After the automated gates are green, install the signed candidate artifact on the reference Pixel and perform one combined run: acknowledge the first-use local-calibration disclosure; grant precise location; start a real route and verify automatic navigation survives background/foreground; exercise local Social AI and cancellation/restart; confirm no security full-screen/extreme-audio interruption occurs while driving; stop navigation; open Security diagnostics and complete device authentication; confirm retained evidence is local diagnostic data and any shown coordinate is labelled as vehicle position. Attach that device evidence to the exact candidate SHA. No real-road traffic claim is accepted from plain OSRM.
