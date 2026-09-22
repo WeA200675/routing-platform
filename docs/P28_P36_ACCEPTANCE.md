@@ -21,3 +21,11 @@ CI proves only executed automation. macOS Swift tests are not physical iPhone ev
 ## Promotion
 
 P28–P34 may implement automatable contracts while physical P27 acceptance is outstanding. P35 and P36 cannot be accepted without real external/device evidence. Missing evidence is represented as missing, never synthesized.
+
+## P29–P31 implementation evidence
+
+P29 adds a canonical offline provenance admission boundary requiring an explicit source identity and lowercase 64-hex SHA-256 before provenance can be represented as verified. This contract does not itself calculate a dataset digest; storage/download adapters must supply and verify the digest before admission.
+
+P30 adds a versioned persisted-navigation restore boundary. Restore requires the current schema, non-blank session identity, valid monotonic timestamps and an inclusive freshness budget. Future, stale, malformed and incompatible state fails closed.
+
+P31 maps resource admission into an explicit backpressure decision. Available capacity admits work; exhausted or malformed resource state rejects new work and requests queued-work cancellation. Unit tests cover both pressure and invalid-state behavior. Integration with concrete runtime queues remains required before claiming measured queue/resource behavior.
