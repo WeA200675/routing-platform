@@ -1,0 +1,32 @@
+name: iOS Contract CI
+
+on:
+  push:
+    branches:
+      - g6.20/local-open-source-llm
+    paths:
+      - 'platform/ios/**'
+      - '.github/workflows/ios-ci.yml'
+      - 'docs/P19_P27_ACCEPTANCE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  swift-contract:
+    name: Swift package tests
+    runs-on: macos-15
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: platform/ios
+    steps:
+      - name: Checkout immutable source
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Show Swift version
+        run: swift --version
+      - name: Build iOS contract package
+        run: swift build
+      - name: Test iOS contract package
+        run: swift test
