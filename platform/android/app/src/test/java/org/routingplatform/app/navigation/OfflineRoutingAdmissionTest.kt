@@ -11,6 +11,7 @@ class OfflineRoutingAdmissionTest {
         version = "2026-09-22",
         capturedAtElapsedRealtimeNanos = 100L,
         integrityVerified = true,
+        provenance = OfflineRoutingProvenance("provider-a", "2026-09-22", "a".repeat(64)),
     )
 
     @Test fun admitsVerifiedFreshDataset() {
@@ -34,6 +35,11 @@ class OfflineRoutingAdmissionTest {
             OfflineRoutingAvailability.InvalidIdentity,
             OfflineRoutingAdmission.availability(valid.copy(version = ""), 200L, 100L),
         )
+    }
+
+    @Test fun rejectsInvalidProvenance() {
+        assertEquals(OfflineRoutingAvailability.InvalidProvenance, OfflineRoutingAdmission.availability(valid.copy(provenance = valid.provenance.copy(sha256 = "bad")), 200L, 100L))
+        assertEquals(OfflineRoutingAvailability.InvalidProvenance, OfflineRoutingAdmission.availability(valid.copy(provenance = valid.provenance.copy(version = "other")), 200L, 100L))
     }
 
     @Test fun rejectsUnverifiedFutureAndStaleDataset() {
