@@ -25,9 +25,9 @@ jobs:
           
           1. Select one successful immutable Production Candidate run and record its exact 40-character source SHA.\n          2. Download g620-candidate-evidence from that exact run; do not use a moving 'latest' artifact.
           3. Extract g620-release.apk to C:\g620-rc\g620-release.apk
-          3. Run: C:\platform-tools\adb.exe uninstall org.routingplatform.app
-          4. Run: C:\platform-tools\adb.exe install C:\g620-rc\g620-release.apk
-          5. Run: C:\platform-tools\adb.exe shell am start -n org.routingplatform.app/.ai.SocialAiDeviceTestActivity
+          4. Run: C:\platform-tools\adb.exe uninstall org.routingplatform.app
+          5. Run: C:\platform-tools\adb.exe install C:\g620-rc\g620-release.apk
+          6. Run: C:\platform-tools\adb.exe shell am start -n org.routingplatform.app/.ai.SocialAiDeviceTestActivity
           
           Required evidence: PASS, non-empty local response, inference/total timing, Netzwerk-Fallback: keiner.
           Then exercise the product navigation flow with:
