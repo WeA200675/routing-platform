@@ -171,6 +171,8 @@ class AndroidNavigationRuntimeController(
                 )
         )
 
+    private val locationWorkQueue = NavigationBoundedWorkQueue<NavigationLocationSample>()
+
     private val coordinator =
         NavigationProgressCoordinator(
             bridge =
@@ -366,9 +368,7 @@ class AndroidNavigationRuntimeController(
             locationSource.start {
                     sample ->
 
-                processLocation(
-                    sample
-                )
+                enqueueLocation(sample)
             }
 
         if (
@@ -477,6 +477,18 @@ class AndroidNavigationRuntimeController(
     fun aiReadOnlyView():
         NavigationEnvironmentAiReadOnlyView =
         aiView
+
+    private fun enqueueLocation(sample: NavigationLocationSample) {
+        val bufferedSamples = sensorSource.accelerationHistory().size +
+            sensorSource.gyroscopeHistory().size + sensorSource.bearingHistory().size +
+            sensorSource.gnssHistory().size
+        val decision = locationWorkQueue.offer(sample, bufferedSamples)
+        if (!decision.admitNewWork) return
+        while (active) {
+            val next = locationWorkQueue.poll() ?: break
+            processLocation(next)
+        }
+    }
 
     private fun processLocation(
         sample:
@@ -849,6 +861,7 @@ class AndroidNavigationRuntimeController(
         active =
             false
 
+        locationWorkQueue.cancelAll()
         stopSources()
 
         if (
