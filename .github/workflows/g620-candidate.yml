@@ -1,4 +1,4 @@
-name: P1-P9 Production Candidate
+name: P1-P18 Production Candidate
 
 on:
   workflow_dispatch:
@@ -20,6 +20,7 @@ on:
       - platform/android/app/src/debug/AndroidManifest.xml
       - platform/android/app/src/release/**
       - docs/G*_ACCEPTANCE.md
+      - docs/P*_ACCEPTANCE.md
       - backend/**
 
 concurrency:
