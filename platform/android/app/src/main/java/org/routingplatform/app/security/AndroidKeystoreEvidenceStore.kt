@@ -7,6 +7,7 @@ import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
+import java.io.FileOutputStream
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -31,8 +32,9 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
 
     @Synchronized
     override fun readForAuthenticatedAdmin(nowUtcEpochMillis: Long): List<DrivingInterferenceEvidenceRecord> {
-        val retained = DrivingInterferenceRetention.retained(readAll(), nowUtcEpochMillis)
-        if (retained.size != readAll().size) writeAll(retained)
+        val stored = readAll()
+        val retained = DrivingInterferenceRetention.retained(stored, nowUtcEpochMillis)
+        if (retained.size != stored.size) writeAll(retained)
         return retained
     }
 
@@ -76,7 +78,7 @@ class AndroidKeystoreEvidenceStore(context: Context) : DrivingInterferenceEviden
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val encrypted = cipher.doFinal(array.toString().toByteArray(StandardCharsets.UTF_8))
         val tmp = java.io.File(file.parentFile, file.name + ".tmp")
-        tmp.outputStream().use { out -> out.write(cipher.iv); out.write(encrypted); out.fd.sync() }
+        FileOutputStream(tmp).use { out -> out.write(cipher.iv); out.write(encrypted); out.fd.sync() }
         if (!tmp.renameTo(file)) {
             tmp.delete()
             throw java.io.IOException("Unable to atomically persist security evidence")
