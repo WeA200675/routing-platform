@@ -1,5 +1,13 @@
 package org.routingplatform.app.navigation
 
+data class NavigationWorkQueueDiagnostics(
+    val queuedWork: Int,
+    val highWaterMark: Int,
+    val admittedWork: Long,
+    val rejectedWork: Long,
+    val cancelledWork: Long,
+)
+
 /**
  * Concrete bounded admission queue for navigation work. It turns the P24/P31
  * resource contract into an enforceable runtime primitive rather than leaving
@@ -9,6 +17,10 @@ class NavigationBoundedWorkQueue<T>(
     private val budget: NavigationResourceBudget = NavigationResourceBudget(),
 ) {
     private val queued = ArrayDeque<T>()
+    private var highWaterMark = 0
+    private var admittedWork = 0L
+    private var rejectedWork = 0L
+    private var cancelledWork = 0L
 
     @Synchronized
     fun offer(item: T, bufferedSamples: Int): NavigationBackpressureDecision {
@@ -21,19 +33,27 @@ class NavigationBoundedWorkQueue<T>(
         ).toBackpressureDecision()
 
         if (!decision.admitNewWork) {
-            if (decision.cancelQueuedWork) queued.clear()
+            rejectedWork += 1
+            if (decision.cancelQueuedWork) {
+                cancelledWork += queued.size.toLong()
+                queued.clear()
+            }
             return decision
         }
 
-        // Admitting this item must not make pending work exceed the budget.
         if (queued.size >= budget.maximumPendingWork) {
+            rejectedWork += 1
+            cancelledWork += queued.size.toLong()
             queued.clear()
             return NavigationBackpressureDecision(
                 admitNewWork = false,
                 cancelQueuedWork = true,
             )
         }
+
         queued.addLast(item)
+        admittedWork += 1
+        highWaterMark = maxOf(highWaterMark, queued.size)
         return decision
     }
 
@@ -41,7 +61,28 @@ class NavigationBoundedWorkQueue<T>(
     fun poll(): T? = if (queued.isEmpty()) null else queued.removeFirst()
 
     @Synchronized
-    fun cancelAll() = queued.clear()
+    fun cancelAll() {
+        cancelledWork += queued.size.toLong()
+        queued.clear()
+    }
 
-    val size: Int get() = queued.size
+    @Synchronized
+    fun diagnostics() = NavigationWorkQueueDiagnostics(
+        queuedWork = queued.size,
+        highWaterMark = highWaterMark,
+        admittedWork = admittedWork,
+        rejectedWork = rejectedWork,
+        cancelledWork = cancelledWork,
+    )
+
+    @Synchronized
+    fun resetDiagnostics() {
+        highWaterMark = queued.size
+        admittedWork = 0
+        rejectedWork = 0
+        cancelledWork = 0
+    }
+
+    val size: Int
+        @Synchronized get() = queued.size
 }
