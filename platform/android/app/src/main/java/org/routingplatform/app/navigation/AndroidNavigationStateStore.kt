@@ -9,7 +9,7 @@ import android.provider.Settings
  * Monotonic timestamps are only meaningful within the same boot, therefore
  * every record is bound to a caller-supplied boot identity.
  */
-class AndroidNavigationStateStore private constructor(
+class AndroidNavigationStateStore internal constructor(
     private val storage: NavigationStateStorage,
 ) {
     constructor(context: Context) : this(
@@ -17,8 +17,6 @@ class AndroidNavigationStateStore private constructor(
             context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
         )
     )
-
-    internal constructor(storage: NavigationStateStorage) : this(storage = storage)
 
     fun save(state: PersistedNavigationState): Boolean {
         if (state.schemaVersion != NavigationStateRestoreAdmission.SCHEMA_VERSION ||
