@@ -92,6 +92,18 @@ data class NavigationRuntimeTelemetry(
     val nativeFailureMessage:
         String? =
         null,
+
+    val routeDistanceM:
+        Double? =
+        null,
+
+    val routeAmbiguityMargin:
+        Double? =
+        null,
+
+    val workQueueDiagnostics:
+        NavigationWorkQueueDiagnostics? =
+        null,
 ) {
     companion object {
         fun stopped(
@@ -172,6 +184,8 @@ class AndroidNavigationRuntimeController(
         )
 
     private val locationWorkQueue = NavigationBoundedWorkQueue<NavigationLocationSample>()
+    private val locationDrainLock = Any()
+    private var locationDrainActive = false
 
     private val coordinator =
         NavigationProgressCoordinator(
@@ -483,9 +497,25 @@ class AndroidNavigationRuntimeController(
         // work queue budget therefore accounts only for pending callback work.
         val decision = locationWorkQueue.offer(sample, bufferedSamples = 0)
         if (!decision.admitNewWork) return
-        while (active) {
-            val next = locationWorkQueue.poll() ?: break
-            processLocation(next)
+
+        val shouldDrain = synchronized(locationDrainLock) {
+            if (locationDrainActive) false
+            else {
+                locationDrainActive = true
+                true
+            }
+        }
+        if (!shouldDrain) return
+
+        try {
+            while (active) {
+                val next = locationWorkQueue.poll() ?: break
+                processLocation(next)
+            }
+        } finally {
+            synchronized(locationDrainLock) {
+                locationDrainActive = false
+            }
         }
     }
 
@@ -687,6 +717,21 @@ class AndroidNavigationRuntimeController(
                     nativeFailureMessage =
                         result
                             .nativeFailureMessage,
+
+                    routeDistanceM =
+                        result
+                            .safetyDecision
+                            .hypothesis
+                            ?.distanceToRouteM,
+
+                    routeAmbiguityMargin =
+                        result
+                            .safetyDecision
+                            .ambiguityMargin,
+
+                    workQueueDiagnostics =
+                        locationWorkQueue
+                            .diagnostics(),
                 )
             )
     }
