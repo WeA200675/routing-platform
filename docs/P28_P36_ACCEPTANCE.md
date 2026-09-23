@@ -49,3 +49,10 @@ P36 is fail closed by default. GA eligibility always requires immutable Android 
 P28 now has a candidate-CI corpus gate that validates the single shared parity fixture file before release evidence is produced. P29 now also has a byte-level dataset provenance verifier that computes SHA-256 from the actual dataset and rejects identity/version omissions or digest mismatches. These close earlier evidence gaps without converting host CI into device evidence.
 
 The repository implementation can be completed only up to externally controlled boundaries. P35/P36 deliberately require real physical Android/iOS records, and production distribution requires real signing/store state. Placeholder records, host tests or test signing are structurally rejected as substitutes.
+
+
+## Repository completion audit
+
+The unified candidate gate now runs two fail-closed repository audits before producing release evidence: a P1-P36 acceptance-declaration/boundary audit and a workflow-coverage audit. The latter requires release-significant CI workflows, release tooling, platform contracts/adapters, Android navigation/security code, acceptance documents and backend routing changes to retrigger the candidate gate on both push and pull request paths.
+
+These repository audits establish coverage and declared boundaries; they do not manufacture external acceptance. Repository administration is also explicit external governance evidence: branch protection/required checks and commit-signature enforcement must be configured and observed in GitHub rather than inferred from workflow YAML. A repository can therefore have all automated implementation checks green while still remaining ineligible for P35/P36/GA.
