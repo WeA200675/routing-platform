@@ -28,7 +28,18 @@ REQUIRED = [
 
 def main() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    missing = [entry for entry in REQUIRED if text.count(f"- {entry}") < 2]
+    push_text, separator, pull_text = text.partition("  pull_request:")
+    if not separator:
+        raise SystemExit("candidate workflow coverage audit failed: pull_request trigger missing")
+    missing = [
+        entry
+        for entry in REQUIRED
+        if f"- {entry}" not in push_text or (
+            f"- {entry}" not in pull_text and not (
+                entry.startswith("platform/android/") and "- platform/android/**" in pull_text
+            )
+        )
+    ]
     if missing:
         raise SystemExit(
             "candidate workflow coverage audit failed: missing push/PR coverage for "
