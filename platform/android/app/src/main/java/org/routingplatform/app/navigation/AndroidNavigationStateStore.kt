@@ -11,7 +11,9 @@ class AndroidNavigationStateStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
     fun save(state: PersistedNavigationState): Boolean {
-        if (state.sessionId.isBlank() || state.bootId.isBlank() || state.savedAtElapsedRealtimeNanos < 0L) return false
+        if (state.schemaVersion != NavigationStateRestoreAdmission.SCHEMA_VERSION ||
+            !validIdentity(state.sessionId) || !validIdentity(state.bootId) ||
+            state.savedAtElapsedRealtimeNanos < 0L) return false
         val encoded = listOf(state.schemaVersion.toString(), state.sessionId, state.bootId, state.savedAtElapsedRealtimeNanos.toString()).joinToString("|")
         if (encoded.length > MAX_ENCODED_CHARS || encoded.contains('\n') || encoded.contains('\r')) return false
         return preferences.edit().putString(KEY_STATE, encoded).commit()
@@ -33,11 +35,16 @@ class AndroidNavigationStateStore(context: Context) {
     }
 
     fun clear(): Boolean = preferences.edit().remove(KEY_STATE).commit()
+
+    private fun validIdentity(value: String): Boolean =
+        value.isNotBlank() && value.length <= MAX_IDENTITY_CHARS &&
+            !value.contains('|') && !value.contains('\n') && !value.contains('\r')
     private fun clearAndNull(): PersistedNavigationState? { clear(); return null }
 
     private companion object {
         const val PREFERENCES = "navigation_resume_v1"
         const val KEY_STATE = "state"
         const val MAX_ENCODED_CHARS = 1024
+        const val MAX_IDENTITY_CHARS = 256
     }
 }
