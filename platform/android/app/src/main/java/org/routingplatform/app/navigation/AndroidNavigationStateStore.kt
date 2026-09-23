@@ -1,6 +1,7 @@
 package org.routingplatform.app.navigation
 
 import android.content.Context
+import android.provider.Settings
 
 /**
  * Small fail-closed persistence boundary for resumable navigation identity.
@@ -47,4 +48,22 @@ class AndroidNavigationStateStore(context: Context) {
         const val MAX_ENCODED_CHARS = 1024
         const val MAX_IDENTITY_CHARS = 256
     }
+}
+
+
+/**
+ * Stable-within-boot identity used to bind elapsedRealtime timestamps.
+ * If Android does not expose a valid boot count, callers receive null and
+ * persistence must fail closed rather than inventing a cross-boot identity.
+ */
+object AndroidNavigationBootIdentity {
+    fun current(context: Context): String? =
+        runCatching {
+            Settings.Global.getInt(
+                context.applicationContext.contentResolver,
+                Settings.Global.BOOT_COUNT,
+            )
+        }.getOrNull()
+            ?.takeIf { it >= 0 }
+            ?.let { "android-boot-$it" }
 }
