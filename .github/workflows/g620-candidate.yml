@@ -8,6 +8,11 @@ on:
       - "g6.*/*"
     paths:
       - .github/workflows/g620-candidate.yml
+      - .github/workflows/android-ci.yml
+      - .github/workflows/core-ci.yml
+      - .github/workflows/ios-ci.yml
+      - .github/workflows/real-routing-ci.yml
+      - .github/workflows/g6-final-device-gate.yml
       - MILESTONES.md
       - tools/g620/**
       - tools/release/**
@@ -31,6 +36,11 @@ on:
       - main
     paths:
       - .github/workflows/g620-candidate.yml
+      - .github/workflows/android-ci.yml
+      - .github/workflows/core-ci.yml
+      - .github/workflows/ios-ci.yml
+      - .github/workflows/real-routing-ci.yml
+      - .github/workflows/g6-final-device-gate.yml
       - MILESTONES.md
       - tools/g620/**
       - tools/release/**
