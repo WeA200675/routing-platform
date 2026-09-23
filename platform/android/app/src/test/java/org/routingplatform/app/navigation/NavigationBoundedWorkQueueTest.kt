@@ -38,4 +38,26 @@ class NavigationBoundedWorkQueueTest {
         assertTrue(rejected.cancelQueuedWork)
         assertEquals(0, q.size)
     }
+    @Test fun diagnosticsRecordPressureAndCanReset() {
+        val q = NavigationBoundedWorkQueue<String>(
+            NavigationResourceBudget(maximumBufferedSamples = 4, maximumPendingWork = 2)
+        )
+        q.offer("a", 0)
+        q.offer("b", 0)
+        q.offer("c", 0)
+
+        val pressure = q.diagnostics()
+        assertEquals(2, pressure.highWaterMark)
+        assertEquals(2L, pressure.admittedWork)
+        assertEquals(1L, pressure.rejectedWork)
+        assertEquals(2L, pressure.cancelledWork)
+        assertEquals(0, pressure.queuedWork)
+
+        q.resetDiagnostics()
+        val reset = q.diagnostics()
+        assertEquals(0, reset.highWaterMark)
+        assertEquals(0L, reset.admittedWork)
+        assertEquals(0L, reset.rejectedWork)
+        assertEquals(0L, reset.cancelledWork)
+    }
 }
