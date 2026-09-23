@@ -32,6 +32,10 @@ import org.routingplatform.app.navigation.AndroidNavigationDeviceCapabilities
 import org.routingplatform.app.navigation.NavigationCalibrationObservation
 import org.routingplatform.app.navigation.NavigationDeviceCalibration
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
+import org.routingplatform.app.navigation.AndroidNavigationBootIdentity
+import org.routingplatform.app.navigation.AndroidNavigationStateStore
+import org.routingplatform.app.navigation.NavigationStateRestoreAdmission
+import org.routingplatform.app.navigation.PersistedNavigationState
 import org.routingplatform.app.navigation.JniNavigationCoreBridge
 import org.routingplatform.app.navigation.NavigationDriveProofObservationSinkFactory
 import org.routingplatform.app.navigation.NavigationExitLookaheadEngine
@@ -258,6 +262,21 @@ class MainActivity :
                     )
                 }
 
+            val navigationStateStore =
+                remember {
+                    AndroidNavigationStateStore(
+                        applicationContext
+                    )
+                }
+
+            val navigationBootId =
+                remember {
+                    AndroidNavigationBootIdentity
+                        .current(
+                            applicationContext
+                        )
+                }
+
             val driveProofObservationSink =
                 remember {
                     NavigationDriveProofObservationSinkFactory
@@ -369,6 +388,36 @@ class MainActivity :
                             .snapshot
                     )
                 }
+
+            LaunchedEffect(
+                snapshot.sessionId,
+                snapshot.state,
+                navigationBootId,
+            ) {
+                val bootId = navigationBootId
+                if (bootId == null) {
+                    navigationStateStore.clear()
+                } else {
+                    val restored =
+                        navigationStateStore.restore(
+                            currentBootId = bootId,
+                            nowElapsedRealtimeNanos =
+                                SystemClock.elapsedRealtimeNanos(),
+                            maximumAgeNanos =
+                                NAVIGATION_RESUME_MAXIMUM_AGE_NANOS,
+                        )
+
+                    if (
+                        restored != null &&
+                        (
+                            restored.sessionId != snapshot.sessionId ||
+                            snapshot.state != NavigationSessionState.Navigating
+                        )
+                    ) {
+                        navigationStateStore.clear()
+                    }
+                }
+            }
 
             var routeAcquisitionTelemetry by
                 remember {
@@ -1293,6 +1342,24 @@ class MainActivity :
                                         SystemClock
                                             .elapsedRealtimeNanos(),
                                 )
+
+                            navigationBootId
+                                ?.let { bootId ->
+                                    navigationStateStore.save(
+                                        PersistedNavigationState(
+                                            schemaVersion =
+                                                NavigationStateRestoreAdmission
+                                                    .SCHEMA_VERSION,
+                                            sessionId =
+                                                snapshot.sessionId,
+                                            bootId =
+                                                bootId,
+                                            savedAtElapsedRealtimeNanos =
+                                                SystemClock
+                                                    .elapsedRealtimeNanos(),
+                                        )
+                                    )
+                                }
 
                             telemetry =
                                 updatedTelemetry
@@ -2397,6 +2464,24 @@ class MainActivity :
                                 bridge
                                     .startNavigation()
 
+                            navigationBootId
+                                ?.let { bootId ->
+                                    navigationStateStore.save(
+                                        PersistedNavigationState(
+                                            schemaVersion =
+                                                NavigationStateRestoreAdmission
+                                                    .SCHEMA_VERSION,
+                                            sessionId =
+                                                snapshot.sessionId,
+                                            bootId =
+                                                bootId,
+                                            savedAtElapsedRealtimeNanos =
+                                                SystemClock
+                                                    .elapsedRealtimeNanos(),
+                                        )
+                                    )
+                                }
+
                             val permissions =
                                 navigationRuntimePermissionsToRequest(
                                     applicationContext
@@ -2441,6 +2526,8 @@ class MainActivity :
                             snapshot =
                                 bridge
                                     .stopNavigation()
+
+                            navigationStateStore.clear()
                         },
 
                         onAdvanceProgress = {
@@ -2506,4 +2593,6 @@ class MainActivity :
             }
         }
     }
+
+private const val NAVIGATION_RESUME_MAXIMUM_AGE_NANOS = 30L * 60L * 1_000_000_000L
 }
