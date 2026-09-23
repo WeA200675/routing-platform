@@ -74,6 +74,8 @@ jobs:
           python3 tools/release/test_verify_distribution_state.py
       - name: Audit P1-P36 acceptance declarations
         run: python3 tools/release/test_verify_p1_p36_acceptance.py
+      - name: Verify candidate workflow coverage
+        run: python3 tools/release/test_verify_candidate_workflow_coverage.py
       - name: P28 verify shared parity corpus
         run: python3 tools/release/verify_parity_corpus.py
 
