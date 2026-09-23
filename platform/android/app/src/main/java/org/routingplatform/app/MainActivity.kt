@@ -2594,5 +2594,6 @@ class MainActivity :
         }
     }
 
-private const val NAVIGATION_RESUME_MAXIMUM_AGE_NANOS = 30L * 60L * 1_000_000_000L
 }
+
+private const val NAVIGATION_RESUME_MAXIMUM_AGE_NANOS = 30L * 60L * 1_000_000_000L
