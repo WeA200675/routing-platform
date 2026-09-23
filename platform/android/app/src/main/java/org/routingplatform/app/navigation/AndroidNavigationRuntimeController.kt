@@ -509,12 +509,33 @@ class AndroidNavigationRuntimeController(
 
         try {
             while (active) {
-                val next = locationWorkQueue.poll() ?: break
-                processLocation(next)
+                val next = locationWorkQueue.poll()
+                if (next != null) {
+                    processLocation(next)
+                    continue
+                }
+
+                val released = synchronized(locationDrainLock) {
+                    /*
+                     * Close the empty-queue/ownership handoff race. An offer
+                     * that happened after poll() but before this lock is
+                     * visible here and remains owned by this drainer.
+                     */
+                    if (locationWorkQueue.size == 0) {
+                        locationDrainActive = false
+                        true
+                    } else {
+                        false
+                    }
+                }
+                if (released) return
             }
         } finally {
             synchronized(locationDrainLock) {
                 locationDrainActive = false
+            }
+            if (!active) {
+                locationWorkQueue.cancelAll()
             }
         }
     }
