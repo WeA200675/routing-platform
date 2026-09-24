@@ -30,6 +30,7 @@ on:
       - platform/android/app/src/release/**
       - docs/G*_ACCEPTANCE.md
       - docs/P*_ACCEPTANCE.md
+      - docs/ANDROID_FIELD_TEST_READINESS.md
       - backend/**
   pull_request:
     branches:
@@ -49,6 +50,7 @@ on:
       - platform/android/**
       - docs/G*_ACCEPTANCE.md
       - docs/P*_ACCEPTANCE.md
+      - docs/ANDROID_FIELD_TEST_READINESS.md
       - backend/**
 
 concurrency:
