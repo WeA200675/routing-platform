@@ -188,10 +188,19 @@ class NavigationPositionIntegrityMonitor(
                     sample.position,
 
                 horizontalVelocityMps =
-                    impliedSpeedMps,
+                    sample.speedMps
+                        ?.takeIf {
+                            sample.speedAccuracyMps == null ||
+                                sample.speedAccuracyMps <= MAXIMUM_TRUSTED_SPEED_ACCURACY_MPS
+                        }
+                        ?: impliedSpeedMps,
 
                 bearingDegrees =
-                    null,
+                    sample.bearingDegrees
+                        ?.takeIf {
+                            sample.bearingAccuracyDegrees == null ||
+                                sample.bearingAccuracyDegrees <= MAXIMUM_TRUSTED_BEARING_ACCURACY_DEGREES
+                        },
 
                 covariance =
                     PositionCovariance2D(
@@ -324,3 +333,5 @@ private const val DEGREES_TO_RADIANS =
 
 private const val NANOS_PER_SECOND =
     1_000_000_000.0
+private const val MAXIMUM_TRUSTED_SPEED_ACCURACY_MPS = 5.0
+private const val MAXIMUM_TRUSTED_BEARING_ACCURACY_DEGREES = 45.0
