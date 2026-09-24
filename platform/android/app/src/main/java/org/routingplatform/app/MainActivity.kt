@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.maplibre.android.MapLibre
 import org.routingplatform.app.ai.SocialAiProductRuntime
+import org.routingplatform.app.ai.DeterministicDestinationFallback
 import org.routingplatform.app.ai.SocialAiProductionRoutingResult
 import org.routingplatform.app.ai.SocialAiRoutingIntent
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
@@ -1029,12 +1030,32 @@ class MainActivity :
                                                         socialAiMessage = "Zwischenstopp „${interpreted.category}“ wird deterministisch gesucht …"
                                                         searchDestination(interpreted.category)
                                                     }
-                                                    is SocialAiProductionRoutingResult.ClarificationRequired ->
-                                                        socialAiMessage = interpreted.reason
+                                                    is SocialAiProductionRoutingResult.ClarificationRequired -> {
+                                                        val fallbackQuery =
+                                                            DeterministicDestinationFallback
+                                                                .extractSearchQuery(command)
+                                                        if (fallbackQuery != null) {
+                                                            socialAiMessage =
+                                                                "Lokale Intent-Antwort nicht verwendbar; Ziel wird deterministisch gesucht …"
+                                                            searchDestination(fallbackQuery)
+                                                        } else {
+                                                            socialAiMessage = interpreted.reason
+                                                        }
+                                                    }
                                                 }
                                             },
                                             onFailure = { error ->
-                                                socialAiMessage = error.message ?: "Lokale KI konnte nicht ausgeführt werden."
+                                                val fallbackQuery =
+                                                    DeterministicDestinationFallback
+                                                        .extractSearchQuery(command)
+                                                if (fallbackQuery != null) {
+                                                    socialAiMessage =
+                                                        "Lokale KI nicht verfügbar; Ziel wird deterministisch gesucht …"
+                                                    searchDestination(fallbackQuery)
+                                                } else {
+                                                    socialAiMessage =
+                                                        error.message ?: "Lokale KI konnte nicht ausgeführt werden."
+                                                }
                                             },
                                         )
                                     }
