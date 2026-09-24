@@ -5,6 +5,10 @@ data class NavigationLocationSample(
     val horizontalAccuracyM: Double?,
     val elapsedRealtimeNanos: Long,
     val provider: String?,
+    val speedMps: Double? = null,
+    val speedAccuracyMps: Double? = null,
+    val bearingDegrees: Double? = null,
+    val bearingAccuracyDegrees: Double? = null,
 ) {
     init {
         require(
@@ -36,6 +40,10 @@ data class NavigationLocationSample(
         ) {
             "elapsedRealtimeNanos must not be negative."
         }
+        require(speedMps == null || (speedMps.isFinite() && speedMps >= 0.0))
+        require(speedAccuracyMps == null || (speedAccuracyMps.isFinite() && speedAccuracyMps >= 0.0))
+        require(bearingDegrees == null || (bearingDegrees.isFinite() && bearingDegrees >= 0.0 && bearingDegrees < 360.0))
+        require(bearingAccuracyDegrees == null || (bearingAccuracyDegrees.isFinite() && bearingAccuracyDegrees >= 0.0))
     }
 }
 
