@@ -180,6 +180,17 @@ jobs:
           echo "$APK_SHA  g620-release.apk" > "$RUNNER_TEMP/g620/build/g620-release.apk.sha256"
           python3 -c 'import json,sys; from pathlib import Path; p=Path(sys.argv[1]); d=json.loads(p.read_text()); d["releaseApkSha256"]=sys.argv[2].lower(); p.write_text(json.dumps(d,indent=2,sort_keys=True)+chr(10))' "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json" "$APK_SHA"
           python3 tools/g620/verify_release_apk.py "$RUNNER_TEMP/g620/build/g620-release.apk" --release-manifest "$RUNNER_TEMP/g620/build/evidence/g620-release-manifest.json"
+      - name: Package field-test APK with isolated loopback routing
+        shell: bash
+        run: |
+          # Field testing deliberately uses the debug-only loopback endpoint.
+          # Production/release remains HTTPS-only and is built/verified above.
+          platform/android/gradlew -p platform/android --no-daemon :app:assembleDebug
+          FIELD_APK="$(find platform/android/app/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
+          test -n "$FIELD_APK"
+          cp "$FIELD_APK" "$RUNNER_TEMP/g620/build/g620-field-test.apk"
+          sha256sum "$RUNNER_TEMP/g620/build/g620-field-test.apk" | sed 's#  .*/#  #' > "$RUNNER_TEMP/g620/build/g620-field-test.apk.sha256"
+
       - name: P27 verify GA evidence binding
         shell: bash
         run: |
@@ -231,3 +242,5 @@ jobs:
             ${{ runner.temp }}/g620/build/evidence/distribution-state.json
             ${{ runner.temp }}/g620/build/g620-release.apk
             ${{ runner.temp }}/g620/build/g620-release.apk.sha256
+            ${{ runner.temp }}/g620/build/g620-field-test.apk
+            ${{ runner.temp }}/g620/build/g620-field-test.apk.sha256
