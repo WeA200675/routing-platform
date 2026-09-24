@@ -1174,7 +1174,8 @@ internal fun NavigationScreen(
                         if (
                             focusMode
                                 .presentation
-                                .showSecondaryControls
+                                .showSecondaryControls &&
+                            manualProgressEnabled
                         ) {
                             Spacer(
                             modifier =
