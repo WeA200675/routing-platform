@@ -2543,7 +2543,7 @@ private fun NavigationPrimaryControl(
         Column(
             modifier =
                 Modifier.fillMaxWidth(
-                    0.72f
+                    if (presentation.destructive) 0.46f else 0.72f
                 ),
 
             horizontalAlignment =
@@ -2599,7 +2599,8 @@ private fun NavigationPrimaryControl(
             }
 
             if (
-                presentation.enabled
+                presentation.enabled &&
+                !presentation.destructive
             ) {
                 TextButton(
                     modifier =
