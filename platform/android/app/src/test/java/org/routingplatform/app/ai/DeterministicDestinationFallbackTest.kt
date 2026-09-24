@@ -31,5 +31,8 @@ class DeterministicDestinationFallbackTest {
     @Test fun rejectsControlCharactersAndOversizedSearchQuery() {
         assertNull(DeterministicDestinationFallback.extractSearchQuery("Eching\n84174"))
         assertNull(DeterministicDestinationFallback.extractSearchQuery("x".repeat(161)))
+        assertNull(DeterministicDestinationFallback.extractSearchQuery("x".repeat(513)))
+        assertNull(DeterministicDestinationFallback.extractSearchQuery("Eching\t84174"))
+        assertNull(DeterministicDestinationFallback.extractSearchQuery("Eching\u000084174"))
     }
 }
