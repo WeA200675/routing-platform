@@ -9,8 +9,14 @@ package org.routingplatform.app.ai
  */
 object DeterministicDestinationFallback {
     fun extractSearchQuery(rawCommand: String): String? {
-        val normalized = rawCommand.trim().replace(Regex("\\s+"), " ").take(MAX_COMMAND_CHARS)
-        if (normalized.length < 2 || normalized.any { it.code < 0x20 || it.code == 0x7f }) return null
+        // Validate the original input before normalization. Otherwise trim(),
+        // whitespace collapsing or truncation could hide control characters
+        // or turn an oversized command into an accepted one.
+        if (rawCommand.length !in MIN_COMMAND_CHARS..MAX_COMMAND_CHARS) return null
+        if (rawCommand.any { it.isISOControl() }) return null
+
+        val normalized = rawCommand.trim().replace(WHITESPACE, " ")
+        if (normalized.length < MIN_QUERY_CHARS) return null
 
         val stripped = PREFIXES.firstNotNullOfOrNull { prefix ->
             prefix.find(normalized)?.groupValues?.getOrNull(1)?.trim()
@@ -23,9 +29,11 @@ object DeterministicDestinationFallback {
         return candidate
     }
 
+    private const val MIN_COMMAND_CHARS = 2
     private const val MAX_COMMAND_CHARS = 512
     private const val MIN_QUERY_CHARS = 2
     private const val MAX_QUERY_CHARS = 160
+    private val WHITESPACE = Regex("""\s+""")
     private val PREFIXES = listOf(
         Regex("""(?i)^fahr(?:e)?\s+mich\s+nach\s+(.+)$"""),
         Regex("""(?i)^navigier(?:e)?\s+(?:mich\s+)?nach\s+(.+)$"""),
