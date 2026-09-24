@@ -170,6 +170,30 @@ class AndroidLocationSource(
 
                 provider =
                     location.provider,
+
+                speedMps =
+                    location.speed
+                        .toDouble()
+                        .takeIf { location.hasSpeed() && it.isFinite() && it >= 0.0 },
+
+                speedAccuracyMps =
+                    if (android.os.Build.VERSION.SDK_INT >= 26 && location.hasSpeedAccuracy()) {
+                        location.speedAccuracyMetersPerSecond
+                            .toDouble()
+                            .takeIf { it.isFinite() && it >= 0.0 }
+                    } else null,
+
+                bearingDegrees =
+                    location.bearing
+                        .toDouble()
+                        .takeIf { location.hasBearing() && it.isFinite() && it >= 0.0 && it < 360.0 },
+
+                bearingAccuracyDegrees =
+                    if (android.os.Build.VERSION.SDK_INT >= 26 && location.hasBearingAccuracy()) {
+                        location.bearingAccuracyDegrees
+                            .toDouble()
+                            .takeIf { it.isFinite() && it >= 0.0 }
+                    } else null,
             )
         )
     }
