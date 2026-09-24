@@ -498,6 +498,42 @@ class NavigationPositionIntegrityMonitorTest {
         }
     }
 
+    @Test
+    fun trustedNativeMotionEvidenceIsPreserved() {
+        val monitor = NavigationPositionIntegrityMonitor()
+        val result = monitor.inspect(
+            NavigationLocationSample(
+                position = RoutePoint(47.14, 9.52),
+                horizontalAccuracyM = 5.0,
+                elapsedRealtimeNanos = 1_000_000_000L,
+                provider = "gps",
+                speedMps = 13.5,
+                speedAccuracyMps = 0.4,
+                bearingDegrees = 91.0,
+                bearingAccuracyDegrees = 3.0,
+            )
+        )
+        val estimate = checkNotNull(result.estimate)
+        assertEquals(13.5, checkNotNull(estimate.horizontalVelocityMps), 0.0001)
+        assertEquals(91.0, checkNotNull(estimate.bearingDegrees), 0.0001)
+    }
+
+    @Test
+    fun inaccurateNativeBearingIsNotPromoted() {
+        val monitor = NavigationPositionIntegrityMonitor()
+        val result = monitor.inspect(
+            NavigationLocationSample(
+                position = RoutePoint(47.14, 9.52),
+                horizontalAccuracyM = 5.0,
+                elapsedRealtimeNanos = 1_000_000_000L,
+                provider = "gps",
+                bearingDegrees = 91.0,
+                bearingAccuracyDegrees = 90.0,
+            )
+        )
+        assertEquals(null, checkNotNull(result.estimate).bearingDegrees)
+    }
+
     private fun sample(
         latitude: Double,
         longitude: Double,
