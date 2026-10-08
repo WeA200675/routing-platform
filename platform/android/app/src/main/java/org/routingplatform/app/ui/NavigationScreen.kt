@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
 import org.routingplatform.app.navigation.NavigationFaultCode
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
@@ -72,6 +73,7 @@ internal fun NavigationScreen(
     calibrationDisclosureRequired: Boolean = false,
     onAcceptCalibrationDisclosure: () -> Unit = {},
     onOpenSecurityDiagnostics: () -> Unit = {},
+    navigationCalibrationProfile: NavigationDeviceCalibrationProfile = NavigationDeviceCalibrationProfile(),
 
     navigationStartEnabled:
         Boolean =
@@ -289,8 +291,25 @@ internal fun NavigationScreen(
         (Int) -> Unit =
         {},
 ) {
-    if (calibrationDisclosureRequired) {
-        Dialog(onDismissRequest = {}) {
+    var calibrationSummaryOpen by remember { mutableStateOf(false) }
+
+    if (calibrationSummaryOpen) {
+        Dialog(onDismissRequest = { calibrationSummaryOpen = false }) {
+            Surface {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text("Kalibrierwerte", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(NavigationCalibrationPresentation.summary(navigationCalibrationProfile))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Die Werte enthalten keine Koordinaten und verändern weder Position, Route noch Fahranweisungen.")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    TextButton(onClick = { calibrationSummaryOpen = false }) { Text("Schließen") }
+                }
+            }
+        }
+    }
+
+    if (calibrationDisclosureRequired) {        Dialog(onDismissRequest = {}) {
             Surface {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text("Lokale Navigationskalibrierung", fontWeight = FontWeight.Bold)
@@ -894,6 +913,11 @@ internal fun NavigationScreen(
                                         title = "Sicherheitsdiagnose",
                                         value = "Lokal · Geräteauthentifizierung",
                                         onClick = onOpenSecurityDiagnostics,
+                                    ),                                    NavigationSettingTile(
+                                        testTag = "navigation_calibration_summary_open",
+                                        title = "Kalibrierwerte",
+                                        value = "${navigationCalibrationProfile.acceptedDirectSamples} akzeptiert · ${navigationCalibrationProfile.rejectedSamples} verworfen",
+                                        onClick = { calibrationSummaryOpen = true },
                                     ),
                                     NavigationSettingTile(
                                         testTag =
