@@ -4,11 +4,7 @@ Target: supervised Android field test on 2026-10-10. Software changes remain can
 
 ## M11 — Ask the route priority before generation (implemented; CI pending)
 
-In Preview, the assistant asks which route family to use for this request:
-- fastest;
-- shortest;
-- profile-optimized;
-- the currently learned recommendation, when available.
+In Preview, the assistant asks which route family to use for this request. The three common choices are fastest, shortest and profile-optimized. An expandable list exposes the engine's other exact families: major roads, comfort, less urban, less curvy, less gradient, lower traffic according to route data, energy, scenic and stable. The currently learned recommendation is also available when one exists.
 
 The choice is per request. The driver is never prompted while navigation is active.
 
@@ -34,10 +30,14 @@ Required checks:
 3. On-device checks confirm the question and rating only appear in Preview and the selected family reaches the generated request.
 4. Verify the field APK checksum before the drive.
 
-## M16 — Add richer preference dimensions (not implemented)
+## M16 — Learn from corrective feedback (not implemented)
 
-Expand beyond route family only when the routing engine exposes exact, testable controls. Candidate dimensions include maneuver simplicity and road-type avoidance. The existing AI bridge rejects unsupported avoidance requests; do not silently approximate them.
+Today, a negative rating reopens the priority question but is not remembered. Add opt-in learning from a few structured reasons such as “too long”, “too complex” or “not the right road type”. Keep the feedback profile-local, bounded, inspectable and deletable. Apply it as a suggestion that the user can override per route.
 
 ## M17 — Measure on the road (not run)
 
 Follow [Saturday calibration drive runbook](SATURDAY_CALIBRATION_RUNBOOK.md). The field run records the exact candidate and APK hashes, service readiness, route outcome and operator observations. A successful build or a route rating is not physical-device acceptance or GA approval.
+
+## M18 — Production promotion (not ready)
+
+After the supervised field drive, review exact-SHA evidence, privacy behavior, route-family quality, crashes and safety holds. Promote only through the existing production-candidate and GA gates; Saturday's drive alone does not authorize release.
