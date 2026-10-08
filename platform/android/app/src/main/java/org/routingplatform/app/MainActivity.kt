@@ -23,6 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.maplibre.android.MapLibre
 import org.routingplatform.app.ai.SocialAiProductRuntime
+import org.routingplatform.app.ai.AndroidSocialAiMemoryStore
+import org.routingplatform.app.ai.SocialAiLearningRepository
+import org.routingplatform.app.ai.SocialAiRoutePreferenceMemory
 import org.routingplatform.app.ai.DeterministicDestinationFallback
 import org.routingplatform.app.ai.SocialAiProductionRoutingResult
 import org.routingplatform.app.ai.SocialAiRoutingIntent
@@ -33,6 +36,7 @@ import org.routingplatform.app.navigation.AndroidNavigationDeviceCapabilities
 import org.routingplatform.app.navigation.NavigationCalibrationObservation
 import org.routingplatform.app.navigation.NavigationDeviceCalibration
 import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
+import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.AndroidNavigationBootIdentity
 import org.routingplatform.app.navigation.AndroidNavigationStateStore
@@ -197,6 +201,32 @@ class MainActivity :
                         applicationContext
                     )
                 }
+            val socialAiLearningRepository = remember {
+                SocialAiLearningRepository(AndroidSocialAiMemoryStore(applicationContext))
+            }
+            val routePreferenceStoreId = remember(activeProfile.profileId) {
+                SocialAiRoutePreferenceMemory.storeId(activeProfile.profileId)
+            }
+            var rememberedRouteFamily by remember(
+                activeProfile.profileId,
+                activeProfile.ai.learningEnabled,
+            ) {
+                mutableStateOf(
+                    if (activeProfile.ai.learningEnabled) {
+                        SocialAiRoutePreferenceMemory.recall(
+                            socialAiLearningRepository,
+                            routePreferenceStoreId,
+                        )
+                    } else {
+                        null
+                    }
+                )
+            }
+            var socialAiRouteFeedbackAvailable by remember { mutableStateOf(false) }
+            var socialAiRouteFamily by remember {
+                mutableStateOf(NavigationRouteFamily.ProfileOptimal)
+            }
+            var socialAiFeedbackPending by remember { mutableStateOf(false) }
 
             var socialAiMessage by
                 remember {
@@ -734,6 +764,7 @@ class MainActivity :
                                                                                 pendingCategory to
                                                                                     results
                                                                             ),
+                                                                        routeFamily = socialAiRouteFamily,
                                                                     )
                                                             }
 
@@ -831,6 +862,7 @@ class MainActivity :
                                                                                 pendingCategory to
                                                                                     listOf(results.first())
                                                                             ),
+                                                                        routeFamily = socialAiRouteFamily,
                                                                     ) as? SocialAiProductionRoutingResult.Ready
 
                                                             if (seed == null) {
@@ -951,15 +983,18 @@ class MainActivity :
                         }
                 }
 
-            val submitSocialAiCommand:
-                (String) -> Unit =
-                socialAi@ { rawCommand ->
+            val submitSocialAiCommandWithFamily:
+                (String, NavigationRouteFamily) -> Unit =
+                socialAi@ { rawCommand, routeFamily ->
                     socialAiViaRoutingHandle?.cancel()
                     socialAiViaRoutingHandle = null
                     pendingSocialAiIntent = null
                     pendingSocialAiCategory = null
                     pendingSocialAiOrigin = null
                     pendingSocialAiAllowedResultIds = emptySet()
+                    socialAiRouteFeedbackAvailable = false
+                    socialAiFeedbackPending = false
+                    socialAiRouteFamily = routeFamily
 
                     val command =
                         rawCommand.trim()
@@ -1009,6 +1044,7 @@ class MainActivity :
                                             userText = command,
                                             origin = planningLocation.position,
                                             favorites = favoriteDestinations,
+                                            routeFamily = routeFamily,
                                         )
                                     }
                                     runOnUiThread {
@@ -1018,12 +1054,23 @@ class MainActivity :
                                                 when (interpreted) {
                                                     is SocialAiProductionRoutingResult.Ready -> {
                                                         socialAiMessage = "Intent lokal validiert. Routenvorschau wird berechnet …"
+                                                        socialAiFeedbackPending = true
                                                         routeLifecycleController?.loadInitial(
                                                             request = interpreted.request,
                                                             snapshotProvider = { snapshot },
                                                             onSnapshot = { updated -> snapshot = updated },
-                                                            onTelemetry = { updated -> routeAcquisitionTelemetry = updated },
+                                                            onTelemetry = { updated ->
+                                                                routeAcquisitionTelemetry = updated
+                                                                if (socialAiFeedbackPending &&
+                                                                    updated.state != NavigationRouteAcquisitionState.LoadingInitial
+                                                                ) {
+                                                                    socialAiRouteFeedbackAvailable =
+                                                                        updated.state == NavigationRouteAcquisitionState.LiveReady
+                                                                    socialAiFeedbackPending = false
+                                                                }
+                                                            },
                                                         ) ?: run {
+                                                            socialAiFeedbackPending = false
                                                             socialAiMessage = "Live-Routing ist nicht konfiguriert."
                                                         }
                                                     }
@@ -1834,6 +1881,17 @@ class MainActivity :
                                         updatedAi
                                 )
 
+                            if (
+                                activeProfile.ai.learningEnabled &&
+                                !updatedAi.learningEnabled
+                            ) {
+                                SocialAiRoutePreferenceMemory.forget(
+                                    socialAiLearningRepository,
+                                    routePreferenceStoreId,
+                                )
+                                rememberedRouteFamily = null
+                            }
+
                             check(
                                 profileStore
                                     .saveAndActivate(
@@ -1921,8 +1979,41 @@ class MainActivity :
                         socialAiBusy =
                             socialAiBusy,
 
-                        onSocialAiCommand =
-                            submitSocialAiCommand,
+                        onSocialAiCommandWithFamily =
+                            submitSocialAiCommandWithFamily,
+
+                        socialAiRouteFeedbackAvailable =
+                            socialAiRouteFeedbackAvailable,
+
+                        socialAiRouteFamily =
+                            socialAiRouteFamily,
+
+                        rememberedRouteFamily =
+                            rememberedRouteFamily,
+
+                        onSocialAiRouteFeedback = { positive ->
+                            socialAiRouteFeedbackAvailable = false
+                            if (positive) {
+                                val remembered =
+                                    SocialAiRoutePreferenceMemory.rememberPositiveRating(
+                                        repository = socialAiLearningRepository,
+                                        storeId = routePreferenceStoreId,
+                                        family = socialAiRouteFamily,
+                                        learningEnabled = activeProfile.ai.learningEnabled,
+                                        nowEpochMillis = System.currentTimeMillis(),
+                                    )
+                                if (remembered) {
+                                    rememberedRouteFamily = socialAiRouteFamily
+                                    socialAiMessage =
+                                        "Danke. Die bestätigte Priorität wird lokal für dieses Profil gemerkt."
+                                } else {
+                                    socialAiMessage =
+                                        "Danke. Die Bewertung gilt nur für diese Vorschau. Dauerhaftes Routenlernen ist in den KI-Einstellungen ausgeschaltet."
+                                }
+                            } else {
+                                socialAiMessage = "Wähle eine andere Priorität für eine neue Routenvorschau."
+                            }
+                        },
 
                         onMapTargetSelected = {
                                 point ->
@@ -2001,6 +2092,7 @@ class MainActivity :
                                                                 pendingCategory to
                                                                     listOf(result)
                                                             ),
+                                                        routeFamily = socialAiRouteFamily,
                                                     )
                                             }
 
