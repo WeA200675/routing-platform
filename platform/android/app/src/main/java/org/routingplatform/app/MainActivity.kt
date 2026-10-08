@@ -32,6 +32,7 @@ import org.routingplatform.app.navigation.AndroidNavigationCalibrationStore
 import org.routingplatform.app.navigation.AndroidNavigationDeviceCapabilities
 import org.routingplatform.app.navigation.NavigationCalibrationObservation
 import org.routingplatform.app.navigation.NavigationDeviceCalibration
+import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.AndroidNavigationBootIdentity
 import org.routingplatform.app.navigation.AndroidNavigationStateStore
@@ -486,6 +487,9 @@ class MainActivity :
             var calibrationDisclosureAccepted by remember {
                 mutableStateOf(calibrationDisclosureStore.accepted())
             }
+            var calibrationProfile by remember {
+                mutableStateOf(calibrationStore.load(System.currentTimeMillis()))
+            }
 
             var telemetry by
                 remember {
@@ -519,6 +523,7 @@ class MainActivity :
                         ),
                     )
                     calibrationStore.save(updated, nowUtc)
+                    calibrationProfile = updated
                 }
             }
 
@@ -1724,6 +1729,9 @@ class MainActivity :
 
                         calibrationDisclosureRequired =
                             !calibrationDisclosureAccepted,
+
+                        navigationCalibrationProfile =
+                            calibrationProfile,
 
                         onAcceptCalibrationDisclosure = {
                             calibrationDisclosureStore.accept()
