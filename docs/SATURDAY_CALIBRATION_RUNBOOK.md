@@ -30,7 +30,7 @@ Use a lawful, familiar route with safe places to stop. A passenger operates the 
 4. Establish and verify the USB reverse mapping with `adb reverse tcp:8787 tcp:8787`. If the mapping is missing, do not drive.
 5. Confirm location permission, precise-location availability, sensor availability and app foreground behavior. Do not infer unavailable capability.
 6. Confirm the displayed origin and selected destination correspond to the planned test. The bundled Vaduz bootstrap route is not valid evidence of a newly acquired route.
-7. In the parked Preview, exercise the local AI priority question. Confirm that fastest, shortest and profile-optimized choices produce the corresponding route-family request; do not treat the bundled bootstrap route as a successful live preview.
+7. In the parked Preview, exercise the local AI priority question. Confirm that the three common choices and at least one expanded route-family choice produce the corresponding route-family request; do not treat the bundled bootstrap route as a successful live preview.
 8. If testing learning, enable **Routenlernen** in AI settings first. Rate a successful live preview positively, confirm the stored recommendation is profile-local, then disable learning and confirm that the recommendation is removed. Repeat once with learning disabled and verify that the rating is not retained.
 9. Record the calibration profile's starting counters. Do not reset a personal profile; use an approved test profile or record the pre-run values.
 
