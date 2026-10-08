@@ -32,6 +32,8 @@ class SocialAiRoutePreferenceMemoryTest {
             NavigationRouteFamily.Shortest,
             SocialAiRoutePreferenceMemory.recall(repository, storeId),
         )
+        assertTrue(SocialAiRoutePreferenceMemory.forget(repository, storeId))
+        assertNull(SocialAiRoutePreferenceMemory.recall(repository, storeId))
     }
 
     @Test
