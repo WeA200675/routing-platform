@@ -1810,6 +1810,7 @@ private fun DestinationPlannerDialog(
     val focusManager =
         LocalFocusManager.current
     var routeQuestionOpen by remember { mutableStateOf(false) }
+    var moreRouteFamiliesOpen by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest =
@@ -1954,12 +1955,12 @@ private fun DestinationPlannerDialog(
                             Text("Welche Priorität soll die Routenvorschau haben?", fontWeight = FontWeight.SemiBold)
                             Text("Du kannst für jede Fahrt anders entscheiden.", style = MaterialTheme.typography.bodySmall)
                             Spacer(modifier = Modifier.height(6.dp))
-                            val choices = listOf(
+                            val commonChoices = listOf(
                                 NavigationRouteFamily.Fastest,
                                 NavigationRouteFamily.Shortest,
                                 NavigationRouteFamily.ProfileOptimal,
                             )
-                            choices.forEach { family ->
+                            commonChoices.forEach { family ->
                                 TextButton(
                                     modifier = Modifier.fillMaxWidth(),
                                     enabled = !busy && !socialAiBusy,
@@ -1969,6 +1970,36 @@ private fun DestinationPlannerDialog(
                                         onSocialAiCommand(socialAiCommand, family)
                                     },
                                 ) { Text(routeFamilyLabel(family)) }
+                            }
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = { moreRouteFamiliesOpen = !moreRouteFamiliesOpen },
+                            ) {
+                                Text(if (moreRouteFamiliesOpen) "Weniger Routenvarianten" else "Weitere Routenvarianten")
+                            }
+                            if (moreRouteFamiliesOpen) {
+                                val advancedChoices = listOf(
+                                    NavigationRouteFamily.MajorRoads,
+                                    NavigationRouteFamily.Comfort,
+                                    NavigationRouteFamily.LowUrban,
+                                    NavigationRouteFamily.LowCurvature,
+                                    NavigationRouteFamily.LowGradient,
+                                    NavigationRouteFamily.LowTraffic,
+                                    NavigationRouteFamily.Energy,
+                                    NavigationRouteFamily.Scenic,
+                                    NavigationRouteFamily.Stable,
+                                )
+                                advancedChoices.forEach { family ->
+                                    TextButton(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !busy && !socialAiBusy,
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            routeQuestionOpen = false
+                                            onSocialAiCommand(socialAiCommand, family)
+                                        },
+                                    ) { Text(routeFamilyLabel(family)) }
+                                }
                             }
                             TextButton(
                                 modifier = Modifier.fillMaxWidth(),
@@ -2790,4 +2821,13 @@ private fun routeFamilyLabel(family: NavigationRouteFamily): String =
         NavigationRouteFamily.Fastest -> "Schnellste Route"
         NavigationRouteFamily.Shortest -> "Kürzeste Route"
         NavigationRouteFamily.ProfileOptimal -> "Ausgewogen nach deinem Profil"
+        NavigationRouteFamily.MajorRoads -> "Hauptstraßen"
+        NavigationRouteFamily.Comfort -> "Komfort"
+        NavigationRouteFamily.LowUrban -> "Weniger städtisch"
+        NavigationRouteFamily.LowCurvature -> "Weniger kurvig"
+        NavigationRouteFamily.LowGradient -> "Weniger Steigung"
+        NavigationRouteFamily.LowTraffic -> "Weniger Verkehr (laut Routendaten)"
+        NavigationRouteFamily.Energy -> "Energiesparend"
+        NavigationRouteFamily.Scenic -> "Landschaftlich"
+        NavigationRouteFamily.Stable -> "Stabile Route"
     }
