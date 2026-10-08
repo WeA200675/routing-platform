@@ -43,6 +43,7 @@ import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
 import org.routingplatform.app.navigation.NavigationFaultCode
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
+import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationTripPlan
 import org.routingplatform.app.navigation.NavigationTripStop
@@ -231,8 +232,20 @@ internal fun NavigationScreen(
         Boolean =
         false,
 
+    socialAiRouteFeedbackAvailable: Boolean = false,
+    socialAiRouteFamily: NavigationRouteFamily = NavigationRouteFamily.ProfileOptimal,
+    rememberedRouteFamily: NavigationRouteFamily? = null,
+
     onSocialAiCommand:
         (String) -> Unit =
+        {},
+
+    onSocialAiCommandWithFamily:
+        (String, NavigationRouteFamily) -> Unit =
+        { command, _ -> onSocialAiCommand(command) },
+
+    onSocialAiRouteFeedback:
+        (Boolean) -> Unit =
         {},
 
     onMapTargetSelected:
@@ -1382,6 +1395,18 @@ internal fun NavigationScreen(
             socialAiBusy =
                 socialAiBusy,
 
+            socialAiRouteFeedbackAvailable =
+                socialAiRouteFeedbackAvailable,
+
+            socialAiRouteFamily =
+                socialAiRouteFamily,
+
+            rememberedRouteFamily =
+                rememberedRouteFamily,
+
+            onSocialAiRouteFeedback =
+                onSocialAiRouteFeedback,
+
             socialAiCommand =
                 socialAiCommand,
 
@@ -1390,7 +1415,7 @@ internal fun NavigationScreen(
             },
 
             onSocialAiCommand =
-                onSocialAiCommand,
+                onSocialAiCommandWithFamily,
 
             searchQuery =
                 searchQuery,
@@ -1707,6 +1732,18 @@ private fun DestinationPlannerDialog(
     socialAiBusy:
         Boolean,
 
+    socialAiRouteFeedbackAvailable:
+        Boolean,
+
+    socialAiRouteFamily:
+        NavigationRouteFamily,
+
+    rememberedRouteFamily:
+        NavigationRouteFamily?,
+
+    onSocialAiRouteFeedback:
+        (Boolean) -> Unit,
+
     socialAiCommand:
         String,
 
@@ -1714,7 +1751,7 @@ private fun DestinationPlannerDialog(
         (String) -> Unit,
 
     onSocialAiCommand:
-        (String) -> Unit,
+        (String, NavigationRouteFamily) -> Unit,
 
     searchQuery:
         String,
@@ -1772,6 +1809,7 @@ private fun DestinationPlannerDialog(
 ) {
     val focusManager =
         LocalFocusManager.current
+    var routeQuestionOpen by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest =
@@ -1893,10 +1931,10 @@ private fun DestinationPlannerDialog(
                     enabled = !busy && !socialAiBusy && socialAiCommand.trim().length in 2..512,
                     onClick = {
                         focusManager.clearFocus()
-                        onSocialAiCommand(socialAiCommand)
+                        routeQuestionOpen = true
                     },
                 ) {
-                    Text(if (socialAiBusy) "Lokale KI läuft …" else "Lokal interpretieren")
+                    Text(if (socialAiBusy) "Lokale KI läuft …" else "Routenpriorität wählen")
                 }
 
                 socialAiMessage
@@ -1906,6 +1944,67 @@ private fun DestinationPlannerDialog(
                         Text(text = message, style = MaterialTheme.typography.bodySmall)
                     }
 
+                if (routeQuestionOpen) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        tonalElevation = 2.dp,
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Welche Priorität soll die Routenvorschau haben?", fontWeight = FontWeight.SemiBold)
+                            Text("Du kannst für jede Fahrt anders entscheiden.", style = MaterialTheme.typography.bodySmall)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            val choices = listOf(
+                                NavigationRouteFamily.Fastest,
+                                NavigationRouteFamily.Shortest,
+                                NavigationRouteFamily.ProfileOptimal,
+                            )
+                            choices.forEach { family ->
+                                TextButton(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !busy && !socialAiBusy,
+                                    onClick = {
+                                        focusManager.clearFocus()
+                                        routeQuestionOpen = false
+                                        onSocialAiCommand(socialAiCommand, family)
+                                    },
+                                ) { Text(routeFamilyLabel(family)) }
+                            }
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !busy && !socialAiBusy,
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    routeQuestionOpen = false
+                                    onSocialAiCommand(
+                                        socialAiCommand,
+                                        rememberedRouteFamily ?: NavigationRouteFamily.ProfileOptimal,
+                                    )
+                                },
+                            ) {
+                                Text("Empfehlung übernehmen: ${routeFamilyLabel(rememberedRouteFamily ?: NavigationRouteFamily.ProfileOptimal)}")
+                            }
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = { routeQuestionOpen = false },
+                            ) { Text("Abbrechen") }
+                        }
+                    }
+                }
+
+                if (socialAiRouteFeedbackAvailable) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("War die ${routeFamilyLabel(socialAiRouteFamily)} passend?", fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { onSocialAiRouteFeedback(true) }) { Text("Ja, passt") }
+                        TextButton(
+                            onClick = {
+                                onSocialAiRouteFeedback(false)
+                                routeQuestionOpen = true
+                            },
+                        ) { Text("Andere Priorität") }
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
@@ -2684,3 +2783,11 @@ private fun InfoValue(
         )
     }
 }
+
+
+private fun routeFamilyLabel(family: NavigationRouteFamily): String =
+    when (family) {
+        NavigationRouteFamily.Fastest -> "Schnellste Route"
+        NavigationRouteFamily.Shortest -> "Kürzeste Route"
+        NavigationRouteFamily.ProfileOptimal -> "Ausgewogen nach deinem Profil"
+    }
