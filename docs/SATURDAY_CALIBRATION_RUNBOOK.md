@@ -19,11 +19,18 @@ Use a lawful, familiar route with safe places to stop. A passenger operates the 
 ## Host and device preflight
 
 1. Confirm the Android device is online over ADB and note device model, Android version, app version and candidate SHA.
-2. Start the local route service required by the field-test APK. Confirm `http://127.0.0.1:8787/ready` returns HTTP 200 on the host.
-3. Establish and verify the USB reverse mapping with `adb reverse tcp:8787 tcp:8787`. If the service is unavailable or the mapping is missing, do not drive.
-4. Confirm location permission, precise-location availability, sensor availability and app foreground behavior. Do not infer unavailable capability.
-5. Confirm the displayed origin and selected destination correspond to the planned test. The bundled Vaduz bootstrap route is not valid evidence of a newly acquired route.
-6. Record the calibration profile's starting counters. Do not reset a personal profile; use an approved test profile or record the pre-run values.
+2. Start `tools/navigation_route_service.py` backed by the locally built Valhalla route exporter and the read-only Valhalla config for the test area. Example (replace both placeholders with real absolute paths):
+
+   ```sh
+   python3 tools/navigation_route_service.py --listen 127.0.0.1 --port 8787 --executable /absolute/path/to/route-exporter --config /absolute/path/to/valhalla-test.json
+   ```
+
+   Keep it running on the host. The Android field APK sends the development header and expects this service contract. The `backend/osrm` Compose adapter is not interchangeable for this field APK: it is a separate adapter and does not expose the required `/ready` endpoint.
+3. Confirm `http://127.0.0.1:8787/ready` returns HTTP 200 on the host and reports every dependency check as ready. If it is not ready, do not connect the device or drive.
+4. Establish and verify the USB reverse mapping with `adb reverse tcp:8787 tcp:8787`. If the mapping is missing, do not drive.
+5. Confirm location permission, precise-location availability, sensor availability and app foreground behavior. Do not infer unavailable capability.
+6. Confirm the displayed origin and selected destination correspond to the planned test. The bundled Vaduz bootstrap route is not valid evidence of a newly acquired route.
+7. Record the calibration profile's starting counters. Do not reset a personal profile; use an approved test profile or record the pre-run values.
 
 ## Drive sequence
 
