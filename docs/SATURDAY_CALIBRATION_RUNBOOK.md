@@ -30,18 +30,21 @@ Use a lawful, familiar route with safe places to stop. A passenger operates the 
 4. Establish and verify the USB reverse mapping with `adb reverse tcp:8787 tcp:8787`. If the mapping is missing, do not drive.
 5. Confirm location permission, precise-location availability, sensor availability and app foreground behavior. Do not infer unavailable capability.
 6. Confirm the displayed origin and selected destination correspond to the planned test. The bundled Vaduz bootstrap route is not valid evidence of a newly acquired route.
-7. Record the calibration profile's starting counters. Do not reset a personal profile; use an approved test profile or record the pre-run values.
+7. In the parked Preview, exercise the local AI priority question. Confirm that fastest, shortest and profile-optimized choices produce the corresponding route-family request; do not treat the bundled bootstrap route as a successful live preview.
+8. If testing learning, enable **Routenlernen** in AI settings first. Rate a successful live preview positively, confirm the stored recommendation is profile-local, then disable learning and confirm that the recommendation is removed. Repeat once with learning disabled and verify that the rating is not retained.
+9. Record the calibration profile's starting counters. Do not reset a personal profile; use an approved test profile or record the pre-run values.
 
 ## Drive sequence
 
 Run only after all preflight checks pass. Use the same candidate and device throughout. Accept the first-use calibration disclosure while parked. After the drive, stop navigation and open **Kalibrierwerte** in Preview settings to read the accepted/rejected counts and best observed accuracy. This summary is hidden on the active driving surface and is a measurement only, not a route score or calibration pass.
 
 1. **Stationary baseline:** wait for a fresh direct location fix in an open-sky location. Record the app-reported confidence, fusion mode and horizontal accuracy where shown.
-2. **Open-sky segment:** follow the planned route without interacting with the device. Record missed/late maneuvers, route deviation prompts, Safety Hold events and whether progress resumes only after trusted observations.
-3. **Constrained reception segment:** if the route naturally includes an urban canyon or covered section, record loss/recovery behavior. Do not create a risky route to force signal loss; Safety Hold is an acceptable outcome when trusted positioning is unavailable.
-4. **Reroute check:** at a safe, preselected stopping point, use the passenger-operated test flow to verify reroute behavior. Never make an abrupt turn or stop to provoke a reroute.
-5. **Repeatability pass:** repeat a comparable segment once if time and conditions allow. Keep the route and test conditions the same; do not compare results from different candidate SHAs.
-6. **Post-drive check:** record final accepted/rejected calibration counters, best observed accuracy, route/session evidence identifiers, failures, app restarts and any observed safety holds. Treat these values as measurements, not as automatic calibration success.
+2. Confirm the AI route-priority question and rating controls are no longer on screen after starting navigation. Do not answer questions or rate routes while the vehicle is moving.
+3. **Open-sky segment:** follow the planned route without interacting with the device. Record missed/late maneuvers, route deviation prompts, Safety Hold events and whether progress resumes only after trusted observations.
+4. **Constrained reception segment:** if the route naturally includes an urban canyon or covered section, record loss/recovery behavior. Do not create a risky route to force signal loss; Safety Hold is an acceptable outcome when trusted positioning is unavailable.
+5. **Reroute check:** at a safe, preselected stopping point, use the passenger-operated test flow to verify reroute behavior. Never make an abrupt turn or stop to provoke a reroute.
+6. **Repeatability pass:** repeat a comparable segment once if time and conditions allow. Keep the route and test conditions the same; do not compare results from different candidate SHAs.
+7. **Post-drive check:** record final accepted/rejected calibration counters, best observed accuracy, route/session evidence identifiers, failures, app restarts and any observed safety holds. Treat these values as measurements, not as automatic calibration success.
 
 ## Evidence and go/no-go
 
