@@ -34,7 +34,7 @@ Use a lawful, familiar route with safe places to stop. A passenger operates the 
 
 ## Drive sequence
 
-Run only after all preflight checks pass. Use the same candidate and device throughout.
+Run only after all preflight checks pass. Use the same candidate and device throughout. Accept the first-use calibration disclosure while parked. After the drive, stop navigation and open **Kalibrierwerte** in Preview settings to read the accepted/rejected counts and best observed accuracy. This summary is hidden on the active driving surface and is a measurement only, not a route score or calibration pass.
 
 1. **Stationary baseline:** wait for a fresh direct location fix in an open-sky location. Record the app-reported confidence, fusion mode and horizontal accuracy where shown.
 2. **Open-sky segment:** follow the planned route without interacting with the device. Record missed/late maneuvers, route deviation prompts, Safety Hold events and whether progress resumes only after trusted observations.
