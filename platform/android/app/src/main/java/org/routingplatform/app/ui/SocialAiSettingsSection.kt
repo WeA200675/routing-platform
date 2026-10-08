@@ -80,8 +80,8 @@ internal fun SocialAiSettingsSection(
         SettingToggle(
             title = "Routenlernen",
             description =
-                "Speichert nur bestätigte Routenprioritäten lokal für dieses Profil. " +
-                    "Ziele und Koordinaten werden nicht dafür gespeichert.",
+                "Speichert nach einer positiven Bewertung nur die Routenpriorität lokal für dieses Profil. " +
+                    "Ziele und Koordinaten werden nicht gespeichert; Ausschalten löscht die gemerkte Priorität.",
             checked = preferences.learningEnabled,
             testTag = SocialAiUiTestTags.RouteLearningToggle,
             onCheckedChange = { enabled ->
