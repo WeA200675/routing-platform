@@ -31,6 +31,8 @@ on:
       - docs/G*_ACCEPTANCE.md
       - docs/P*_ACCEPTANCE.md
       - docs/ANDROID_FIELD_TEST_READINESS.md
+      - docs/SATURDAY_CALIBRATION_RUNBOOK.md
+      - docs/AI_ROUTE_PERSONALIZATION_MILESTONES.md
       - backend/**
   pull_request:
     branches:
@@ -51,6 +53,8 @@ on:
       - docs/G*_ACCEPTANCE.md
       - docs/P*_ACCEPTANCE.md
       - docs/ANDROID_FIELD_TEST_READINESS.md
+      - docs/SATURDAY_CALIBRATION_RUNBOOK.md
+      - docs/AI_ROUTE_PERSONALIZATION_MILESTONES.md
       - backend/**
 
 concurrency:
