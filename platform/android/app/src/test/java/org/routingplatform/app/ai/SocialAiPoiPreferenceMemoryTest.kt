@@ -48,6 +48,20 @@ class SocialAiPoiPreferenceMemoryTest {
     }
 
     @Test
+    fun helpfulCategoriesMoveUpAndNegativeRatingsMoveDown() {
+        val ordered = SocialAiPoiPreferenceMemory.orderedCategories(
+            mapOf(
+                "fuel" to SocialAiPoiCategoryFeedback(helpful = 3, notHelpful = 0),
+                "food" to SocialAiPoiCategoryFeedback(helpful = 0, notHelpful = 2),
+            )
+        )
+
+        assertEquals("fuel", ordered.first())
+        assertEquals("food", ordered.last())
+        assertEquals(SocialAiPoiPreferenceMemory.categories.size, ordered.distinct().size)
+    }
+
+    @Test
     fun queryCategoriesAreRecognizedWithoutKeepingPlaceNames() {
         assertEquals("fuel", SocialAiPoiPreferenceMemory.categoryForQuery("Ich muss kurz tanken"))
         assertEquals("charging", SocialAiPoiPreferenceMemory.categoryForQuery("E-Ladestation"))
