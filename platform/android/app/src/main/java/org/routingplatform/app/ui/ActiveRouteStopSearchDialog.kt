@@ -179,7 +179,7 @@ internal fun ActiveRouteStopSearchDialog(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    rankedResults.forEach { (result, distance) ->
+                    rankedResults.forEach { (result, _) ->
                         val selected = selectedResult?.id == result.id
                         Surface(
                             modifier = Modifier
