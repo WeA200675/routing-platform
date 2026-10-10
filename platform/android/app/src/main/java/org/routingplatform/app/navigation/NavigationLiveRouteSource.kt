@@ -521,14 +521,30 @@ object NavigationRouteSourceFactory {
                     it.isNotEmpty()
                 }
 
-        return AndroidOfflineValhallaRouteSource
-            .configured(
-                context =
-                    context,
+        val debugOfflineSource =
+            if (org.routingplatform.app.BuildConfig.DEBUG) {
+                runCatching {
+                    Class.forName(
+                        "org.routingplatform.app.navigation.DebugNavigationRouteSourceProvider"
+                    )
+                        .getMethod(
+                            "create",
+                            Context::class.java,
+                            String::class.java,
+                        )
+                        .invoke(null, context, endpointText) as? NavigationRouteSource
+                }.getOrNull()
+            } else {
+                null
+            }
 
-                endpointText =
-                    endpointText,
+        if (debugOfflineSource != null) return debugOfflineSource
+        return endpointText?.let {
+            AndroidHttpNavigationRouteSource(
+                context = context,
+                endpoint = URI(it),
             )
+        }
     }
 }
 
