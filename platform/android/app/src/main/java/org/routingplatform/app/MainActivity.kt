@@ -1791,12 +1791,14 @@ class MainActivity :
                         },
 
                         onOpenOfflineRoutingSetup = {
-                            startActivity(
-                                Intent(
-                                    this@MainActivity,
-                                    OfflineRoutingSetupActivity::class.java,
+                            if (BuildConfig.DEBUG) {
+                                startActivity(
+                                    Intent().setClassName(
+                                        this@MainActivity,
+                                        "org.routingplatform.app.OfflineRoutingSetupActivity",
+                                    )
                                 )
-                            )
+                            }
                         },
 
                         offlineRoutingDatasetSummary =
