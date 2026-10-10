@@ -10,6 +10,8 @@ import org.json.JSONObject
 import java.io.File
 import java.net.URI
 import java.util.UUID
+import java.util.Properties
+import java.io.FileInputStream
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicBoolean
@@ -75,11 +77,38 @@ internal class FallbackNavigationRouteSource(
 object AndroidOfflineRoutingDatasetStore {
     const val TILE_ARCHIVE_NAME = "valhalla-dach-merged.tar"
 
-    fun tileArchive(context: Context): File {
+    private fun directory(context: Context): File {
         val root = context.getExternalFilesDir(null) ?: context.filesDir
-        val directory = File(root, "routing-data")
-        if (!directory.exists()) directory.mkdirs()
-        return File(directory, TILE_ARCHIVE_NAME)
+        return File(root, "routing-data").apply { if (!exists()) mkdirs() }
+    }
+
+    fun tileArchive(context: Context): File =
+        File(directory(context), TILE_ARCHIVE_NAME)
+
+    fun metadataFile(context: Context): File =
+        File(directory(context), TILE_ARCHIVE_NAME + ".properties")
+
+    fun isInstalled(context: Context): Boolean {
+        val archive = tileArchive(context)
+        val metadata = metadataFile(context)
+        if (!archive.isFile || archive.length() <= 0L || !metadata.isFile) return false
+        return runCatching {
+            val values = Properties().apply {
+                FileInputStream(metadata).use { load(it) }
+            }
+            values.getProperty("schemaVersion") == "1" &&
+                values.getProperty("sizeBytes") == archive.length().toString() &&
+                values.getProperty("modifiedAt") == archive.lastModified().toString() &&
+                values.getProperty("sha256")?.matches(Regex("[a-f0-9]{64}")) == true &&
+                values.getProperty("valhallaVersion") == AndroidOfflineValhallaRouteSource.EXPECTED_VALHALLA_VERSION
+        }.getOrDefault(false)
+    }
+
+    fun installedSummary(context: Context): String {
+        if (!isInstalled(context)) return "DACH-Kartenpaket nicht installiert"
+        val archive = tileArchive(context)
+        val sizeGiB = archive.length().toDouble() / (1024.0 * 1024.0 * 1024.0)
+        return "DACH-Kartenpaket bereit · " + String.format(java.util.Locale.GERMANY, "%.1f GB", sizeGiB)
     }
 }
 
@@ -127,25 +156,36 @@ internal class AndroidOfflineValhallaRouteSource(
             synchronized(engineLock) {
                 engine?.close()
                 engine = null
+                engineDatasetKey = null
             }
         }
     }
 
     private fun route(request: NavigationRouteRequest): NavigationRouteContract {
-        check(tileArchive.isFile && tileArchive.length() > 0L) {
-            "On-device DACH routing data is not installed."
+        check(AndroidOfflineRoutingDatasetStore.isInstalled(appContext)) {
+            "On-device DACH routing data is not installed or failed its integrity checks."
         }
         val raw = engine().routeRaw(buildRequestJson(request))
         return parseResponse(raw, request.family)
     }
 
     private fun engine(): Valhalla =
-        engine ?: synchronized(engineLock) {
+        synchronized(engineLock) {
+            val metadata = AndroidOfflineRoutingDatasetStore.metadataFile(appContext)
+            val datasetKey = metadata.readText().hashCode().toString()
+            if (engineDatasetKey != datasetKey) {
+                engine?.close()
+                engine = null
+                engineDatasetKey = datasetKey
+            }
             engine ?: Valhalla(
                 appContext,
                 ValhallaConfigFactory.usingTileExtract(tileArchive.absolutePath),
             ).also { engine = it }
         }
+
+    @Volatile
+    private var engineDatasetKey: String? = null
 
     private fun buildRequestJson(request: NavigationRouteRequest): String {
         val options = when (request.family) {
