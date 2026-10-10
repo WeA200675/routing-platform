@@ -183,6 +183,102 @@ class NavigationRouteLifecycleController(
             }
     }
 
+    /**
+     * Replaces the active route only after a complete replacement has been
+     * acquired and the same navigation session is still active. A failed
+     * lookup leaves the current route and guidance untouched.
+     */
+    fun replaceNavigatingRoute(
+        request: NavigationRouteRequest,
+        snapshotProvider: () -> NavigationUiSnapshot,
+        onSnapshot: (NavigationUiSnapshot) -> Unit,
+        onTelemetry: (NavigationRouteAcquisitionTelemetry) -> Unit,
+    ) {
+        val initial = snapshotProvider()
+        if (initial.state != NavigationSessionState.Navigating) {
+            onTelemetry(
+                NavigationRouteAcquisitionTelemetry(
+                    state = NavigationRouteAcquisitionState.RerouteFailed,
+                    message = "Zwischenziel abgebrochen – Navigation ist nicht aktiv.",
+                )
+            )
+            return
+        }
+
+        cancelActiveRequest()
+        val generation = nextGeneration()
+        val sessionId = initial.sessionId
+        rerouteInFlight = true
+        onTelemetry(
+            NavigationRouteAcquisitionTelemetry(
+                state = NavigationRouteAcquisitionState.Rerouting,
+                message = "Zwischenziel wird geprüft – aktuelle Route bleibt aktiv.",
+            )
+        )
+
+        activeHandle = source.acquire(request) { result ->
+            if (generation != requestGeneration) return@acquire
+            activeHandle = null
+
+            val current = snapshotProvider()
+            if (current.state != NavigationSessionState.Navigating ||
+                current.sessionId != sessionId
+            ) {
+                rerouteInFlight = false
+                onTelemetry(
+                    NavigationRouteAcquisitionTelemetry(
+                        state = NavigationRouteAcquisitionState.RerouteFailed,
+                        message = "Neue Route verworfen – Navigation hat sich inzwischen geändert.",
+                    )
+                )
+                return@acquire
+            }
+
+            result.fold(
+                onSuccess = { route ->
+                    runCatching {
+                        bridge.replaceNavigatingRoute(route)
+                    }.onSuccess { updated ->
+                        activeRouteContract = route
+                        activeRequest = request
+                        rerouteDecisionEngine.reset()
+                        rerouteInFlight = false
+                        onSnapshot(updated)
+                        onTelemetry(
+                            NavigationRouteAcquisitionTelemetry(
+                                state = NavigationRouteAcquisitionState.LiveReady,
+                                message = "Zwischenziel übernommen – Navigation läuft auf der aktualisierten Route weiter.",
+                            )
+                        )
+                    }.onFailure { error ->
+                        rerouteInFlight = false
+                        val fault = NavigationReliabilityClassifier.fromThrowable(error)
+                        onTelemetry(
+                            NavigationRouteAcquisitionTelemetry(
+                                state = NavigationRouteAcquisitionState.RerouteFailed,
+                                message = "Neue Route konnte nicht sicher übernommen werden. Die bisherige Navigation bleibt aktiv: " +
+                                    fault.userMessage,
+                                fault = fault,
+                            )
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    rerouteInFlight = false
+                    val fault = NavigationReliabilityClassifier.fromThrowable(error)
+                    onTelemetry(
+                        NavigationRouteAcquisitionTelemetry(
+                            state = NavigationRouteAcquisitionState.RerouteFailed,
+                            message = "Keine sichere Route zum Zwischenziel gefunden. Die bisherige Navigation bleibt aktiv: " +
+                                fault.userMessage,
+                            fault = fault,
+                        )
+                    )
+                },
+            )
+        }
+    }
+
     fun observeTelemetry(
         telemetry:
             NavigationRuntimeTelemetry,
