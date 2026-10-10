@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,6 +71,7 @@ internal fun NavigationScreen(
     onStartNavigation: () -> Unit,
     onStopNavigation: () -> Unit,
     onAdvanceProgress: () -> Unit,
+    onRestartNavigation: () -> Unit = {},
 
     calibrationDisclosureRequired: Boolean = false,
     onAcceptCalibrationDisclosure: () -> Unit = {},
@@ -503,10 +505,15 @@ internal fun NavigationScreen(
                     runtimeDisplayPreferences,
 
                 automaticNightMode =
-                    nightPresentation
-                        .active &&
-                        nightPresentation
-                            .nightMode,
+                    snapshot.state ==
+                        NavigationSessionState
+                            .Navigating ||
+                        (
+                            nightPresentation
+                                .active &&
+                                nightPresentation
+                                    .nightMode
+                        ),
 
                 automaticMapZoomEnabled =
                     navigationPreferences
@@ -810,6 +817,43 @@ internal fun NavigationScreen(
                         }
                 }
 
+                if (
+                    snapshot.state ==
+                        NavigationSessionState.Navigating
+                ) {
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        horizontalArrangement =
+                            Arrangement.SpaceBetween,
+
+                        verticalAlignment =
+                            Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text =
+                                "Karte: Dunkel",
+
+                            style =
+                                MaterialTheme.typography.bodySmall,
+                        )
+
+                        TextButton(
+                            enabled =
+                                nightPresentation.brightnessCorrection >
+                                    NAVIGATION_BRIGHTNESS_CORRECTION_MIN,
+
+                            onClick = {
+                                focusMode.notifyUserActivity()
+                                onNightBrightnessDarker()
+                            },
+                        ) {
+                            Text("Display dunkler")
+                        }
+                    }
+                }
+
                 Spacer(
                     modifier =
                         Modifier.height(16.dp)
@@ -832,6 +876,9 @@ internal fun NavigationScreen(
                 NavigationPrimaryControl(
                     presentation =
                         navigationControl,
+
+                    onRestartNavigation =
+                        onRestartNavigation,
 
                     onPrimaryAction = {
                         when (
@@ -2667,6 +2714,9 @@ private fun NavigationPrimaryControl(
     presentation:
         NavigationControlPresentation,
 
+    onRestartNavigation:
+        () -> Unit,
+
     onPrimaryAction:
         () -> Unit,
 
@@ -2779,6 +2829,21 @@ private fun NavigationPrimaryControl(
                         }
                     )
                 }
+            }
+        }
+
+        if (presentation.destructive) {
+            OutlinedButton(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
+                        .testTag("navigation-restart"),
+
+                onClick =
+                    onRestartNavigation,
+            ) {
+                Text("Neu starten")
             }
         }
     }
