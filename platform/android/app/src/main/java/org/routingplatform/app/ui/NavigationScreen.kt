@@ -60,6 +60,7 @@ import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.NavigationControlSide
 import org.routingplatform.app.profile.NavigationHapticIntensity
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
+import org.routingplatform.app.profile.ProfileMapOrientation
 import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoicePreferences
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
@@ -502,6 +503,20 @@ internal fun NavigationScreen(
 
                 trustedTravelBearingDegrees =
                     trustedTravelBearingDegrees,
+
+                onMapOrientationToggle = {
+                    val nextOrientation =
+                        if (displayPreferences.mapOrientation == ProfileMapOrientation.HeadingUp) {
+                            ProfileMapOrientation.NorthUp
+                        } else {
+                            ProfileMapOrientation.HeadingUp
+                        }
+                    onDisplayPreferencesChanged(
+                        displayPreferences.copy(
+                            mapOrientation = nextOrientation,
+                        )
+                    )
+                },
 
                 displayPreferences =
                     runtimeDisplayPreferences,

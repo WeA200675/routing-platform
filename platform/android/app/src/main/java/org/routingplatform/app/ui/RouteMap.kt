@@ -1,6 +1,7 @@
 package org.routingplatform.app.ui
 
 import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -102,6 +103,10 @@ fun RouteMap(
     focusModeActive:
         Boolean =
         false,
+
+    onMapOrientationToggle:
+        () -> Unit =
+        {},
 
     onMapTap:
         () -> Unit =
@@ -1160,6 +1165,8 @@ fun RouteMap(
                             end =
                                 8.dp,
                         ),
+                onClick =
+                    onMapOrientationToggle,
             )
         }
 
@@ -1254,10 +1261,19 @@ private fun NavigationCompass(
     modifier:
         Modifier =
         Modifier,
+
+    onClick:
+        () -> Unit =
+        {},
 ) {
     Surface(
         modifier =
-            modifier,
+            modifier.clickable(
+                onClickLabel =
+                    "Kartenrichtung wechseln",
+                onClick =
+                    onClick,
+            ),
 
         tonalElevation =
             6.dp,
