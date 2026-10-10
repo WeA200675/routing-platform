@@ -67,6 +67,10 @@ android {
 }
 
 dependencies {
+    implementation("io.github.rallista:valhalla-mobile:0.6.3")
+    implementation("io.github.rallista:valhalla-models:0.5.2")
+    implementation("io.github.rallista:valhalla-models-config:0.5.2")
+
     val composeBom =
         platform(
             "androidx.compose:compose-bom:2026.06.00"
