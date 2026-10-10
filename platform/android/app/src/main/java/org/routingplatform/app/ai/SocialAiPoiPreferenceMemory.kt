@@ -31,6 +31,16 @@ object SocialAiPoiPreferenceMemory {
         "lodging",
     )
 
+    fun orderedCategories(
+        feedback: Map<String, SocialAiPoiCategoryFeedback>,
+    ): List<String> =
+        categories.withIndex()
+            .sortedWith(
+                compareByDescending<IndexedValue<String>> { feedback[it.value]?.score ?: 0 }
+                    .thenBy { it.index }
+            )
+            .map { it.value }
+
     private const val KEY_PREFIX = "poi.category."
     private const val MAX_RATINGS_PER_KIND = 10_000
 
