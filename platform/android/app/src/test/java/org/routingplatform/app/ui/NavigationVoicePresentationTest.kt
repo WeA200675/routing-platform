@@ -432,8 +432,14 @@ class NavigationVoicePresentationTest {
 
         val criticalCue =
             NavigationVoicePresentation.cue(
-                snapshot = snapshot(distanceMeters = 20.0),
+                snapshot = snapshot(
+                    distanceMeters = 20.0,
+                    maneuverType = ManeuverType.Exit,
+                ),
                 voice = voice(),
+                navigationPreferences = NavigationPreferences(
+                    repeatCriticalInstructions = true,
+                ),
                 personality = preferences,
             )
 

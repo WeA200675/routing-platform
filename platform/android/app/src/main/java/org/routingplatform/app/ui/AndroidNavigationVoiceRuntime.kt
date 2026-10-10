@@ -810,15 +810,16 @@ private class AndroidTextToSpeechNavigationSpeaker(
             )
         }
 
-        val pitchApplied =
-            runCatching {
-                engine.setPitch(
-                    speechPitch
-                        .toFloat()
-                ) != TextToSpeech.ERROR
-            }.getOrDefault(false)
+        // Pitch is an optional presentation effect. If a device TTS engine
+        // does not support it, keep navigation speech available at neutral pitch.
+        runCatching {
+            engine.setPitch(
+                speechPitch
+                    .toFloat()
+            )
+        }
 
-        return pitchApplied && runCatching {
+        return runCatching {
             engine.setSpeechRate(
                 speechRate
                     .toFloat()
