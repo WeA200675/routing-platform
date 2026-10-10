@@ -28,6 +28,7 @@ import org.routingplatform.app.ai.SocialAiProductRuntime
 import org.routingplatform.app.ai.AndroidSocialAiMemoryStore
 import org.routingplatform.app.ai.SocialAiLearningRepository
 import org.routingplatform.app.ai.SocialAiRoutePreferenceMemory
+import org.routingplatform.app.ai.SocialAiPoiPreferenceMemory
 import org.routingplatform.app.ai.DeterministicDestinationFallback
 import org.routingplatform.app.ai.SocialAiProductionRoutingResult
 import org.routingplatform.app.ai.SocialAiRoutingIntent
@@ -229,6 +230,14 @@ class MainActivity :
             }
             val routePreferenceStoreId = remember(activeProfile.profileId) {
                 SocialAiRoutePreferenceMemory.storeId(activeProfile.profileId)
+            }
+            var learnedPoiCategoryFeedback by remember(routePreferenceStoreId) {
+                mutableStateOf(
+                    SocialAiPoiPreferenceMemory.recall(
+                        socialAiLearningRepository,
+                        routePreferenceStoreId,
+                    )
+                )
             }
             var rememberedRouteFamily by remember(
                 activeProfile.profileId,
@@ -2862,6 +2871,23 @@ class MainActivity :
                             maximumDetourMinutes = activeRouteMaximumDetourMinutes,
                             onMaximumDetourMinutesChange = {
                                 activeRouteMaximumDetourMinutes = it
+                            },
+                            learnedPoiPreferences = learnedPoiCategoryFeedback,
+                            onPoiFeedback = { category, helpful ->
+                                runCatching {
+                                    val updated = SocialAiPoiPreferenceMemory.recordFeedback(
+                                        repository = socialAiLearningRepository,
+                                        storeId = routePreferenceStoreId,
+                                        category = category,
+                                        helpful = helpful,
+                                        nowEpochMillis = System.currentTimeMillis(),
+                                    )
+                                    learnedPoiCategoryFeedback =
+                                        learnedPoiCategoryFeedback + (category to updated)
+                                }.onFailure {
+                                    destinationPlannerMessage =
+                                        "Bewertung konnte nicht gespeichert werden."
+                                }
                             },
                             onSearch = { query ->
                                 activeRouteStopSearchQuery = query
