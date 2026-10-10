@@ -814,6 +814,15 @@ class MainActivity :
                     destinationSearchHandle =
                         null
 
+                    activeRouteCandidateGeneration += 1
+                    activeRouteCandidateHandle?.cancel()
+                    activeRouteCandidateHandle = null
+                    activeRoutePoiEvaluationInProgress = false
+                    activeRoutePoiEvaluationComplete = false
+                    activeRoutePoiEvaluationUnavailable = false
+                    activeRoutePoiRouteEstimates = emptyMap()
+                    destinationSearchResults = emptyList()
+
                     destinationPlannerBusy =
                         true
 
