@@ -36,19 +36,25 @@ internal class FallbackNavigationRouteSource(
         var primaryHandle: NavigationRouteAcquisitionHandle? = null
         var fallbackHandle: NavigationRouteAcquisitionHandle? = null
 
-        primaryHandle = primary.acquire(request) { firstResult ->
-            if (cancelled.get() || closed.get()) return@acquire
-            if (firstResult.isSuccess) {
-                onResult(firstResult)
-            } else {
-                synchronized(lock) {
-                    if (cancelled.get() || closed.get()) return@synchronized
-                    fallbackHandle = fallback.acquire(request) { fallbackResult ->
-                        if (!cancelled.get() && !closed.get()) onResult(fallbackResult)
+        primaryHandle = primary.acquire(
+            request = request,
+            onResult = primaryResult@{ firstResult ->
+                if (cancelled.get() || closed.get()) return@primaryResult
+                if (firstResult.isSuccess) {
+                    onResult(firstResult)
+                } else {
+                    synchronized(lock) {
+                        if (cancelled.get() || closed.get()) return@synchronized
+                        fallbackHandle = fallback.acquire(
+                            request = request,
+                            onResult = fallbackResult@{ result ->
+                                if (!cancelled.get() && !closed.get()) onResult(result)
+                            },
+                        )
                     }
                 }
-            }
-        }
+            },
+        )
 
         return object : NavigationRouteAcquisitionHandle {
             override fun cancel() {
