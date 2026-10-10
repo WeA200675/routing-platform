@@ -2943,6 +2943,12 @@ class MainActivity :
                             snapshot.state ==
                                 NavigationSessionState.Navigating,
 
+                        safetyStatus =
+                            telemetry.safetyStatus,
+
+                        lastLocationAccuracyM =
+                            telemetry.lastLocationAccuracyM,
+
                         modifier =
                             Modifier.align(
                                 Alignment.TopEnd
