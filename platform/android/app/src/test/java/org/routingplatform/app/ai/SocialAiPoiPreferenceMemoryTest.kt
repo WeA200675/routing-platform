@@ -53,7 +53,7 @@ class SocialAiPoiPreferenceMemoryTest {
         assertEquals("charging", SocialAiPoiPreferenceMemory.categoryForQuery("E-Ladestation"))
         assertEquals("food", SocialAiPoiPreferenceMemory.categoryForQuery("Bäckerei"))
         assertEquals("restroom", SocialAiPoiPreferenceMemory.categoryForQuery("WC"))
-        assertNull(SocialAiPoiPreferenceMemory.categoryForQuery("Café am Marktplatz 12"))
+        assertNull(SocialAiPoiPreferenceMemory.categoryForQuery("LGT am Marktplatz 12"))
     }
 
     private class InMemoryPersistence : SocialAiMemoryPersistence {
