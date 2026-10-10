@@ -2731,7 +2731,7 @@ class MainActivity :
                             },
                             onAddStop = { result ->
                                 runCatching {
-                                    tripPlan.appendVia(
+                                    tripPlan.prependVia(
                                         NavigationTripStop(
                                             point = result.point,
                                             label = result.displayText,
