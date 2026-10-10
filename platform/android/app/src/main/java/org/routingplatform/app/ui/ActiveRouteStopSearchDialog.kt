@@ -101,7 +101,7 @@ internal fun ActiveRouteStopSearchDialog(
                 Text("Was brauchst du unterwegs?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Nenne einen Ort oder wähle eine Kategorie. Ich vergleiche erreichbare Treffer mit der Route und deinem Umweglimit. Du bestätigst den Stopp; bis zur erfolgreichen Berechnung bleibt die Navigation unverändert.",
+                    "Nenne einen Ort oder wähle eine Kategorie. Ich vergleiche erreichbare Treffer mit der Route und deinem Umweglimit. Bewerte Treffer: Ich merke mir daraus nur deine Kategorievorlieben, keine Orte oder Routen. Du bestätigst den Stopp; bis zur erfolgreichen Berechnung bleibt die Navigation unverändert.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(14.dp))
