@@ -191,6 +191,7 @@ class MainActivity :
             }
             var activeRoutePoiEvaluationInProgress by remember { mutableStateOf(false) }
             var activeRoutePoiEvaluationComplete by remember { mutableStateOf(false) }
+            var activeRoutePoiEvaluationUnavailable by remember { mutableStateOf(false) }
             var activeRouteCandidateHandle by remember {
                 mutableStateOf<NavigationRouteAcquisitionHandle?>(null)
             }
@@ -674,6 +675,7 @@ class MainActivity :
                         activeRouteCandidateHandle = null
                         activeRoutePoiRouteEstimates = emptyMap()
                         activeRoutePoiEvaluationComplete = false
+                        activeRoutePoiEvaluationUnavailable = false
 
                         if (results.isEmpty()) {
                             activeRoutePoiEvaluationInProgress = false
@@ -685,6 +687,7 @@ class MainActivity :
                             if (router == null) {
                                 activeRoutePoiEvaluationInProgress = false
                                 activeRoutePoiEvaluationComplete = true
+                                activeRoutePoiEvaluationUnavailable = true
                                 destinationPlannerMessage =
                                     "Routenvergleich nicht verfügbar. Deine aktive Route bleibt unverändert."
                             } else {
@@ -715,6 +718,7 @@ class MainActivity :
                                                     activeRoutePoiEvaluationComplete = true
                                                     evaluationResult.fold(
                                                         onSuccess = { evaluation ->
+                                                            activeRoutePoiEvaluationUnavailable = false
                                                             activeRoutePoiRouteEstimates =
                                                                 evaluation.rankedCandidates.associate { ranked ->
                                                                     ranked.candidate.candidateId to
@@ -731,6 +735,7 @@ class MainActivity :
                                                                 }
                                                         },
                                                         onFailure = { error ->
+                                                            activeRoutePoiEvaluationUnavailable = true
                                                             activeRoutePoiRouteEstimates = emptyMap()
                                                             destinationPlannerMessage =
                                                                 "Routenvergleich fehlgeschlagen: ${error.message ?: "Dienst nicht erreichbar"}. Deine aktive Route bleibt unverändert."
@@ -749,6 +754,7 @@ class MainActivity :
                                                 if (generation == activeRouteCandidateGeneration) {
                                                     activeRoutePoiEvaluationInProgress = false
                                                     activeRoutePoiEvaluationComplete = true
+                                                    activeRoutePoiEvaluationUnavailable = true
                                                     activeRoutePoiRouteEstimates = emptyMap()
                                                     destinationPlannerMessage =
                                                         "Aktuelle Position für den Routenvergleich nicht verfügbar: ${error.message ?: "unbekannter Fehler"}."
@@ -2840,6 +2846,7 @@ class MainActivity :
                             routeEstimates = activeRoutePoiRouteEstimates,
                             routeEvaluationInProgress = activeRoutePoiEvaluationInProgress,
                             routeEvaluationComplete = activeRoutePoiEvaluationComplete,
+                            routeEvaluationUnavailable = activeRoutePoiEvaluationUnavailable,
                             busy = destinationPlannerBusy,
                             message = destinationPlannerMessage,
                             maximumViaPointsReached = tripPlan.viaPoints.size >= 16,
