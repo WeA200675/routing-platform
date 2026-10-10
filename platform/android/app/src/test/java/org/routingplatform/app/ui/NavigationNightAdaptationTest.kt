@@ -41,6 +41,22 @@ class NavigationNightAdaptationTest {
     }
 
     @Test
+    fun navigationWindowBrightnessStaysWithinReducedRange() {
+        assertEquals(
+            0.04f,
+            NavigationNightAdaptationPolicy.windowBrightness(1),
+            0.0001f,
+        )
+        assertEquals(
+            0.35f,
+            NavigationNightAdaptationPolicy.windowBrightness(
+                NAVIGATION_BRIGHTNESS_LEVEL_COUNT
+            ),
+            0.0001f,
+        )
+    }
+
+    @Test
     fun lowLuxEntersNightMode() {
         val presentation =
             NavigationNightAdaptationPolicy
