@@ -250,22 +250,22 @@ class NavigationMultiHypothesisRouteMatcher(
                 )
 
         val hypotheses =
-            buildList {
-                for (candidate in candidates) {
-                    val isDuplicateShapePosition =
-                        any {
-                            abs(
-                                it.alongRouteDistanceM -
-                                    candidate.alongRouteDistanceM
-                            ) < minimumDistinctRouteSeparationM
-                        }
+            mutableListOf<NavigationRouteHypothesis>()
 
-                    if (!isDuplicateShapePosition) {
-                        add(candidate)
-                        if (size >= maximumHypotheses) break
-                    }
+        for (candidate in candidates) {
+            val isDuplicateShapePosition =
+                hypotheses.any { existing ->
+                    abs(
+                        existing.alongRouteDistanceM -
+                            candidate.alongRouteDistanceM
+                    ) < minimumDistinctRouteSeparationM
                 }
+
+            if (!isDuplicateShapePosition) {
+                hypotheses.add(candidate)
+                if (hypotheses.size >= maximumHypotheses) break
             }
+        }
 
         return NavigationRouteMatchResult(
             hypotheses =
