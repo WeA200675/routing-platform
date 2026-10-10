@@ -111,7 +111,7 @@ class NavigationMultiHypothesisRouteMatcher(
                     .conservativeHorizontalSigmaM,
             )
 
-        val hypotheses =
+        val candidates =
             (0 until route.lastIndex)
                 .map {
                         segmentIndex ->
@@ -235,9 +235,37 @@ class NavigationMultiHypothesisRouteMatcher(
                         it.alongRouteDistanceM
                     }
                 )
-                .take(
-                    maximumHypotheses
+
+        /*
+         * Neighboring shape segments often project the same GPS fix to
+         * the same point at a shared vertex. They are one route hypothesis,
+         * not competing roads. Cluster only very nearby progress positions;
+         * a real crossing or loop remains a separate hypothesis.
+         */
+        val minimumDistinctRouteSeparationM =
+            (uncertaintyM * 1.5)
+                .coerceIn(
+                    MINIMUM_ROUTE_HYPOTHESIS_SEPARATION_M,
+                    MAXIMUM_ROUTE_HYPOTHESIS_SEPARATION_M,
                 )
+
+        val hypotheses =
+            buildList {
+                for (candidate in candidates) {
+                    val isDuplicateShapePosition =
+                        any {
+                            abs(
+                                it.alongRouteDistanceM -
+                                    candidate.alongRouteDistanceM
+                            ) < minimumDistinctRouteSeparationM
+                        }
+
+                    if (!isDuplicateShapePosition) {
+                        add(candidate)
+                        if (size >= maximumHypotheses) break
+                    }
+                }
+            }
 
         return NavigationRouteMatchResult(
             hypotheses =
@@ -614,6 +642,12 @@ private const val RADIANS_TO_DEGREES =
 
 private const val MINIMUM_POSITION_SIGMA_M =
     3.0
+
+private const val MINIMUM_ROUTE_HYPOTHESIS_SEPARATION_M =
+    6.0
+
+private const val MAXIMUM_ROUTE_HYPOTHESIS_SEPARATION_M =
+    15.0
 
 private const val BACKWARD_TOLERANCE_M =
     3.0
