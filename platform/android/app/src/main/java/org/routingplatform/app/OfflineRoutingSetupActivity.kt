@@ -62,7 +62,7 @@ class OfflineRoutingSetupActivity : ComponentActivity() {
 
                     worker.execute {
                         val result = runCatching {
-                            AndroidOfflineRoutingDatasetInstaller.import(
+                            AndroidOfflineRoutingDatasetInstaller.install(
                                 context = applicationContext,
                                 source = uri,
                                 onProgress = { progress: OfflineRoutingImportProgress ->
