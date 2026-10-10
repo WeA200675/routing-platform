@@ -3,6 +3,9 @@ package org.routingplatform.app.ui
 import org.routingplatform.app.navigation.ManeuverType
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationUiSnapshot
+import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
+import org.routingplatform.app.profile.NavigationPersonalityPreferences
+import org.routingplatform.app.profile.NavigationPersonalityTone
 import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoiceGuidanceVerbosity
 import org.routingplatform.app.profile.VoicePreferences
@@ -61,6 +64,10 @@ internal data class NavigationVoiceCue(
 
     val speechRate:
         Double,
+
+    val speechPitch:
+        Double =
+        1.0,
 )
 
 internal object NavigationVoicePresentation {
@@ -84,6 +91,10 @@ internal object NavigationVoicePresentation {
         navigationPreferences:
             NavigationPreferences =
             NavigationPreferences(),
+
+        personality:
+            NavigationPersonalityPreferences =
+            NavigationPersonalityPreferences(),
     ): NavigationVoiceCue? {
         if (
             !voice.enabled ||
@@ -141,6 +152,22 @@ internal object NavigationVoicePresentation {
                     ?: return null
             }
 
+        val activePack =
+            ExperiencePackRuntimeResolver
+                .resolvePackOverride(personality)
+
+        // Keep the maneuver wording unchanged. Galactic adds a subtle pitch
+        // signature only to ordinary lead-in cues; critical repeats stay neutral.
+        val speechPitch =
+            if (
+                stage != NavigationVoiceCueStage.CriticalRepeat &&
+                activePack?.tone == NavigationPersonalityTone.Futuristic
+            ) {
+                1.08
+            } else {
+                1.0
+            }
+
         return NavigationVoiceCue(
             key =
                 NavigationVoiceCueKey(
@@ -177,6 +204,9 @@ internal object NavigationVoicePresentation {
 
             speechRate =
                 voice.speechRate,
+
+            speechPitch =
+                speechPitch,
         )
     }
 

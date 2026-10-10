@@ -72,6 +72,9 @@ internal class AndroidNavigationVoiceRuntime(
 
         navigationPreferences:
             NavigationPreferences,
+
+        personality:
+            NavigationPersonalityPreferences,
     ) {
         playback.present(
             snapshot =
@@ -82,6 +85,9 @@ internal class AndroidNavigationVoiceRuntime(
 
             navigationPreferences =
                 navigationPreferences,
+
+            personality =
+                personality,
         )
     }
 
@@ -165,6 +171,7 @@ internal fun rememberNavigationVoiceRuntime(
         snapshot,
         effectiveVoice,
         navigationPreferences,
+        personality,
     ) {
         runtime.present(
             snapshot =
@@ -175,6 +182,9 @@ internal fun rememberNavigationVoiceRuntime(
 
             navigationPreferences =
                 navigationPreferences,
+
+            personality =
+                personality,
         )
     }
 
@@ -656,6 +666,10 @@ private class AndroidTextToSpeechNavigationSpeaker(
                 speechRate =
                     cue
                         .speechRate,
+
+                speechPitch =
+                    cue
+                        .speechPitch,
             )
         ) {
             return false
@@ -697,6 +711,10 @@ private class AndroidTextToSpeechNavigationSpeaker(
 
         speechRate:
             Double,
+
+        speechPitch:
+            Double =
+            1.0,
     ): Boolean {
         val locale =
             Locale.forLanguageTag(
@@ -792,7 +810,15 @@ private class AndroidTextToSpeechNavigationSpeaker(
             )
         }
 
-        return runCatching {
+        val pitchApplied =
+            runCatching {
+                engine.setPitch(
+                    speechPitch
+                        .toFloat()
+                ) != TextToSpeech.ERROR
+            }.getOrDefault(false)
+
+        return pitchApplied && runCatching {
             engine.setSpeechRate(
                 speechRate
                     .toFloat()

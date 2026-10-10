@@ -412,6 +412,35 @@ class NavigationVoicePresentationTest {
                     ),
             )
 
+    @Test
+    fun galacticPackChangesNonCriticalProsodyWithoutChangingManeuverText() {
+        val preferences =
+            NavigationPersonalityPreferences(
+                selectedPackId = ExperiencePackCatalog.GALACTIC_PACK_ID,
+                selectionSource = ExperiencePackSelectionSource.Explicit,
+            )
+
+        val prepareCue =
+            NavigationVoicePresentation.cue(
+                snapshot = snapshot(distanceMeters = 180.0),
+                voice = voice(),
+                personality = preferences,
+            )
+
+        assertEquals("In 120 Metern rechts abbiegen", prepareCue?.text)
+        assertEquals(1.08, prepareCue?.speechPitch ?: 1.0, 0.001)
+
+        val criticalCue =
+            NavigationVoicePresentation.cue(
+                snapshot = snapshot(distanceMeters = 20.0),
+                voice = voice(),
+                personality = preferences,
+            )
+
+        assertEquals("In 120 Metern rechts abbiegen", criticalCue?.text)
+        assertEquals(1.0, criticalCue?.speechPitch ?: 0.0, 0.001)
+    }
+
     private fun voice(
         enabled:
             Boolean =

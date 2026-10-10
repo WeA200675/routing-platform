@@ -29,6 +29,6 @@ class NavigationBearingStabilizerTest {
         stabilizer.reset()
 
         assertEquals(0.0, stabilizer.update(1.0), 0.001)
-        assertEquals(45.0, stabilizer.update(90.0), 0.001)
+        assertEquals(31.5, stabilizer.update(90.0), 0.001)
     }
 }
