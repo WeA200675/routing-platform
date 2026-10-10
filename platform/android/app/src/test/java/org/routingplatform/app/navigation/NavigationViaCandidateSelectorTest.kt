@@ -32,6 +32,23 @@ class NavigationViaCandidateSelectorTest {
     }
 
     @Test
+    fun routeRankingExposesEveryCandidateWithActualExtraTimeAndDistance() {
+        val selector = NavigationViaCandidateSelector()
+        val ranked = selector.rank(
+            baseline = route("base", 1_000.0, 10_000.0),
+            candidates = listOf(
+                candidate("farther", 1_300.0, 12_000.0),
+                candidate("nearer", 1_100.0, 10_500.0),
+            ),
+        )
+
+        assertEquals(listOf("nearer", "farther"), ranked.map { it.candidate.candidateId })
+        assertEquals(100.0, ranked.first().addedDurationS, 0.0)
+        assertEquals(500.0, ranked.first().addedDistanceM, 0.0)
+        assertEquals(300.0, ranked.last().addedDurationS, 0.0)
+    }
+
+    @Test
     fun closeEngineRoutesRequireUserClarification() {
         val result =
             NavigationViaCandidateSelector(
