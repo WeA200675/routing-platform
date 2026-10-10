@@ -214,6 +214,11 @@ fun RouteMap(
                 )
         }
 
+    val bearingStabilizer =
+        remember {
+            NavigationBearingStabilizer()
+        }
+
     val mapView =
         remember {
             MapView(context).also {
@@ -1050,6 +1055,16 @@ fun RouteMap(
                             distanceToCurrentManeuverEndM,
                     )
 
+            val stableMapBearing =
+                if (compassPresentation.headingUpActive) {
+                    bearingStabilizer.update(
+                        compassPresentation.mapBearingDegrees
+                    )
+                } else {
+                    bearingStabilizer.reset()
+                    0.0
+                }
+
             map.cameraPosition =
                 CameraPosition
                     .Builder()
@@ -1071,8 +1086,7 @@ fun RouteMap(
                             .mapTiltDegrees
                     )
                     .bearing(
-                        compassPresentation
-                            .mapBearingDegrees
+                        stableMapBearing
                     )
                     .build()
         } else {
