@@ -21,6 +21,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import org.maplibre.android.MapLibre
 import org.routingplatform.app.ai.SocialAiProductRuntime
 import org.routingplatform.app.ai.AndroidSocialAiMemoryStore
@@ -51,6 +53,8 @@ import org.routingplatform.app.navigation.NavigationRouteAcquisitionTelemetry
 import org.routingplatform.app.navigation.NavigationRouteBootstrap
 import org.routingplatform.app.navigation.NavigationRouteIntentRequest
 import org.routingplatform.app.navigation.NavigationRouteLifecycleController
+import org.routingplatform.app.navigation.NavigationRouteRequest
+import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.NavigationViaCandidateRouter
 import org.routingplatform.app.navigation.NavigationViaCandidateSelection
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionHandle
@@ -84,6 +88,8 @@ import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
+import org.routingplatform.app.ui.ActiveRouteStopSearchButton
+import org.routingplatform.app.ui.ActiveRouteStopSearchDialog
 import org.routingplatform.app.ui.RoutingPlatformTheme
 import org.routingplatform.app.ui.rememberNavigationHapticRuntime
 import org.routingplatform.app.ui.rememberNavigationVoiceRuntime
@@ -174,6 +180,10 @@ class MainActivity :
                         >()
                     )
                 }
+
+            var activeRouteStopSearchOpen by remember { mutableStateOf(false) }
+            var activeRouteStopSearchQuery by remember { mutableStateOf("") }
+            var activeRouteMaximumDetourMinutes by remember { mutableIntStateOf(10) }
 
             var destinationPlannerMessage by
                 remember {
@@ -646,11 +656,11 @@ class MainActivity :
                     rawQuery ->
 
                     if (
-                        snapshot.state !=
-                            NavigationSessionState.Preview
+                        snapshot.state != NavigationSessionState.Preview &&
+                        snapshot.state != NavigationSessionState.Navigating
                     ) {
                         destinationPlannerMessage =
-                            "Navigation zuerst stoppen, bevor ein neues Ziel gesucht wird."
+                            "Zielsuche ist in diesem Navigationsstatus nicht verfügbar."
 
                         return@search
                     }
@@ -1124,195 +1134,121 @@ class MainActivity :
 
             val requestTripPlanRoute:
                 (NavigationTripPlan) -> Unit =
-                routeRequest@ {
-                    requestedPlan ->
-
-                    if (
-                        snapshot.state !=
-                            NavigationSessionState.Preview
-                    ) {
-                        destinationPlannerMessage =
-                            "Navigation zuerst stoppen, bevor der Reiseplan geändert wird."
-
+                routeRequest@ { requestedPlan ->
+                    val navigating = snapshot.state == NavigationSessionState.Navigating
+                    if (!navigating && snapshot.state != NavigationSessionState.Preview) {
+                        destinationPlannerMessage = "Der Reiseplan kann in diesem Status nicht geändert werden."
                         return@routeRequest
                     }
+                    if (destinationPlannerBusy) return@routeRequest
 
-                    if (
-                        destinationPlannerBusy
-                    ) {
+                    val controller = routeLifecycleController
+                    if (controller == null) {
+                        destinationPlannerMessage = "Live-Routing ist nicht konfiguriert."
                         return@routeRequest
                     }
-
-                    val controller =
-                        routeLifecycleController
-
-                    if (
-                        controller ==
-                            null
-                    ) {
+                    if (!hasPreciseNavigationLocationPermission(applicationContext)) {
                         destinationPlannerMessage =
-                            "Live-Routing ist nicht konfiguriert."
-
-                        return@routeRequest
-                    }
-
-                    if (
-                        !hasPreciseNavigationLocationPermission(
-                            applicationContext
-                        )
-                    ) {
-                        destinationPlannerMessage =
-                            "Präzise Standortfreigabe erforderlich. Nach der Freigabe Ziel erneut bestätigen."
-
+                            "Präzise Standortfreigabe erforderlich. Nach der Freigabe Zwischenziel erneut bestätigen."
                         permissionLauncher.launch(
                             arrayOf(
                                 Manifest.permission.ACCESS_FINE_LOCATION,
                                 Manifest.permission.ACCESS_COARSE_LOCATION,
                             )
                         )
-
                         return@routeRequest
                     }
 
-                    destinationSearchHandle
-                        ?.cancel()
+                    val detourBudgetSeconds =
+                        if (navigating) activeRouteMaximumDetourMinutes * 60.0 else null
 
-                    destinationSearchHandle =
-                        null
-
-                    destinationPlannerBusy =
-                        true
-
+                    destinationSearchHandle?.cancel()
+                    destinationSearchHandle = null
+                    destinationPlannerBusy = true
                     destinationPlannerMessage =
-                        "Aktuelle Position wird für die Routenplanung bestimmt …"
-
-                    planningLocationController
-                        .request {
-                                planningResult ->
-
-                            planningResult.fold(
-                                onSuccess = {
-                                        planningLocation ->
-
-                                    val request =
-                                        requestedPlan
-                                            .toRouteRequest(
-                                                origin =
-                                                    planningLocation
-                                                        .position,
-
-                                                family =
-                                                    initialRouteRequest
-                                                        .family,
-                                            )
-
-                                    destinationPlannerMessage =
-                                        "Routenvorschau wird berechnet …"
-
-                                    controller
-                                        .loadInitial(
-                                            request =
-                                                request,
-
-                                            snapshotProvider = {
-                                                snapshot
-                                            },
-
-                                            onSnapshot = {
-                                                    updatedSnapshot ->
-
-                                                /*
-                                                 * Installing a newly
-                                                 * planned route is still
-                                                 * a Preview-only route-data
-                                                 * operation. It does not
-                                                 * start navigation and does
-                                                 * not create JNI progress.
-                                                 */
-                                                snapshot =
-                                                    updatedSnapshot
-
-                                                tripPlan =
-                                                    requestedPlan
-
-                                                selectedTripStop =
-                                                    null
-
-                                                progressStep =
-                                                    0
-                                            },
-
-                                            onTelemetry = {
-                                                    updatedAcquisition ->
-
-                                                routeAcquisitionTelemetry =
-                                                    updatedAcquisition
-
-                                                when (
-                                                    updatedAcquisition
-                                                        .state
-                                                ) {
-                                                    NavigationRouteAcquisitionState.LoadingInitial -> {
-                                                        destinationPlannerBusy =
-                                                            true
-
-                                                        destinationPlannerMessage =
-                                                            "Routenvorschau wird berechnet …"
-                                                    }
-
-                                                    NavigationRouteAcquisitionState.LiveReady -> {
-                                                        destinationPlannerBusy =
-                                                            false
-
-                                                        destinationPlannerMessage =
-                                                            "Routenvorschau aktualisiert."
-                                                    }
-
-                                                    NavigationRouteAcquisitionState.LiveFailed,
-                                                    NavigationRouteAcquisitionState.RerouteFailed -> {
-                                                        destinationPlannerBusy =
-                                                            false
-
-                                                        destinationPlannerMessage =
-                                                            updatedAcquisition
-                                                                .message
-                                                    }
-
-                                                    NavigationRouteAcquisitionState.FallbackReady -> {
-                                                        destinationPlannerBusy =
-                                                            false
-
-                                                        destinationPlannerMessage =
-                                                            updatedAcquisition
-                                                                .message
-                                                    }
-
-                                                    NavigationRouteAcquisitionState.Rerouting,
-                                                    NavigationRouteAcquisitionState.Refreshing -> {
-                                                        destinationPlannerBusy =
-                                                            true
-
-                                                        destinationPlannerMessage =
-                                                            updatedAcquisition
-                                                                .message
-                                                    }
-                                                }
-                                            },
-                                        )
-                                },
-
-                                onFailure = {
-                                        error ->
-
-                                    destinationPlannerBusy =
-                                        false
-
-                                    destinationPlannerMessage =
-                                        error.message
-                                            ?: "Aktuelle Position ist für die Routenplanung nicht verfügbar."
-                                },
-                            )
+                        if (navigating) {
+                            "Aktuelle Position wird geprüft. Deine laufende Route bleibt bis zur erfolgreichen Neuberechnung aktiv."
+                        } else {
+                            "Aktuelle Position wird für die Routenvorschau bestimmt …"
                         }
+
+                    planningLocationController.request { planningResult ->
+                        planningResult.fold(
+                            onSuccess = { planningLocation ->
+                                val request = requestedPlan.toRouteRequest(
+                                    origin = planningLocation.position,
+                                    family = initialRouteRequest.family,
+                                )
+
+                                destinationPlannerMessage =
+                                    if (navigating) "Zwischenzielroute wird berechnet …"
+                                    else "Routenvorschau wird berechnet …"
+
+                                val snapshotConsumer: (NavigationUiSnapshot) -> Unit = { updatedSnapshot ->
+                                    snapshot = updatedSnapshot
+                                    tripPlan = requestedPlan
+                                    selectedTripStop = null
+                                    progressStep = 0
+                                }
+                                val telemetryConsumer: (NavigationRouteAcquisitionTelemetry) -> Unit = { updatedAcquisition ->
+                                    routeAcquisitionTelemetry = updatedAcquisition
+                                    when (updatedAcquisition.state) {
+                                        NavigationRouteAcquisitionState.LoadingInitial -> {
+                                            destinationPlannerBusy = true
+                                            destinationPlannerMessage = "Routenvorschau wird berechnet …"
+                                        }
+                                        NavigationRouteAcquisitionState.LiveReady -> {
+                                            destinationPlannerBusy = false
+                                            destinationPlannerMessage =
+                                                if (navigating) {
+                                                    "Zwischenziel eingefügt. Die Navigation läuft auf der neuen Route weiter."
+                                                } else {
+                                                    "Routenvorschau aktualisiert."
+                                                }
+                                            if (navigating) activeRouteStopSearchOpen = false
+                                        }
+                                        NavigationRouteAcquisitionState.LiveFailed,
+                                        NavigationRouteAcquisitionState.RerouteFailed -> {
+                                            destinationPlannerBusy = false
+                                            destinationPlannerMessage = updatedAcquisition.message
+                                        }
+                                        NavigationRouteAcquisitionState.FallbackReady -> {
+                                            destinationPlannerBusy = false
+                                            destinationPlannerMessage = updatedAcquisition.message
+                                        }
+                                        NavigationRouteAcquisitionState.Rerouting,
+                                        NavigationRouteAcquisitionState.Refreshing -> {
+                                            destinationPlannerBusy = true
+                                            destinationPlannerMessage = updatedAcquisition.message
+                                        }
+                                    }
+                                }
+
+                                if (navigating) {
+                                    controller.replaceNavigatingRoute(
+                                        request = request,
+                                        snapshotProvider = { snapshot },
+                                        onSnapshot = snapshotConsumer,
+                                        onTelemetry = telemetryConsumer,
+                                        maximumExtraDurationSeconds = detourBudgetSeconds,
+                                    )
+                                } else {
+                                    controller.loadInitial(
+                                        request = request,
+                                        snapshotProvider = { snapshot },
+                                        onSnapshot = snapshotConsumer,
+                                        onTelemetry = telemetryConsumer,
+                                    )
+                                }
+                            },
+                            onFailure = { error ->
+                                destinationPlannerBusy = false
+                                destinationPlannerMessage =
+                                    error.message
+                                        ?: "Aktuelle Position ist für die Routenplanung nicht verfügbar. Die bestehende Navigation bleibt aktiv."
+                            },
+                        )
+                    }
                 }
 
             /*
@@ -2762,6 +2698,61 @@ class MainActivity :
                             }
                         },
                     )
+
+                    if (snapshot.state == NavigationSessionState.Navigating) {
+                        ActiveRouteStopSearchButton(
+                            onClick = {
+                                activeRouteStopSearchOpen = true
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 14.dp, bottom = 238.dp),
+                        )
+                    }
+
+                    if (activeRouteStopSearchOpen &&
+                        snapshot.state == NavigationSessionState.Navigating
+                    ) {
+                        ActiveRouteStopSearchDialog(
+                            query = activeRouteStopSearchQuery,
+                            onQueryChange = { activeRouteStopSearchQuery = it },
+                            results = destinationSearchResults,
+                            routeGeometry = snapshot.geometry,
+                            busy = destinationPlannerBusy,
+                            message = destinationPlannerMessage,
+                            maximumViaPointsReached = tripPlan.viaPoints.size >= 16,
+                            maximumDetourMinutes = activeRouteMaximumDetourMinutes,
+                            onMaximumDetourMinutesChange = {
+                                activeRouteMaximumDetourMinutes = it
+                            },
+                            onSearch = { query ->
+                                activeRouteStopSearchQuery = query
+                                searchDestination(query)
+                            },
+                            onAddStop = { result ->
+                                runCatching {
+                                    tripPlan.appendVia(
+                                        NavigationTripStop(
+                                            point = result.point,
+                                            label = result.displayText,
+                                        )
+                                    )
+                                }.onSuccess { updatedPlan ->
+                                    destinationPlannerMessage =
+                                        "Zwischenziel wird mit dem gewählten Umwegbudget berechnet …"
+                                    requestTripPlanRoute(updatedPlan)
+                                }.onFailure { error ->
+                                    destinationPlannerMessage =
+                                        error.message ?: "Zwischenziel konnte nicht hinzugefügt werden."
+                                }
+                            },
+                            onDismiss = {
+                                if (!destinationPlannerBusy) {
+                                    activeRouteStopSearchOpen = false
+                                }
+                            },
+                        )
+                    }
 
                     NavigationAssistOverlay(
                         criticalEventAhead =
