@@ -12,10 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationPositionConfidence
 import org.routingplatform.app.navigation.NavigationRouteEventAhead
 import org.routingplatform.app.navigation.NavigationRuntimePipelineStatus
+import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
 import org.routingplatform.app.navigation.NavigationStartOrientationInfo
 
 @Composable
@@ -39,6 +41,14 @@ fun NavigationAssistOverlay(
     modifier:
         Modifier =
         Modifier,
+
+    safetyStatus:
+        NavigationRouteProgressSafetyStatus? =
+        null,
+
+    lastLocationAccuracyM:
+        Double? =
+        null,
 ) {
     if (
         criticalEventAhead ==
@@ -186,6 +196,46 @@ fun NavigationAssistOverlay(
                             .typography
                             .bodySmall,
                 )
+
+                if (
+                    runtimeStatus ==
+                        NavigationRuntimePipelineStatus.SafetyHold
+                ) {
+                    Text(
+                        text =
+                            "Grund: " +
+                                safetyHoldReasonText(
+                                    safetyStatus
+                                ),
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+
+                        fontWeight =
+                            FontWeight.SemiBold,
+                    )
+
+                    lastLocationAccuracyM
+                        ?.takeIf {
+                            it.isFinite() &&
+                                it >= 0.0
+                        }
+                        ?.let {
+                            Text(
+                                text =
+                                    "Letzter GPS-Fix: ca. " +
+                                        it.roundToInt() +
+                                        " m; Freigabe prüft zusätzlich die Positionsfolge.",
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodySmall,
+                            )
+                        }
+                }
             }
 
             if (
@@ -228,6 +278,34 @@ fun NavigationAssistOverlay(
         }
     }
 }
+
+private fun safetyHoldReasonText(
+    status:
+        NavigationRouteProgressSafetyStatus?,
+): String =
+    when (status) {
+        NavigationRouteProgressSafetyStatus.HeldLowConfidence ->
+            "Positionskonfidenz zu niedrig"
+
+        NavigationRouteProgressSafetyStatus.HeldAmbiguous ->
+            "mehrere Routenstellen passen zur Position"
+
+        NavigationRouteProgressSafetyStatus.HeldOffRoute ->
+            "GPS-Position liegt zu weit von der Route"
+
+        NavigationRouteProgressSafetyStatus.HeldBackward ->
+            "Positionssprung rückwärts wird geprüft"
+
+        NavigationRouteProgressSafetyStatus.HeldForwardJump ->
+            "Positionssprung voraus wird geprüft"
+
+        NavigationRouteProgressSafetyStatus.HeldNoEstimate,
+        null ->
+            "kein gültiger Positionswert"
+
+        NavigationRouteProgressSafetyStatus.Accepted ->
+            "Position bestätigt"
+    }
 
 private fun criticalEventText(
     eventAhead:
