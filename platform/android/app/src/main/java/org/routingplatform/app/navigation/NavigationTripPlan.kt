@@ -75,6 +75,24 @@ data class NavigationTripPlan(
                 destination
         )
 
+    fun prependVia(
+        via:
+            NavigationTripStop,
+    ): NavigationTripPlan {
+        require(
+            viaPoints.size <
+                MAX_NAVIGATION_TRIP_VIA_POINTS
+        ) {
+            "Too many trip via points."
+        }
+
+        return copy(
+            viaPoints =
+                listOf(via) +
+                    viaPoints
+        )
+    }
+
     fun appendVia(
         via:
             NavigationTripStop,
