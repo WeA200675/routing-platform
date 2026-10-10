@@ -91,41 +91,59 @@ object AndroidOfflineRoutingDatasetInstaller {
             }
 
             require(copiedBytes > 0L) { "Die ausgewählte Datei ist leer." }
-            val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
+            val sha256 = digest.digest().joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
             validateRoute(appContext, temporary)
-
-            val previousArchiveMoved = active.exists() && active.renameTo(backup)
-            val previousMetadataMoved = metadata.exists() && metadata.renameTo(metadataBackup)
-            if (!temporary.renameTo(active)) {
-                if (previousArchiveMoved) backup.renameTo(active)
-                if (previousMetadataMoved) metadataBackup.renameTo(metadata)
-                error("Das geprüfte Kartenpaket konnte nicht aktiviert werden.")
-            }
-
-            val properties = Properties().apply {
-                setProperty("schemaVersion", "1")
-                setProperty("sha256", sha256)
-                setProperty("sizeBytes", copiedBytes.toString())
-                setProperty("modifiedAt", active.lastModified().toString())
-                setProperty(
-                    "valhallaVersion",
-                    AndroidOfflineValhallaRouteSource.EXPECTED_VALHALLA_VERSION,
-                )
-            }
-            FileOutputStream(metadataTemporary).use { output ->
-                properties.store(output, "Validated offline routing dataset")
-                output.fd.sync()
-            }
-            if (!metadataTemporary.renameTo(metadata)) {
-                active.delete()
-                if (previousArchiveMoved) backup.renameTo(active)
-                if (previousMetadataMoved) metadataBackup.renameTo(metadata)
-                error("Die Integritätsdaten konnten nicht gespeichert werden.")
-            }
 
             backup.delete()
             metadataBackup.delete()
-            return OfflineRoutingImportResult(copiedBytes, sha256)
+            var previousArchiveMoved = false
+            var previousMetadataMoved = false
+            var newArchiveActivated = false
+            try {
+                if (active.exists()) {
+                    check(active.renameTo(backup)) {
+                        "Das bisherige Kartenpaket konnte nicht sicher gesichert werden."
+                    }
+                    previousArchiveMoved = true
+                }
+                if (metadata.exists()) {
+                    check(metadata.renameTo(metadataBackup)) {
+                        "Die bisherigen Integritätsdaten konnten nicht gesichert werden."
+                    }
+                    previousMetadataMoved = true
+                }
+                check(temporary.renameTo(active)) {
+                    "Das geprüfte Kartenpaket konnte nicht aktiviert werden."
+                }
+                newArchiveActivated = true
+
+                val properties = Properties().apply {
+                    setProperty("schemaVersion", "1")
+                    setProperty("sha256", sha256)
+                    setProperty("sizeBytes", copiedBytes.toString())
+                    setProperty("modifiedAt", active.lastModified().toString())
+                    setProperty(
+                        "valhallaVersion",
+                        AndroidOfflineValhallaRouteSource.EXPECTED_VALHALLA_VERSION,
+                    )
+                }
+                FileOutputStream(metadataTemporary).use { output ->
+                    properties.store(output, "Validated offline routing dataset")
+                    output.fd.sync()
+                }
+                check(metadataTemporary.renameTo(metadata)) {
+                    "Die Integritätsdaten konnten nicht gespeichert werden."
+                }
+
+                backup.delete()
+                metadataBackup.delete()
+                return OfflineRoutingImportResult(copiedBytes, sha256)
+            } catch (activationError: Throwable) {
+                if (newArchiveActivated) active.delete()
+                if (previousArchiveMoved) backup.renameTo(active)
+                if (previousMetadataMoved) metadataBackup.renameTo(metadata)
+                throw activationError
+            }
         } catch (error: Throwable) {
             temporary.delete()
             metadataTemporary.delete()
