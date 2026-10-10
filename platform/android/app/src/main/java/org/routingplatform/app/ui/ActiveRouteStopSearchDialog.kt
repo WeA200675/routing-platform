@@ -41,12 +41,20 @@ internal fun ActiveRouteStopSearchButton(
     }
 }
 
+internal data class ActiveRoutePoiRouteEstimate(
+    val addedDurationSeconds: Double,
+    val addedDistanceMeters: Double,
+)
+
 @Composable
 internal fun ActiveRouteStopSearchDialog(
     query: String,
     onQueryChange: (String) -> Unit,
     results: List<DestinationSearchResult>,
     routeGeometry: List<RoutePoint>,
+    routeEstimates: Map<String, ActiveRoutePoiRouteEstimate>,
+    routeEvaluationInProgress: Boolean,
+    routeEvaluationComplete: Boolean,
     busy: Boolean,
     message: String?,
     maximumViaPointsReached: Boolean,
@@ -57,10 +65,21 @@ internal fun ActiveRouteStopSearchDialog(
     onDismiss: () -> Unit,
 ) {
     var selectedResult by remember { mutableStateOf<DestinationSearchResult?>(null) }
-    val rankedResults = remember(results, routeGeometry) {
-        results.map { result ->
-            result to distanceFromRouteMeters(result.point, routeGeometry)
-        }.sortedBy { it.second }
+    val rankedResults = remember(results, routeGeometry, routeEstimates, routeEvaluationComplete) {
+        val ordered = if (routeEstimates.isNotEmpty()) {
+            results.sortedWith(
+                compareBy<DestinationSearchResult> {
+                    routeEstimates[it.id]?.addedDurationSeconds ?: Double.POSITIVE_INFINITY
+                }.thenBy {
+                    routeEstimates[it.id]?.addedDistanceMeters ?: Double.POSITIVE_INFINITY
+                }
+            )
+        } else {
+            results.sortedBy { distanceFromRouteMeters(it.point, routeGeometry) }
+        }
+        ordered.map { result ->
+            result to routeEstimates[result.id]
+        }
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -151,7 +170,11 @@ internal fun ActiveRouteStopSearchDialog(
                 if (rankedResults.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "Treffer – nach Luftliniennähe zur eingezeichneten Route sortiert",
+                        if (routeEstimates.isNotEmpty()) {
+                            "Treffer – nach tatsächlich berechneter Zusatzfahrzeit sortiert"
+                        } else {
+                            "Treffer – vorläufig nach Luftliniennähe zur Route sortiert"
+                        },
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -171,10 +194,34 @@ internal fun ActiveRouteStopSearchDialog(
                                 result.secondaryLabel?.takeIf { it.isNotBlank() }?.let {
                                     Text(it, style = MaterialTheme.typography.bodySmall)
                                 }
-                                Text(
-                                    "Luftlinie zur Route: ${distance.roundToInt()} m",
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
+                                val estimate = routeEstimates[result.id]
+                                when {
+                                    estimate != null -> {
+                                        val extraMinutes = kotlin.math.ceil(
+                                            estimate.addedDurationSeconds / 60.0
+                                        ).toInt()
+                                        val overBudget =
+                                            estimate.addedDurationSeconds > maximumDetourMinutes * 60.0
+                                        Text(
+                                            "Fahr-Umweg: +${extraMinutes} min · +${(estimate.addedDistanceMeters / 1000.0 * 10.0).roundToInt() / 10.0} km" +
+                                                if (overBudget) " · über deinem Limit" else " · innerhalb deines Limits",
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    }
+                                    routeEvaluationInProgress -> Text(
+                                        "Echte Fahrzeit wird berechnet …",
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                    routeEvaluationComplete -> Text(
+                                        "Keine passende Fahrroute berechnet",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                    else -> Text(
+                                        "Umweg noch nicht geprüft",
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                }
                             }
                         }
                     }
@@ -188,7 +235,19 @@ internal fun ActiveRouteStopSearchDialog(
                 Spacer(Modifier.height(14.dp))
                 Button(
                     onClick = { selectedResult?.let(onAddStop) },
-                    enabled = !busy && !maximumViaPointsReached && selectedResult != null,
+                    enabled = !busy &&
+                        !maximumViaPointsReached &&
+                        selectedResult != null &&
+                        !routeEvaluationInProgress &&
+                        (
+                            !routeEvaluationComplete ||
+                                routeEstimates.containsKey(selectedResult?.id)
+                        ) &&
+                        (
+                            selectedResult?.let { routeEstimates[it.id] }
+                                ?.let { it.addedDurationSeconds <= maximumDetourMinutes * 60.0 }
+                                ?: true
+                        ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
