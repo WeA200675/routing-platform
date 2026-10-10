@@ -76,6 +76,19 @@ class NavigationTripPlanTest {
     }
 
     @Test
+    fun prependViaAddsNewStopBeforeExistingStops() {
+        val existing = NavigationTripStop(RoutePoint(47.1500, 9.5200), "Existing")
+        val newStop = NavigationTripStop(RoutePoint(47.1550, 9.5150), "Restaurant")
+
+        val updated = NavigationTripPlan(
+            destination = destination,
+            viaPoints = listOf(existing),
+        ).prependVia(newStop)
+
+        assertEquals(listOf(newStop, existing), updated.viaPoints)
+    }
+
+    @Test
     fun routeRequestPreservesDestinationViaOrderAndFamily() {
         val first =
             NavigationTripStop(
