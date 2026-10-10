@@ -83,6 +83,63 @@ class NavigationRouteProgressSafetyGateTest {
     }
 
     @Test
+    fun adjacentShapeSegmentsAtOneWaypointDoNotCreateFalseAmbiguity() {
+        val denseRoute =
+            (0..10).map { index ->
+                RoutePoint(
+                    latitude = 47.0000 + index * 0.0001,
+                    longitude = 9.0000,
+                )
+            }
+
+        val decision =
+            NavigationRouteProgressSafetyGate()
+                .evaluate(
+                    denseRoute,
+                    fusion(
+                        estimate(
+                            latitude = 47.0005,
+                            timestamp = 1_000_000_000L,
+                        )
+                    ),
+                )
+
+        assertEquals(
+            NavigationRouteProgressSafetyStatus.Accepted,
+            decision.status,
+        )
+        assertTrue(decision.mayUpdateNativeRuntime)
+    }
+
+    @Test
+    fun genuinelyRepeatedRouteLocationRemainsAmbiguous() {
+        val crossing =
+            listOf(
+                RoutePoint(47.0000, 9.0000),
+                RoutePoint(47.0010, 9.0010),
+                RoutePoint(47.0020, 9.0000),
+                RoutePoint(47.0010, 9.0010),
+                RoutePoint(47.0030, 9.0010),
+            )
+        val location =
+            estimate(
+                latitude = 47.0010,
+                longitude = 9.0010,
+                timestamp = 1_000_000_000L,
+            ).copy(bearingDegrees = null)
+
+        val decision =
+            NavigationRouteProgressSafetyGate()
+                .evaluate(crossing, fusion(location))
+
+        assertEquals(
+            NavigationRouteProgressSafetyStatus.HeldAmbiguous,
+            decision.status,
+        )
+        assertFalse(decision.mayUpdateNativeRuntime)
+    }
+
+    @Test
     fun backwardJumpIsHeldAndLastAcceptedProgressIsPreserved() {
         val gate =
             NavigationRouteProgressSafetyGate()
