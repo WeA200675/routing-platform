@@ -193,7 +193,11 @@ class NavigationRouteLifecycleController(
         snapshotProvider: () -> NavigationUiSnapshot,
         onSnapshot: (NavigationUiSnapshot) -> Unit,
         onTelemetry: (NavigationRouteAcquisitionTelemetry) -> Unit,
+        maximumExtraDurationSeconds: Double? = null,
     ) {
+        require(maximumExtraDurationSeconds == null ||
+            (maximumExtraDurationSeconds.isFinite() && maximumExtraDurationSeconds >= 0.0)
+        ) { "Maximum route detour must be finite and non-negative." }
         val initial = snapshotProvider()
         if (initial.state != NavigationSessionState.Navigating) {
             onTelemetry(
@@ -236,6 +240,23 @@ class NavigationRouteLifecycleController(
 
             result.fold(
                 onSuccess = { route ->
+                    val latest = snapshotProvider()
+                    if (maximumExtraDurationSeconds != null) {
+                        val extraDuration = (route.durationS - latest.remainingDurationS)
+                            .coerceAtLeast(0.0)
+                        if (extraDuration > maximumExtraDurationSeconds) {
+                            rerouteInFlight = false
+                            val extraMinutes = kotlin.math.ceil(extraDuration / 60.0).toInt()
+                            val allowedMinutes = kotlin.math.floor(maximumExtraDurationSeconds / 60.0).toInt()
+                            onTelemetry(
+                                NavigationRouteAcquisitionTelemetry(
+                                    state = NavigationRouteAcquisitionState.RerouteFailed,
+                                    message = "Der berechnete Umweg beträgt etwa $extraMinutes Minuten und überschreitet dein Limit von $allowedMinutes Minuten. Die bisherige Route bleibt aktiv.",
+                                )
+                            )
+                            return@fold
+                        }
+                    }
                     runCatching {
                         bridge.replaceNavigatingRoute(route)
                     }.onSuccess { updated ->
