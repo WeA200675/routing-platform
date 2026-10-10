@@ -28,6 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import org.routingplatform.app.navigation.RoutePoint
+import org.routingplatform.app.ai.SocialAiPoiCategoryFeedback
+import org.routingplatform.app.ai.SocialAiPoiPreferenceMemory
 import org.routingplatform.app.places.DestinationSearchResult
 import kotlin.math.roundToInt
 
@@ -61,11 +63,15 @@ internal fun ActiveRouteStopSearchDialog(
     maximumViaPointsReached: Boolean,
     maximumDetourMinutes: Int,
     onMaximumDetourMinutesChange: (Int) -> Unit,
+    learnedPoiPreferences: Map<String, SocialAiPoiCategoryFeedback>,
+    onPoiFeedback: (String, Boolean) -> Unit,
     onSearch: (String) -> Unit,
     onAddStop: (DestinationSearchResult) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var selectedResult by remember { mutableStateOf<DestinationSearchResult?>(null) }
+    var feedbackGiven by remember(query) { mutableStateOf(emptySet<String>()) }
+    val queryCategory = SocialAiPoiPreferenceMemory.categoryForQuery(query)
     val rankedResults = remember(results, routeGeometry, routeEstimates, routeEvaluationComplete) {
         val ordered = if (routeEstimates.isNotEmpty()) {
             results.sortedWith(
@@ -113,22 +119,42 @@ internal fun ActiveRouteStopSearchDialog(
                 Spacer(Modifier.height(6.dp))
                 Text("Schnellsuche", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 val categories = listOf(
-                    "Restaurant", "Tankstelle", "E-Ladestation", "Parkplatz",
-                    "WC", "Apotheke", "Supermarkt", "Hotel",
+                    "food" to "Restaurant",
+                    "fuel" to "Tankstelle",
+                    "charging" to "E-Ladestation",
+                    "parking" to "Parkplatz",
+                    "restroom" to "WC",
+                    "pharmacy" to "Apotheke",
+                    "groceries" to "Supermarkt",
+                    "lodging" to "Hotel",
+                ).withIndex()
+                    .sortedWith(
+                        compareByDescending<IndexedValue<Pair<String, String>>> {
+                            learnedPoiPreferences[it.value.first]?.score ?: 0
+                        }.thenBy { it.index }
+                    )
+                    .map { it.value }
+                Text(
+                    "Häufig hilfreich bewertet zuerst",
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 categories.chunked(2).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { category ->
+                        row.forEach { (categoryId, label) ->
+                            val feedback = learnedPoiPreferences[categoryId]
                             OutlinedButton(
                                 enabled = !busy,
                                 onClick = {
                                     selectedResult = null
-                                    onQueryChange(category)
-                                    onSearch(category)
+                                    onQueryChange(label)
+                                    onSearch(label)
                                 },
                                 modifier = Modifier.weight(1f),
                             ) {
-                                Text(category)
+                                Text(
+                                    if (feedback?.hasFeedback == true && feedback.score > 0) "$label ★"
+                                    else label
+                                )
                             }
                         }
                     }
@@ -227,6 +253,39 @@ internal fun ActiveRouteStopSearchDialog(
                                         "Umweg noch nicht geprüft",
                                         style = MaterialTheme.typography.labelSmall,
                                     )
+                                }
+                                if (queryCategory != null) {
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        "War diese Kategorie für dich hilfreich?",
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        TextButton(
+                                            enabled = !busy && result.id !in feedbackGiven,
+                                            onClick = {
+                                                onPoiFeedback(queryCategory, true)
+                                                feedbackGiven = feedbackGiven + result.id
+                                            },
+                                        ) {
+                                            Text("👍 Hilfreich")
+                                        }
+                                        TextButton(
+                                            enabled = !busy && result.id !in feedbackGiven,
+                                            onClick = {
+                                                onPoiFeedback(queryCategory, false)
+                                                feedbackGiven = feedbackGiven + result.id
+                                            },
+                                        ) {
+                                            Text("👎 Nicht passend")
+                                        }
+                                    }
+                                    if (result.id in feedbackGiven) {
+                                        Text(
+                                            "Danke — ich merke mir nur die Kategorie, nicht den Ort.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
                                 }
                             }
                         }
