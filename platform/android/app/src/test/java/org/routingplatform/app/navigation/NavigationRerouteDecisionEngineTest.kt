@@ -73,12 +73,11 @@ class NavigationRerouteDecisionEngineTest {
     }
 
     @Test
-    fun defaultPolicyRequestsRerouteAfterThreeTrustedFixesOverTwoSeconds() {
+    fun defaultPolicyRequestsRerouteAfterTwoTrustedFixesOverOneSecond() {
         val engine = NavigationRerouteDecisionEngine()
         val timestamps = listOf(
             10_000_000_000L,
             11_000_000_000L,
-            12_000_000_000L,
         )
 
         timestamps.dropLast(1).forEach { timestamp ->
