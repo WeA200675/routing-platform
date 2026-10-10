@@ -522,15 +522,14 @@ object NavigationRouteSourceFactory {
                 }
                 ?: return null
 
-        return AndroidHttpNavigationRouteSource(
-            context =
-                context,
+        return AndroidOfflineValhallaRouteSource
+            .configured(
+                context =
+                    context,
 
-            endpoint =
-                URI(
-                    endpointText
-                ),
-        )
+                endpointText =
+                    endpointText,
+            )
     }
 }
 
