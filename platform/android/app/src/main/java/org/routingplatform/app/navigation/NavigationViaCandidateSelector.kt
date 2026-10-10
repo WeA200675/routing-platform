@@ -16,6 +16,17 @@ data class NavigationViaCandidateRoute(
     }
 }
 
+data class NavigationViaCandidateRanked(
+    val candidate: NavigationViaCandidateRoute,
+    val addedDurationS: Double,
+    val addedDistanceM: Double,
+)
+
+data class NavigationViaCandidateEvaluation(
+    val baseline: NavigationRouteContract,
+    val rankedCandidates: List<NavigationViaCandidateRanked>,
+)
+
 sealed interface NavigationViaCandidateSelection {
     data class Selected(
         val candidate: NavigationViaCandidateRoute,
@@ -43,28 +54,10 @@ class NavigationViaCandidateSelector(
         baseline: NavigationRouteContract,
         candidates: List<NavigationViaCandidateRoute>,
     ): NavigationViaCandidateSelection {
-        if (candidates.isEmpty()) {
+        val ranked = rank(baseline, candidates)
+        if (ranked.isEmpty()) {
             return NavigationViaCandidateSelection.NoRoutableCandidate
         }
-
-        val ranked =
-            candidates
-                .map { candidate ->
-                    Scored(
-                        candidate = candidate,
-                        addedDurationS =
-                            (candidate.route.durationS - baseline.durationS)
-                                .coerceAtLeast(0.0),
-                        addedDistanceM =
-                            (candidate.route.distanceM - baseline.distanceM)
-                                .coerceAtLeast(0.0),
-                    )
-                }
-                .sortedWith(
-                    compareBy<Scored> { it.addedDurationS }
-                        .thenBy { it.addedDistanceM }
-                        .thenBy { it.candidate.candidateId }
-                )
 
         val best = ranked.first()
         if (best.addedDurationS > maximumAutomaticAddedDurationS) {
@@ -90,9 +83,25 @@ class NavigationViaCandidateSelector(
         )
     }
 
-    private data class Scored(
-        val candidate: NavigationViaCandidateRoute,
-        val addedDurationS: Double,
-        val addedDistanceM: Double,
-    )
+    fun rank(
+        baseline: NavigationRouteContract,
+        candidates: List<NavigationViaCandidateRoute>,
+    ): List<NavigationViaCandidateRanked> =
+        candidates
+            .map { candidate ->
+                NavigationViaCandidateRanked(
+                    candidate = candidate,
+                    addedDurationS =
+                        (candidate.route.durationS - baseline.durationS)
+                            .coerceAtLeast(0.0),
+                    addedDistanceM =
+                        (candidate.route.distanceM - baseline.distanceM)
+                            .coerceAtLeast(0.0),
+                )
+            }
+            .sortedWith(
+                compareBy<NavigationViaCandidateRanked> { it.addedDurationS }
+                    .thenBy { it.addedDistanceM }
+                    .thenBy { it.candidate.candidateId }
+            )
 }
