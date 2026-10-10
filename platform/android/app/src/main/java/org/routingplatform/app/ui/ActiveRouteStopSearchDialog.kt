@@ -118,7 +118,7 @@ internal fun ActiveRouteStopSearchDialog(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text("Schnellsuche", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                val categories = listOf(
+                val categoryLabels = mapOf(
                     "food" to "Restaurant",
                     "fuel" to "Tankstelle",
                     "charging" to "E-Ladestation",
@@ -127,13 +127,10 @@ internal fun ActiveRouteStopSearchDialog(
                     "pharmacy" to "Apotheke",
                     "groceries" to "Supermarkt",
                     "lodging" to "Hotel",
-                ).withIndex()
-                    .sortedWith(
-                        compareByDescending<IndexedValue<Pair<String, String>>> {
-                            learnedPoiPreferences[it.value.first]?.score ?: 0
-                        }.thenBy { it.index }
-                    )
-                    .map { it.value }
+                )
+                val categories = SocialAiPoiPreferenceMemory
+                    .orderedCategories(learnedPoiPreferences)
+                    .map { category -> category to categoryLabels.getValue(category) }
                 Text(
                     "Häufig hilfreich bewertet zuerst",
                     style = MaterialTheme.typography.bodySmall,
