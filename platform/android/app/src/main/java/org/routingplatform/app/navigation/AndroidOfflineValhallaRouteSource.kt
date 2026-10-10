@@ -291,7 +291,7 @@ internal class AndroidOfflineValhallaRouteSource(
             geometry = geometry,
             maneuvers = maneuvers,
             engineName = "Valhalla Mobile",
-            engineVersion = "3.9.0",
+            engineVersion = "3.9.1",
             segmentDataStatus = NavigationRouteSegmentDataStatus.Unspecified,
             diagnostics = listOf(
                 NavigationRouteDiagnostic(
@@ -367,7 +367,7 @@ internal class AndroidOfflineValhallaRouteSource(
         }
 
     companion object {
-        const val EXPECTED_VALHALLA_VERSION = "3.9.0"
+        const val EXPECTED_VALHALLA_VERSION = "3.9.1"
 
         fun configured(
             context: Context,
