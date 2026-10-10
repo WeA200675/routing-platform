@@ -138,7 +138,7 @@ internal fun ExperiencePackDialog(
                 Text(
                     text =
                         "Mach die Navigation zu deiner Navigation. " +
-                            "Deine bewusste Auswahl bleibt immer maßgeblich.",
+                            "Mit Überraschung darf der Stil wöchentlich wechseln. Ohne Überraschung bleibt deine Auswahl aktiv.",
 
                     style =
                         MaterialTheme

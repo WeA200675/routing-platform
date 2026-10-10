@@ -427,7 +427,7 @@ class NavigationVoicePresentationTest {
                 personality = preferences,
             )
 
-        assertEquals("In 120 Metern rechts abbiegen", prepareCue?.text)
+        assertEquals("Sprungfenster voraus: In 120 Metern rechts abbiegen", prepareCue?.text)
         assertEquals(1.08, prepareCue?.speechPitch ?: 1.0, 0.001)
 
         val criticalCue =

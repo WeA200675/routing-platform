@@ -368,11 +368,9 @@ object ExperiencePackCatalog {
 }
 
 /**
- * Explicit user choice is authoritative.
- *
- * A weekly suggestion can only become effective when the user has not pinned
- * an explicit pack. Learned or server-side suggestion systems must call this
- * boundary instead of overwriting explicit profile settings.
+ * Explicit pack selection is the persistent base choice.
+ * When the user enables weekly discovery, the opt-in weekly suggestion may
+ * temporarily replace that base until weekly discovery is disabled.
  */
 object ExperiencePackSelectionPolicy {
 
@@ -384,17 +382,6 @@ object ExperiencePackSelectionPolicy {
             String? =
             null,
     ): ExperiencePackDefinition {
-
-        if (
-            preferences
-                .hasExplicitPackSelection
-        ) {
-            return ExperiencePackCatalog
-                .require(
-                    preferences
-                        .selectedPackId
-                )
-        }
 
         if (
             preferences

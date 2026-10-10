@@ -100,10 +100,7 @@ object ExperiencePackRuntimeResolver {
 
         val weeklySuggestionPackId =
             if (
-                personality
-                    .weeklyDiscoveryEnabled &&
-                !personality
-                    .hasExplicitPackSelection
+                personality.weeklyDiscoveryEnabled
             ) {
                 WeeklyExperiencePackSelector
                     .select(

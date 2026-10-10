@@ -184,7 +184,7 @@ class ExperiencePackRuntimeTest {
     }
 
     @Test
-    fun explicitSelectionWinsEvenWhenWeeklyFlagIsPresent() {
+    fun enabledWeeklyDiscoveryTemporarilyOverridesExplicitBaseChoice() {
         val personality =
             NavigationPersonalityPreferences(
                 selectedPackId =
@@ -211,11 +211,14 @@ class ExperiencePackRuntimeTest {
                         "2026-W37",
                 )
 
-        assertEquals(
-            ExperiencePackCatalog
-                .GALACTIC_PACK_ID,
-            pack?.packId,
-        )
+        val expected =
+            WeeklyExperiencePackSelector.select(
+                weekKey = "2026-W37",
+                currentPackId = ExperiencePackCatalog.GALACTIC_PACK_ID,
+                intensity = WeeklyDiscoveryIntensity.Wild,
+            )
+        assertEquals(expected.packId, pack?.packId)
+        assertEquals(false, pack?.packId == ExperiencePackCatalog.GALACTIC_PACK_ID)
     }
 
     @Test

@@ -156,16 +156,17 @@ internal object NavigationVoicePresentation {
             ExperiencePackRuntimeResolver
                 .resolvePackOverride(personality)
 
-        // Keep the maneuver wording unchanged. Galactic adds a subtle pitch
-        // signature only to ordinary lead-in cues; critical repeats stay neutral.
-        val speechPitch =
-            if (
-                stage != NavigationVoiceCueStage.CriticalRepeat &&
+        // Keep the maneuver intact; only ordinary Galactic cues get a short themed lead-in.
+        // Critical repeats remain word-for-word neutral.
+        val galactic =
+            stage != NavigationVoiceCueStage.CriticalRepeat &&
                 activePack?.tone == NavigationPersonalityTone.Futuristic
-            ) {
-                1.08
+        val speechPitch = if (galactic) 1.08 else 1.0
+        val speechText =
+            if (galactic) {
+                "${galacticLeadIn(stage, voice.languageTag)} $instruction"
             } else {
-                1.0
+                instruction
             }
 
         return NavigationVoiceCue(
@@ -194,7 +195,7 @@ internal object NavigationVoicePresentation {
                 ),
 
             text =
-                instruction,
+                speechText,
 
             languageTag =
                 voice.languageTag,
@@ -208,6 +209,19 @@ internal object NavigationVoicePresentation {
             speechPitch =
                 speechPitch,
         )
+    }
+
+    private fun galacticLeadIn(
+        stage: NavigationVoiceCueStage,
+        languageTag: String,
+    ): String {
+        val german = languageTag.startsWith("de", ignoreCase = true)
+        return when (stage) {
+            NavigationVoiceCueStage.Early -> if (german) "Sternenkarte voraus:" else "Star chart ahead:"
+            NavigationVoiceCueStage.Prepare -> if (german) "Sprungfenster voraus:" else "Jump window ahead:"
+            NavigationVoiceCueStage.Now -> if (german) "Jetzt, Pilot:" else "Now, pilot:"
+            NavigationVoiceCueStage.CriticalRepeat -> ""
+        }
     }
 
     private fun cueStage(
