@@ -12,6 +12,11 @@
     <application
         android:usesCleartextTraffic="true">
 
+        <activity
+            android:name=".OfflineRoutingSetupActivity"
+            android:exported="false"
+            android:label="Offline-Routing" />
+
         <meta-data
             android:name="org.routingplatform.navigation.ROUTE_ENDPOINT"
             android:value="http://127.0.0.1:8787/v1/navigation/route" />
