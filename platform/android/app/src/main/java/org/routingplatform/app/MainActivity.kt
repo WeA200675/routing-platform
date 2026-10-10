@@ -2651,6 +2651,73 @@ class MainActivity :
                             navigationStateStore.clear()
                         },
 
+                        onRestartNavigation = {
+                            runtimeController.reset()
+
+                            telemetry =
+                                NavigationRuntimeTelemetry
+                                    .stopped(
+                                        acceptedProgress =
+                                            RouteProgressAnchor(
+                                                shapeSegmentIndex =
+                                                    snapshot.shapeSegmentIndex,
+                                                segmentFraction =
+                                                    snapshot.segmentFraction,
+                                            )
+                                    )
+
+                            navigationStartedAtNanos =
+                                null
+
+                            snapshot =
+                                bridge.stopNavigation()
+
+                            navigationStateStore.clear()
+
+                            locationPermissionGranted =
+                                hasNavigationLocationPermission(
+                                    applicationContext
+                                )
+
+                            preciseLocationGranted =
+                                hasPreciseNavigationLocationPermission(
+                                    applicationContext
+                                )
+
+                            snapshot =
+                                bridge.startNavigation()
+
+                            navigationStartedAtNanos =
+                                SystemClock.elapsedRealtimeNanos()
+
+                            navigationBootId
+                                ?.let { bootId ->
+                                    navigationStateStore.save(
+                                        PersistedNavigationState(
+                                            schemaVersion =
+                                                NavigationStateRestoreAdmission
+                                                    .SCHEMA_VERSION,
+                                            sessionId =
+                                                snapshot.sessionId,
+                                            bootId =
+                                                bootId,
+                                            savedAtElapsedRealtimeNanos =
+                                                SystemClock
+                                                    .elapsedRealtimeNanos(),
+                                        )
+                                    )
+                                }
+
+                            val permissions =
+                                navigationRuntimePermissionsToRequest(
+                                    applicationContext
+                                )
+
+                            if (permissions.isNotEmpty()) {
+                                permissionLauncher.launch(permissions)
+                            }
+                        },
+
                         onAdvanceProgress = {
                             if (
                                 !automaticPreciseProgressActive &&
