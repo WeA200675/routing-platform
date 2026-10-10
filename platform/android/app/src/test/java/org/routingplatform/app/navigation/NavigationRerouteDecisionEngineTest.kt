@@ -73,6 +73,38 @@ class NavigationRerouteDecisionEngineTest {
     }
 
     @Test
+    fun defaultPolicyRequestsRerouteAfterThreeTrustedFixesOverTwoSeconds() {
+        val engine = NavigationRerouteDecisionEngine()
+        val timestamps = listOf(
+            10_000_000_000L,
+            11_000_000_000L,
+            12_000_000_000L,
+        )
+
+        timestamps.dropLast(1).forEach { timestamp ->
+            assertTrue(
+                engine.observe(
+                    telemetry(
+                        timestamp = timestamp,
+                        status = NavigationRouteProgressSafetyStatus.HeldOffRoute,
+                        confidence = NavigationPositionConfidence.Medium,
+                    )
+                ) is NavigationRerouteDecision.Hold
+            )
+        }
+
+        assertTrue(
+            engine.observe(
+                telemetry(
+                    timestamp = timestamps.last(),
+                    status = NavigationRouteProgressSafetyStatus.HeldOffRoute,
+                    confidence = NavigationPositionConfidence.Medium,
+                )
+            ) is NavigationRerouteDecision.RequestReplacement
+        )
+    }
+
+    @Test
     fun lowConfidenceNeverRequestsReplacement() {
         val engine =
             NavigationRerouteDecisionEngine()
