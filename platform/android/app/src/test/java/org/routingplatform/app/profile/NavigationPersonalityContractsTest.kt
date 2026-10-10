@@ -81,7 +81,7 @@ class NavigationPersonalityContractsTest {
     }
 
     @Test
-    fun explicitPackSelectionAlwaysWinsOverWeeklySuggestion() {
+    fun enabledWeeklyDiscoveryCanOverrideExplicitBaseChoice() {
         val preferences =
             NavigationPersonalityPreferences(
                 selectedPackId =
@@ -111,7 +111,7 @@ class NavigationPersonalityContractsTest {
 
         assertEquals(
             ExperiencePackCatalog
-                .ZEN_PACK_ID,
+                .GALACTIC_PACK_ID,
             resolved.packId,
         )
     }
