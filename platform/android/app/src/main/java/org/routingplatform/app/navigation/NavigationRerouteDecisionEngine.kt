@@ -3,15 +3,15 @@ package org.routingplatform.app.navigation
 data class NavigationReroutePolicy(
     val minimumEvidenceDurationNanos:
         Long =
-        10_000_000_000L,
+        2_000_000_000L,
 
     val minimumConsecutiveSamples:
         Int =
-        6,
+        3,
 
     val minimumAttemptIntervalNanos:
         Long =
-        30_000_000_000L,
+        5_000_000_000L,
 ) {
     init {
         require(
