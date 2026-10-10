@@ -52,7 +52,7 @@ internal fun ActiveRouteStopSearchDialog(
     maximumViaPointsReached: Boolean,
     maximumDetourMinutes: Int,
     onMaximumDetourMinutesChange: (Int) -> Unit,
-    onSearch: () -> Unit,
+    onSearch: (String) -> Unit,
     onAddStop: (DestinationSearchResult) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -104,7 +104,7 @@ internal fun ActiveRouteStopSearchDialog(
                                 onClick = {
                                     selectedResult = null
                                     onQueryChange(category)
-                                    onSearch()
+                                    onSearch(category)
                                 },
                                 modifier = Modifier.weight(1f),
                             ) {
@@ -137,7 +137,7 @@ internal fun ActiveRouteStopSearchDialog(
                 Button(
                     onClick = {
                         selectedResult = null
-                        onSearch()
+                        onSearch(query)
                     },
                     enabled = !busy && query.trim().length >= 2,
                     modifier = Modifier.fillMaxWidth(),
