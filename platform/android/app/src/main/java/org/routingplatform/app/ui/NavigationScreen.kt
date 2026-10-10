@@ -76,6 +76,8 @@ internal fun NavigationScreen(
     calibrationDisclosureRequired: Boolean = false,
     onAcceptCalibrationDisclosure: () -> Unit = {},
     onOpenSecurityDiagnostics: () -> Unit = {},
+    onOpenOfflineRoutingSetup: () -> Unit = {},
+    offlineRoutingDatasetSummary: String = "DACH-Kartenpaket nicht installiert",
     navigationCalibrationProfile: NavigationDeviceCalibrationProfile = NavigationDeviceCalibrationProfile(),
 
     navigationStartEnabled:
@@ -978,6 +980,12 @@ internal fun NavigationScreen(
                                         title = "Kalibrierwerte",
                                         value = "${navigationCalibrationProfile.acceptedDirectSamples} akzeptiert · ${navigationCalibrationProfile.rejectedSamples} verworfen",
                                         onClick = { calibrationSummaryOpen = true },
+                                    ),
+                                    NavigationSettingTile(
+                                        testTag = "offline_routing_setup_open",
+                                        title = "Offline-Routing auf diesem Handy",
+                                        value = offlineRoutingDatasetSummary,
+                                        onClick = onOpenOfflineRoutingSetup,
                                     ),
                                     NavigationSettingTile(
                                         testTag =
