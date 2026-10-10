@@ -38,19 +38,22 @@ Malformed model output is not parsed permissively.
 Production/release routing remains HTTPS-only. No cleartext or loopback
 exception is added to the release manifest.
 
-For physical development testing, the candidate workflow additionally packages
-a clearly separate `g620-field-test.apk`. That APK uses the existing
-debug-only loopback route endpoint at `127.0.0.1:8787`. It requires a ready
-route service on the host and:
+The field-test APK has a debug-only on-device Valhalla engine. Import the DACH
+tile archive from **Offline-Routing** settings; the app hashes the complete copy
+and requires a successful local Vaduz route before activating it. With a
+validated archive, supported route families are calculated on the phone without
+USB or a running PC route service.
+
+The debug build keeps the loopback route service at `127.0.0.1:8787` as an
+optional fallback for unsupported route families or local routing failures.
+Only that fallback requires a ready host service and:
 
 ```powershell
 .\adb.exe reverse tcp:8787 tcp:8787
 ```
 
-Before driving, the host route service must return HTTP 200 from `/ready`.
-A missing/not-ready route service is a hard no-go for the field test. The
-release APK remains the distribution artifact and must not be confused with the
-field-test APK.
+The release APK remains the distribution artifact and must not be confused with
+the field-test APK.
 
 ## M5-M6 positioning and safety gate
 
@@ -98,8 +101,9 @@ unchanged source SHA:
 5. The candidate artifact contains both `g620-release.apk` and
    `g620-field-test.apk` with SHA-256 sidecars.
 6. The exact field-test APK SHA-256 is recorded before installation.
-7. The host route service is ready and ADB reverse is active before route
-   acquisition.
+7. For routes that need the optional PC fallback, the host service is ready
+   and ADB reverse is active. The DACH archive has passed the on-device import
+   and route check before offline field use.
 
 Any code or workflow change after the freeze creates a new candidate and
 invalidates the previous APK as final field-test evidence.
@@ -114,4 +118,14 @@ For the planned 2026-10-10 calibration drive, follow [`SATURDAY_CALIBRATION_RUNB
 
 ## Route service compatibility gate
 
-For the debug field-test APK, use `tools/navigation_route_service.py` backed by the built Valhalla exporter and the test area's Valhalla config. It must bind to `127.0.0.1:8787`, answer `/ready` with HTTP 200, and receive the verified `adb reverse tcp:8787 tcp:8787` mapping. The separate `backend/osrm` Compose adapter is not a substitute for this gate: it does not implement the `/ready` endpoint or the debug development-header contract expected by the field-test flow. Do not begin a drive if the route service or any readiness check fails.
+The field-test build first tries the validated on-device DACH archive. Confirm
+**DACH-Kartenpaket bereit** in Offline-Routing settings and let the import route
+check complete. Then test a supported route with the phone disconnected from
+USB and the PC service stopped. The route status must report a live route.
+
+For the optional PC fallback, use `tools/navigation_route_service.py` backed by
+the built Valhalla exporter and DACH config. It must bind to `127.0.0.1:8788`,
+answer `/ready` with HTTP 200, and receive
+`adb reverse tcp:8787 tcp:8788`. The `backend/osrm` Compose adapter is not a
+substitute because it does not implement this `/ready` endpoint or the debug
+development-header contract.
