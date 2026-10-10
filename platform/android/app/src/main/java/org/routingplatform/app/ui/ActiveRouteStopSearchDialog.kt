@@ -50,6 +50,8 @@ internal fun ActiveRouteStopSearchDialog(
     busy: Boolean,
     message: String?,
     maximumViaPointsReached: Boolean,
+    maximumDetourMinutes: Int,
+    onMaximumDetourMinutesChange: (Int) -> Unit,
     onSearch: () -> Unit,
     onAddStop: (DestinationSearchResult) -> Unit,
     onDismiss: () -> Unit,
@@ -111,6 +113,26 @@ internal fun ActiveRouteStopSearchDialog(
                         }
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+                Text("Maximaler Zusatzweg", fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(0, 5, 10, 20, 30).forEach { minutes ->
+                        OutlinedButton(
+                            enabled = !busy,
+                            onClick = { onMaximumDetourMinutesChange(minutes) },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                if (maximumDetourMinutes == minutes) "${minutes}m ✓"
+                                else "${minutes}m",
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "Der neue Fahrweg wird erst nach Auswahl exakt berechnet. Liegt der Mehrweg über deinem Limit, bleibt die bisherige Route aktiv.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = {
