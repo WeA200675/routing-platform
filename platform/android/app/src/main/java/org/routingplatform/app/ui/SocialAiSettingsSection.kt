@@ -25,6 +25,9 @@ internal object SocialAiUiTestTags {
     const val AdaptationToggle =
         "rp.social_ai.adaptation"
 
+    const val RouteLearningToggle =
+        "rp.social_ai.route_learning"
+
     const val HumorSlider =
         "rp.social_ai.humor"
 
@@ -72,6 +75,18 @@ internal fun SocialAiSettingsSection(
                 "Humor, Charme und Eigeninitiative sind deine bewusste Auswahl. " +
                     "Gelernte Vorlieben bleiben davon getrennt.",
             style = MaterialTheme.typography.bodySmall,
+        )
+
+        SettingToggle(
+            title = "Routenlernen",
+            description =
+                "Speichert nach einer positiven Bewertung nur die Routenpriorität lokal für dieses Profil. " +
+                    "Ziele und Koordinaten werden nicht gespeichert; Ausschalten löscht die gemerkte Priorität.",
+            checked = preferences.learningEnabled,
+            testTag = SocialAiUiTestTags.RouteLearningToggle,
+            onCheckedChange = { enabled ->
+                onChanged(preferences.copy(learningEnabled = enabled))
+            },
         )
 
         SettingToggle(

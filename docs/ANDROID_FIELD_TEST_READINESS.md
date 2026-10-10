@@ -103,3 +103,15 @@ unchanged source SHA:
 
 Any code or workflow change after the freeze creates a new candidate and
 invalidates the previous APK as final field-test evidence.
+
+## AI route-personalization milestones
+
+The local AI now asks for a route-family priority in Preview (three common choices plus nine expandable variants), passes that choice into the real route request, and offers a rating after successful live route acquisition. A positive rating is stored only when **Routenlernen** is enabled; it stores the selected family only, scoped to the active profile. Turning the setting off removes that saved preference. See [`AI_ROUTE_PERSONALIZATION_MILESTONES.md`](AI_ROUTE_PERSONALIZATION_MILESTONES.md) for acceptance gates and remaining work.
+
+## Saturday field run
+
+For the planned 2026-10-10 calibration drive, follow [`SATURDAY_CALIBRATION_RUNBOOK.md`](SATURDAY_CALIBRATION_RUNBOOK.md). The app exposes accepted/rejected sample counts and best observed accuracy under **Kalibrierwerte** in Preview settings after navigation stops; this summary is not shown while driving and does not certify a pass. The runbook is preparation only; the physical test remains NOT RUN until evidence is recorded from the actual device and exact candidate APK.
+
+## Route service compatibility gate
+
+For the debug field-test APK, use `tools/navigation_route_service.py` backed by the built Valhalla exporter and the test area's Valhalla config. It must bind to `127.0.0.1:8787`, answer `/ready` with HTTP 200, and receive the verified `adb reverse tcp:8787 tcp:8787` mapping. The separate `backend/osrm` Compose adapter is not a substitute for this gate: it does not implement the `/ready` endpoint or the debug development-header contract expected by the field-test flow. Do not begin a drive if the route service or any readiness check fails.

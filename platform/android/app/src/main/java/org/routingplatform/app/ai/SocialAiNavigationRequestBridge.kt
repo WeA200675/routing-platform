@@ -23,17 +23,22 @@ class SocialAiNavigationRequestBridge(
     private val parser: SocialAiRoutingIntentParser,
     private val placeResolver: SocialAiRoutingPlaceResolver,
 ) {
-    fun buildRequest(origin: RoutePoint, userText: String): SocialAiNavigationRequestResult {
+    fun buildRequest(
+        origin: RoutePoint,
+        userText: String,
+        family: NavigationRouteFamily = NavigationRouteFamily.ProfileOptimal,
+    ): SocialAiNavigationRequestResult {
         return when (val parsed = parser.parse(userText)) {
             is SocialAiRoutingIntentResult.ClarificationRequired ->
                 SocialAiNavigationRequestResult.ClarificationRequired(parsed.reason)
-            is SocialAiRoutingIntentResult.Ready -> buildResolved(origin, parsed.intent)
+            is SocialAiRoutingIntentResult.Ready -> buildResolved(origin, parsed.intent, family)
         }
     }
 
     internal fun buildResolved(
         origin: RoutePoint,
         intent: SocialAiRoutingIntent,
+        family: NavigationRouteFamily = NavigationRouteFamily.ProfileOptimal,
     ): SocialAiNavigationRequestResult {
         val destination = placeResolver.resolveDestination(intent.destination)
             ?: return clarification("Ziel konnte nicht eindeutig aufgelöst werden.")
@@ -47,7 +52,6 @@ class SocialAiNavigationRequestBridge(
         if (intent.avoid.isNotEmpty()) {
             return clarification("Diese Routenvermeidung wird von der Routing-Engine noch nicht exakt unterstützt.")
         }
-        val family = NavigationRouteFamily.ProfileOptimal
         return SocialAiNavigationRequestResult.Ready(
             NavigationRouteRequest(
                 origin = origin,

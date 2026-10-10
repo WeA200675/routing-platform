@@ -1,5 +1,6 @@
 package org.routingplatform.app.ai
 
+import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.NavigationRouteRequest
 import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.places.DestinationSearchResult
@@ -30,6 +31,7 @@ class SocialAiProductionRouting(
         origin: RoutePoint,
         favorites: FavoriteDestinationCollection,
         categoryResults: Map<String, List<DestinationSearchResult>> = emptyMap(),
+        routeFamily: NavigationRouteFamily = NavigationRouteFamily.ProfileOptimal,
     ): SocialAiProductionRoutingResult {
         val parsed = parser.parse(userText)
         if (parsed is SocialAiRoutingIntentResult.ClarificationRequired) {
@@ -41,6 +43,7 @@ class SocialAiProductionRouting(
             origin = origin,
             favorites = favorites,
             categoryResults = categoryResults,
+            routeFamily = routeFamily,
         )
     }
 
@@ -54,6 +57,7 @@ class SocialAiProductionRouting(
         origin: RoutePoint,
         favorites: FavoriteDestinationCollection,
         categoryResults: Map<String, List<DestinationSearchResult>> = emptyMap(),
+        routeFamily: NavigationRouteFamily = NavigationRouteFamily.ProfileOptimal,
     ): SocialAiProductionRoutingResult {
         if (intent.viaCategory != null && intent.viaCategory !in categoryResults) {
             return SocialAiProductionRoutingResult.CategoryLookupRequired(
@@ -74,7 +78,7 @@ class SocialAiProductionRouting(
             parser = parser,
             placeResolver = SocialAiTrustedPlaceResolver(favorites, categoryResults),
         )
-        return when (val built = bridge.buildResolved(origin, intent)) {
+        return when (val built = bridge.buildResolved(origin, intent, routeFamily)) {
             is SocialAiNavigationRequestResult.Ready -> SocialAiProductionRoutingResult.Ready(built.request)
             is SocialAiNavigationRequestResult.ClarificationRequired ->
                 SocialAiProductionRoutingResult.ClarificationRequired(built.reason)

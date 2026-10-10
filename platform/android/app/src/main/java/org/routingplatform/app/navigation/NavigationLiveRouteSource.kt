@@ -520,17 +520,31 @@ object NavigationRouteSourceFactory {
                 ?.takeIf {
                     it.isNotEmpty()
                 }
-                ?: return null
 
-        return AndroidHttpNavigationRouteSource(
-            context =
-                context,
+        val debugOfflineSource =
+            if (org.routingplatform.app.BuildConfig.DEBUG) {
+                runCatching {
+                    Class.forName(
+                        "org.routingplatform.app.navigation.DebugNavigationRouteSourceProvider"
+                    )
+                        .getMethod(
+                            "create",
+                            Context::class.java,
+                            String::class.java,
+                        )
+                        .invoke(null, context, endpointText) as? NavigationRouteSource
+                }.getOrNull()
+            } else {
+                null
+            }
 
-            endpoint =
-                URI(
-                    endpointText
-                ),
-        )
+        if (debugOfflineSource != null) return debugOfflineSource
+        return endpointText?.let {
+            AndroidHttpNavigationRouteSource(
+                context = context,
+                endpoint = URI(it),
+            )
+        }
     }
 }
 

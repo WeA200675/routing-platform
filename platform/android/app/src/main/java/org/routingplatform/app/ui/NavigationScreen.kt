@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,9 +40,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
 import org.routingplatform.app.navigation.NavigationFaultCode
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
+import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationTripPlan
 import org.routingplatform.app.navigation.NavigationTripStop
@@ -68,10 +71,14 @@ internal fun NavigationScreen(
     onStartNavigation: () -> Unit,
     onStopNavigation: () -> Unit,
     onAdvanceProgress: () -> Unit,
+    onRestartNavigation: () -> Unit = {},
 
     calibrationDisclosureRequired: Boolean = false,
     onAcceptCalibrationDisclosure: () -> Unit = {},
     onOpenSecurityDiagnostics: () -> Unit = {},
+    onOpenOfflineRoutingSetup: () -> Unit = {},
+    offlineRoutingDatasetSummary: String = "DACH-Kartenpaket nicht installiert",
+    navigationCalibrationProfile: NavigationDeviceCalibrationProfile = NavigationDeviceCalibrationProfile(),
 
     navigationStartEnabled:
         Boolean =
@@ -229,8 +236,20 @@ internal fun NavigationScreen(
         Boolean =
         false,
 
+    socialAiRouteFeedbackAvailable: Boolean = false,
+    socialAiRouteFamily: NavigationRouteFamily = NavigationRouteFamily.ProfileOptimal,
+    rememberedRouteFamily: NavigationRouteFamily? = null,
+
     onSocialAiCommand:
         (String) -> Unit =
+        {},
+
+    onSocialAiCommandWithFamily:
+        (String, NavigationRouteFamily) -> Unit =
+        { command, _ -> onSocialAiCommand(command) },
+
+    onSocialAiRouteFeedback:
+        (Boolean) -> Unit =
         {},
 
     onMapTargetSelected:
@@ -289,8 +308,25 @@ internal fun NavigationScreen(
         (Int) -> Unit =
         {},
 ) {
-    if (calibrationDisclosureRequired) {
-        Dialog(onDismissRequest = {}) {
+    var calibrationSummaryOpen by remember { mutableStateOf(false) }
+
+    if (calibrationSummaryOpen) {
+        Dialog(onDismissRequest = { calibrationSummaryOpen = false }) {
+            Surface {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    Text("Kalibrierwerte", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(NavigationCalibrationPresentation.summary(navigationCalibrationProfile))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Die Werte enthalten keine Koordinaten und verändern weder Position, Route noch Fahranweisungen.")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    TextButton(onClick = { calibrationSummaryOpen = false }) { Text("Schließen") }
+                }
+            }
+        }
+    }
+
+    if (calibrationDisclosureRequired) {        Dialog(onDismissRequest = {}) {
             Surface {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text("Lokale Navigationskalibrierung", fontWeight = FontWeight.Bold)
@@ -471,10 +507,15 @@ internal fun NavigationScreen(
                     runtimeDisplayPreferences,
 
                 automaticNightMode =
-                    nightPresentation
-                        .active &&
-                        nightPresentation
-                            .nightMode,
+                    snapshot.state ==
+                        NavigationSessionState
+                            .Navigating ||
+                        (
+                            nightPresentation
+                                .active &&
+                                nightPresentation
+                                    .nightMode
+                        ),
 
                 automaticMapZoomEnabled =
                     navigationPreferences
@@ -778,6 +819,43 @@ internal fun NavigationScreen(
                         }
                 }
 
+                if (
+                    snapshot.state ==
+                        NavigationSessionState.Navigating
+                ) {
+                    Row(
+                        modifier =
+                            Modifier.fillMaxWidth(),
+
+                        horizontalArrangement =
+                            Arrangement.SpaceBetween,
+
+                        verticalAlignment =
+                            Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text =
+                                "Karte: Dunkel",
+
+                            style =
+                                MaterialTheme.typography.bodySmall,
+                        )
+
+                        TextButton(
+                            enabled =
+                                nightPresentation.brightnessCorrection >
+                                    NAVIGATION_BRIGHTNESS_CORRECTION_MIN,
+
+                            onClick = {
+                                focusMode.notifyUserActivity()
+                                onNightBrightnessDarker()
+                            },
+                        ) {
+                            Text("Display dunkler")
+                        }
+                    }
+                }
+
                 Spacer(
                     modifier =
                         Modifier.height(16.dp)
@@ -800,6 +878,9 @@ internal fun NavigationScreen(
                 NavigationPrimaryControl(
                     presentation =
                         navigationControl,
+
+                    onRestartNavigation =
+                        onRestartNavigation,
 
                     onPrimaryAction = {
                         when (
@@ -894,6 +975,17 @@ internal fun NavigationScreen(
                                         title = "Sicherheitsdiagnose",
                                         value = "Lokal · Geräteauthentifizierung",
                                         onClick = onOpenSecurityDiagnostics,
+                                    ),                                    NavigationSettingTile(
+                                        testTag = "navigation_calibration_summary_open",
+                                        title = "Kalibrierwerte",
+                                        value = "${navigationCalibrationProfile.acceptedDirectSamples} akzeptiert · ${navigationCalibrationProfile.rejectedSamples} verworfen",
+                                        onClick = { calibrationSummaryOpen = true },
+                                    ),
+                                    NavigationSettingTile(
+                                        testTag = "offline_routing_setup_open",
+                                        title = "Offline-Routing auf diesem Handy",
+                                        value = offlineRoutingDatasetSummary,
+                                        onClick = onOpenOfflineRoutingSetup,
                                     ),
                                     NavigationSettingTile(
                                         testTag =
@@ -1358,6 +1450,18 @@ internal fun NavigationScreen(
             socialAiBusy =
                 socialAiBusy,
 
+            socialAiRouteFeedbackAvailable =
+                socialAiRouteFeedbackAvailable,
+
+            socialAiRouteFamily =
+                socialAiRouteFamily,
+
+            rememberedRouteFamily =
+                rememberedRouteFamily,
+
+            onSocialAiRouteFeedback =
+                onSocialAiRouteFeedback,
+
             socialAiCommand =
                 socialAiCommand,
 
@@ -1366,7 +1470,7 @@ internal fun NavigationScreen(
             },
 
             onSocialAiCommand =
-                onSocialAiCommand,
+                onSocialAiCommandWithFamily,
 
             searchQuery =
                 searchQuery,
@@ -1683,6 +1787,18 @@ private fun DestinationPlannerDialog(
     socialAiBusy:
         Boolean,
 
+    socialAiRouteFeedbackAvailable:
+        Boolean,
+
+    socialAiRouteFamily:
+        NavigationRouteFamily,
+
+    rememberedRouteFamily:
+        NavigationRouteFamily?,
+
+    onSocialAiRouteFeedback:
+        (Boolean) -> Unit,
+
     socialAiCommand:
         String,
 
@@ -1690,7 +1806,7 @@ private fun DestinationPlannerDialog(
         (String) -> Unit,
 
     onSocialAiCommand:
-        (String) -> Unit,
+        (String, NavigationRouteFamily) -> Unit,
 
     searchQuery:
         String,
@@ -1748,6 +1864,8 @@ private fun DestinationPlannerDialog(
 ) {
     val focusManager =
         LocalFocusManager.current
+    var routeQuestionOpen by remember { mutableStateOf(false) }
+    var moreRouteFamiliesOpen by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest =
@@ -1869,10 +1987,10 @@ private fun DestinationPlannerDialog(
                     enabled = !busy && !socialAiBusy && socialAiCommand.trim().length in 2..512,
                     onClick = {
                         focusManager.clearFocus()
-                        onSocialAiCommand(socialAiCommand)
+                        routeQuestionOpen = true
                     },
                 ) {
-                    Text(if (socialAiBusy) "Lokale KI läuft …" else "Lokal interpretieren")
+                    Text(if (socialAiBusy) "Lokale KI läuft …" else "Routenpriorität wählen")
                 }
 
                 socialAiMessage
@@ -1882,6 +2000,97 @@ private fun DestinationPlannerDialog(
                         Text(text = message, style = MaterialTheme.typography.bodySmall)
                     }
 
+                if (routeQuestionOpen) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        tonalElevation = 2.dp,
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Welche Priorität soll die Routenvorschau haben?", fontWeight = FontWeight.SemiBold)
+                            Text("Du kannst für jede Fahrt anders entscheiden.", style = MaterialTheme.typography.bodySmall)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            val commonChoices = listOf(
+                                NavigationRouteFamily.Fastest,
+                                NavigationRouteFamily.Shortest,
+                                NavigationRouteFamily.ProfileOptimal,
+                            )
+                            commonChoices.forEach { family ->
+                                TextButton(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !busy && !socialAiBusy,
+                                    onClick = {
+                                        focusManager.clearFocus()
+                                        routeQuestionOpen = false
+                                        onSocialAiCommand(socialAiCommand, family)
+                                    },
+                                ) { Text(routeFamilyLabel(family)) }
+                            }
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = { moreRouteFamiliesOpen = !moreRouteFamiliesOpen },
+                            ) {
+                                Text(if (moreRouteFamiliesOpen) "Weniger Routenvarianten" else "Weitere Routenvarianten")
+                            }
+                            if (moreRouteFamiliesOpen) {
+                                val advancedChoices = listOf(
+                                    NavigationRouteFamily.MajorRoads,
+                                    NavigationRouteFamily.Comfort,
+                                    NavigationRouteFamily.LowUrban,
+                                    NavigationRouteFamily.LowCurvature,
+                                    NavigationRouteFamily.LowGradient,
+                                    NavigationRouteFamily.LowTraffic,
+                                    NavigationRouteFamily.Energy,
+                                    NavigationRouteFamily.Scenic,
+                                    NavigationRouteFamily.Stable,
+                                )
+                                advancedChoices.forEach { family ->
+                                    TextButton(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !busy && !socialAiBusy,
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            routeQuestionOpen = false
+                                            onSocialAiCommand(socialAiCommand, family)
+                                        },
+                                    ) { Text(routeFamilyLabel(family)) }
+                                }
+                            }
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !busy && !socialAiBusy,
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    routeQuestionOpen = false
+                                    onSocialAiCommand(
+                                        socialAiCommand,
+                                        rememberedRouteFamily ?: NavigationRouteFamily.ProfileOptimal,
+                                    )
+                                },
+                            ) {
+                                Text("Empfehlung übernehmen: ${routeFamilyLabel(rememberedRouteFamily ?: NavigationRouteFamily.ProfileOptimal)}")
+                            }
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = { routeQuestionOpen = false },
+                            ) { Text("Abbrechen") }
+                        }
+                    }
+                }
+
+                if (socialAiRouteFeedbackAvailable) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("War die ${routeFamilyLabel(socialAiRouteFamily)} passend?", fontWeight = FontWeight.SemiBold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { onSocialAiRouteFeedback(true) }) { Text("Ja, passt") }
+                        TextButton(
+                            onClick = {
+                                onSocialAiRouteFeedback(false)
+                                routeQuestionOpen = true
+                            },
+                        ) { Text("Andere Priorität") }
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
@@ -2513,6 +2722,9 @@ private fun NavigationPrimaryControl(
     presentation:
         NavigationControlPresentation,
 
+    onRestartNavigation:
+        () -> Unit,
+
     onPrimaryAction:
         () -> Unit,
 
@@ -2627,6 +2839,21 @@ private fun NavigationPrimaryControl(
                 }
             }
         }
+
+        if (presentation.destructive) {
+            OutlinedButton(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
+                        .testTag("navigation-restart"),
+
+                onClick =
+                    onRestartNavigation,
+            ) {
+                Text("Neu starten")
+            }
+        }
     }
 }
 
@@ -2660,3 +2887,20 @@ private fun InfoValue(
         )
     }
 }
+
+
+private fun routeFamilyLabel(family: NavigationRouteFamily): String =
+    when (family) {
+        NavigationRouteFamily.Fastest -> "Schnellste Route"
+        NavigationRouteFamily.Shortest -> "Kürzeste Route"
+        NavigationRouteFamily.ProfileOptimal -> "Ausgewogen nach deinem Profil"
+        NavigationRouteFamily.MajorRoads -> "Hauptstraßen"
+        NavigationRouteFamily.Comfort -> "Komfort"
+        NavigationRouteFamily.LowUrban -> "Weniger städtisch"
+        NavigationRouteFamily.LowCurvature -> "Weniger kurvig"
+        NavigationRouteFamily.LowGradient -> "Weniger Steigung"
+        NavigationRouteFamily.LowTraffic -> "Weniger Verkehr (laut Routendaten)"
+        NavigationRouteFamily.Energy -> "Energiesparend"
+        NavigationRouteFamily.Scenic -> "Landschaftlich"
+        NavigationRouteFamily.Stable -> "Stabile Route"
+    }
