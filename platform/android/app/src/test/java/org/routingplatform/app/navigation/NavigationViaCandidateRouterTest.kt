@@ -46,6 +46,25 @@ class NavigationViaCandidateRouterTest {
     }
 
     @Test
+    fun evaluatesActualDetourAndPreservesExistingStopsAheadOfThem() {
+        val source = FixtureSource()
+        val existingVia = RoutePoint(48.15, 11.15)
+        val newStop = RoutePoint(48.1, 11.1)
+        var evaluation: NavigationViaCandidateEvaluation? = null
+
+        NavigationViaCandidateRouter(source).evaluateAll(
+            baseRequest = request().copy(viaPoints = listOf(existingVia)),
+            candidates = listOf("restaurant" to newStop),
+        ) { evaluation = it.getOrThrow() }
+
+        assertEquals(listOf(existingVia), source.requests[0].viaPoints)
+        assertEquals(listOf(newStop, existingVia), source.requests[1].viaPoints)
+        assertEquals("restaurant", evaluation?.rankedCandidates?.single()?.candidate?.candidateId)
+        assertEquals(100.0, evaluation?.rankedCandidates?.single()?.addedDurationS ?: -1.0, 0.0)
+        assertEquals(1_000.0, evaluation?.rankedCandidates?.single()?.addedDistanceM ?: -1.0, 0.0)
+    }
+
+    @Test
     fun failedCandidateIsNeverInventedOrSelected() {
         val source = FixtureSource(failSecondCandidate = true)
         var result: NavigationViaCandidateSelection? = null
