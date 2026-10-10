@@ -116,7 +116,10 @@ internal object NavigationNightAdaptationPolicy {
         20_000.0
 
     private const val MIN_WINDOW_BRIGHTNESS =
-        0.10f
+        0.04f
+
+    private const val MAX_WINDOW_BRIGHTNESS =
+        0.35f
 
     fun normalizeCorrection(
         correction:
@@ -260,7 +263,7 @@ internal object NavigationNightAdaptationPolicy {
         return MIN_WINDOW_BRIGHTNESS +
             fraction *
             (
-                1.0f -
+                MAX_WINDOW_BRIGHTNESS -
                     MIN_WINDOW_BRIGHTNESS
             )
     }
