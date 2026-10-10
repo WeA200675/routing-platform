@@ -33,7 +33,7 @@ object AndroidOfflineRoutingDatasetInstaller {
      * Copies a selected Valhalla tile extract, checks the complete copy hash,
      * and runs a real local route in Vaduz before making it active.
      */
-    fun import(
+    fun install(
         context: Context,
         source: Uri,
         onProgress: (OfflineRoutingImportProgress) -> Unit = {},
