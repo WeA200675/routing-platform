@@ -36,6 +36,7 @@ import org.routingplatform.app.navigation.AndroidNavigationDeviceCapabilities
 import org.routingplatform.app.navigation.NavigationCalibrationObservation
 import org.routingplatform.app.navigation.NavigationDeviceCalibration
 import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
+import org.routingplatform.app.navigation.AndroidOfflineRoutingDatasetStore
 import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.AndroidNavigationBootIdentity
@@ -1788,6 +1789,19 @@ class MainActivity :
                         onOpenSecurityDiagnostics = {
                             startActivity(Intent(this@MainActivity, SecurityDiagnosticsActivity::class.java))
                         },
+
+                        onOpenOfflineRoutingSetup = {
+                            startActivity(
+                                Intent(
+                                    this@MainActivity,
+                                    OfflineRoutingSetupActivity::class.java,
+                                )
+                            )
+                        },
+
+                        offlineRoutingDatasetSummary =
+                            AndroidOfflineRoutingDatasetStore
+                                .installedSummary(applicationContext),
 
                         navigationStartEnabled =
                             routeBootstrap
