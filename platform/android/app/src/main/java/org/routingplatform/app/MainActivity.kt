@@ -84,7 +84,6 @@ import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AndroidUserProfileStore
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
-import org.routingplatform.app.profile.DrivingPreferences
 import org.routingplatform.app.profile.ExperiencePackSelectionSource
 import org.routingplatform.app.ui.NavigationAssistOverlay
 import org.routingplatform.app.security.SecurityDiagnosticsActivity
