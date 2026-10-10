@@ -56,6 +56,7 @@ import org.routingplatform.app.navigation.NavigationRouteLifecycleController
 import org.routingplatform.app.navigation.NavigationRouteRequest
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.NavigationViaCandidateRouter
+import org.routingplatform.app.navigation.NavigationViaCandidateEvaluation
 import org.routingplatform.app.navigation.NavigationViaCandidateSelection
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionHandle
 import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
@@ -90,6 +91,7 @@ import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
 import org.routingplatform.app.ui.ActiveRouteStopSearchButton
 import org.routingplatform.app.ui.ActiveRouteStopSearchDialog
+import org.routingplatform.app.ui.ActiveRoutePoiRouteEstimate
 import org.routingplatform.app.ui.RoutingPlatformTheme
 import org.routingplatform.app.ui.rememberNavigationHapticRuntime
 import org.routingplatform.app.ui.rememberNavigationVoiceRuntime
@@ -184,6 +186,15 @@ class MainActivity :
             var activeRouteStopSearchOpen by remember { mutableStateOf(false) }
             var activeRouteStopSearchQuery by remember { mutableStateOf("") }
             var activeRouteMaximumDetourMinutes by remember { mutableIntStateOf(10) }
+            var activeRoutePoiRouteEstimates by remember {
+                mutableStateOf<Map<String, ActiveRoutePoiRouteEstimate>>(emptyMap())
+            }
+            var activeRoutePoiEvaluationInProgress by remember { mutableStateOf(false) }
+            var activeRoutePoiEvaluationComplete by remember { mutableStateOf(false) }
+            var activeRouteCandidateHandle by remember {
+                mutableStateOf<NavigationRouteAcquisitionHandle?>(null)
+            }
+            var activeRouteCandidateGeneration by remember { mutableIntStateOf(0) }
 
             var destinationPlannerMessage by
                 remember {
@@ -287,6 +298,9 @@ class MainActivity :
                         .close()
 
                     socialAiViaRoutingHandle
+                        ?.cancel()
+
+                    activeRouteCandidateHandle
                         ?.cancel()
 
                     socialAiProductRuntime
@@ -650,6 +664,104 @@ class MainActivity :
                     }
                 }
 
+            val evaluateActiveRouteCandidates:
+                (List<DestinationSearchResult>) -> Unit =
+                { results ->
+                    if (snapshot.state == NavigationSessionState.Navigating) {
+                        activeRouteCandidateGeneration += 1
+                        val generation = activeRouteCandidateGeneration
+                        activeRouteCandidateHandle?.cancel()
+                        activeRouteCandidateHandle = null
+                        activeRoutePoiRouteEstimates = emptyMap()
+                        activeRoutePoiEvaluationComplete = false
+
+                        if (results.isEmpty()) {
+                            activeRoutePoiEvaluationInProgress = false
+                            activeRoutePoiEvaluationComplete = true
+                            destinationPlannerMessage =
+                                "Keine Suchtreffer für diese Anfrage gefunden."
+                        } else {
+                            val router = socialAiViaCandidateRouter
+                            if (router == null) {
+                                activeRoutePoiEvaluationInProgress = false
+                                activeRoutePoiEvaluationComplete = true
+                                destinationPlannerMessage =
+                                    "Routenvergleich nicht verfügbar. Deine aktive Route bleibt unverändert."
+                            } else {
+                                activeRoutePoiEvaluationInProgress = true
+                                destinationPlannerMessage =
+                                    "Bis zu ${results.size} Treffer werden mit echten Fahrtrouten und deinem Umwegbudget verglichen …"
+
+                                planningLocationController.request { planningResult ->
+                                    if (generation != activeRouteCandidateGeneration) {
+                                        return@request
+                                    }
+                                    planningResult.fold(
+                                        onSuccess = { location ->
+                                            val baseRequest = tripPlan.toRouteRequest(
+                                                origin = location.position,
+                                                family = initialRouteRequest.family,
+                                            )
+                                            val handle = router.evaluateAll(
+                                                baseRequest = baseRequest,
+                                                candidates = results.map { it.id to it.point },
+                                            ) { evaluationResult ->
+                                                runOnUiThread {
+                                                    if (generation != activeRouteCandidateGeneration) {
+                                                        return@runOnUiThread
+                                                    }
+                                                    activeRouteCandidateHandle = null
+                                                    activeRoutePoiEvaluationInProgress = false
+                                                    activeRoutePoiEvaluationComplete = true
+                                                    evaluationResult.fold(
+                                                        onSuccess = { evaluation ->
+                                                            activeRoutePoiRouteEstimates =
+                                                                evaluation.rankedCandidates.associate { ranked ->
+                                                                    ranked.candidate.candidateId to
+                                                                        ActiveRoutePoiRouteEstimate(
+                                                                            addedDurationSeconds = ranked.addedDurationS,
+                                                                            addedDistanceMeters = ranked.addedDistanceM,
+                                                                        )
+                                                                }
+                                                            destinationPlannerMessage =
+                                                                if (evaluation.rankedCandidates.isEmpty()) {
+                                                                    "Kein Suchtreffer ist mit einer Fahrroute erreichbar. Die aktive Route bleibt unverändert."
+                                                                } else {
+                                                                    "${evaluation.rankedCandidates.size} Treffer mit echten Fahrzeiten verglichen. Wähle einen Treffer innerhalb deines Umweglimits."
+                                                                }
+                                                        },
+                                                        onFailure = { error ->
+                                                            activeRoutePoiRouteEstimates = emptyMap()
+                                                            destinationPlannerMessage =
+                                                                "Routenvergleich fehlgeschlagen: ${error.message ?: "Dienst nicht erreichbar"}. Deine aktive Route bleibt unverändert."
+                                                        },
+                                                    )
+                                                }
+                                            }
+                                            if (generation == activeRouteCandidateGeneration) {
+                                                activeRouteCandidateHandle = handle
+                                            } else {
+                                                handle.cancel()
+                                            }
+                                        },
+                                        onFailure = { error ->
+                                            runOnUiThread {
+                                                if (generation == activeRouteCandidateGeneration) {
+                                                    activeRoutePoiEvaluationInProgress = false
+                                                    activeRoutePoiEvaluationComplete = true
+                                                    activeRoutePoiRouteEstimates = emptyMap()
+                                                    destinationPlannerMessage =
+                                                        "Aktuelle Position für den Routenvergleich nicht verfügbar: ${error.message ?: "unbekannter Fehler"}."
+                                                }
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
             val searchDestination:
                 (String) -> Unit =
                 search@ {
@@ -722,6 +834,13 @@ class MainActivity :
 
                                             destinationSearchResults =
                                                 results
+
+                                            if (
+                                                snapshot.state ==
+                                                    NavigationSessionState.Navigating
+                                            ) {
+                                                evaluateActiveRouteCandidates(results)
+                                            }
 
                                             val pendingIntent =
                                                 pendingSocialAiIntent
@@ -2718,6 +2837,9 @@ class MainActivity :
                             onQueryChange = { activeRouteStopSearchQuery = it },
                             results = destinationSearchResults,
                             routeGeometry = snapshot.geometry,
+                            routeEstimates = activeRoutePoiRouteEstimates,
+                            routeEvaluationInProgress = activeRoutePoiEvaluationInProgress,
+                            routeEvaluationComplete = activeRoutePoiEvaluationComplete,
                             busy = destinationPlannerBusy,
                             message = destinationPlannerMessage,
                             maximumViaPointsReached = tripPlan.viaPoints.size >= 16,
