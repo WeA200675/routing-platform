@@ -520,7 +520,6 @@ object NavigationRouteSourceFactory {
                 ?.takeIf {
                     it.isNotEmpty()
                 }
-                ?: return null
 
         return AndroidOfflineValhallaRouteSource
             .configured(
