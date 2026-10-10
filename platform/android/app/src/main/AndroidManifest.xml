@@ -36,6 +36,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".OfflineRoutingSetupActivity"
+            android:exported="false"
+            android:label="Offline-Routing" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
 
