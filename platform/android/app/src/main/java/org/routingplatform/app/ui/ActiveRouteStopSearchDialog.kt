@@ -55,6 +55,7 @@ internal fun ActiveRouteStopSearchDialog(
     routeEstimates: Map<String, ActiveRoutePoiRouteEstimate>,
     routeEvaluationInProgress: Boolean,
     routeEvaluationComplete: Boolean,
+    routeEvaluationUnavailable: Boolean,
     busy: Boolean,
     message: String?,
     maximumViaPointsReached: Boolean,
@@ -91,10 +92,10 @@ internal fun ActiveRouteStopSearchDialog(
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp),
             ) {
-                Text("Zwischenziel auf der Route", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Was brauchst du unterwegs?", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Suche einen Ort und prüfe die Treffer. Die aktuelle Navigation bleibt aktiv, bis eine neue Route erfolgreich berechnet wurde.",
+                    "Nenne einen Ort oder wähle eine Kategorie. Ich vergleiche erreichbare Treffer mit der Route und deinem Umweglimit. Du bestätigst den Stopp; bis zur erfolgreichen Berechnung bleibt die Navigation unverändert.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(14.dp))
@@ -105,7 +106,7 @@ internal fun ActiveRouteStopSearchDialog(
                         onQueryChange(it)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Restaurant, Tankstelle, Adresse …") },
+                    label = { Text("Wunsch, Firmenname oder Adresse") },
                     singleLine = true,
                     enabled = !busy,
                 )
@@ -133,7 +134,7 @@ internal fun ActiveRouteStopSearchDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("Maximaler Zusatzweg", fontWeight = FontWeight.SemiBold)
+                Text("Wie viel zusätzliche Fahrzeit ist okay?", fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(0, 5, 10, 20, 30).forEach { minutes ->
                         OutlinedButton(
@@ -212,8 +213,13 @@ internal fun ActiveRouteStopSearchDialog(
                                         "Echte Fahrzeit wird berechnet …",
                                         style = MaterialTheme.typography.labelSmall,
                                     )
-                                    routeEvaluationComplete -> Text(
+                                    routeEvaluationComplete && !routeEvaluationUnavailable -> Text(
                                         "Keine passende Fahrroute berechnet",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                    routeEvaluationUnavailable -> Text(
+                                        "Vorprüfung nicht verfügbar – beim Einfügen wird die Route erneut geprüft",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.error,
                                     )
@@ -240,6 +246,7 @@ internal fun ActiveRouteStopSearchDialog(
                         selectedResult != null &&
                         !routeEvaluationInProgress &&
                         (
+                            routeEvaluationUnavailable ||
                             !routeEvaluationComplete ||
                                 routeEstimates.containsKey(selectedResult?.id)
                         ) &&
