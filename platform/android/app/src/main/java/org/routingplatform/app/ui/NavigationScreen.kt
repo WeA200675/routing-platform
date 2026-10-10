@@ -54,6 +54,7 @@ import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestination
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AiPreferences
+import org.routingplatform.app.profile.DrivingPreferences
 import org.routingplatform.app.profile.DisplayPreferences
 import org.routingplatform.app.profile.ExperiencePackCatalog
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
@@ -177,6 +178,14 @@ internal fun NavigationScreen(
     navigationPreferences:
         NavigationPreferences =
         NavigationPreferences(),
+
+    drivingPreferences:
+        DrivingPreferences =
+        DrivingPreferences(),
+
+    onDrivingPreferencesChanged:
+        (DrivingPreferences) -> Unit =
+        {},
 
     hapticAvailable:
         Boolean =
@@ -345,6 +354,11 @@ internal fun NavigationScreen(
             mutableStateOf(
                 false
             )
+        }
+
+    var drivingPreferencesOpen by
+        remember {
+            mutableStateOf(false)
         }
 
     var experiencePackOpen by
@@ -1003,6 +1017,13 @@ internal fun NavigationScreen(
                                         onClick = onOpenOfflineRoutingSetup,
                                     ),
                                     NavigationSettingTile(
+                                        testTag = "driving_preferences_open",
+                                        title = "Fahrpräferenzen",
+                                        value = drivingPreferenceSummary(drivingPreferences),
+                                        onClick = { drivingPreferencesOpen = true },
+                                    ),
+
+                                    NavigationSettingTile(
                                         testTag =
                                             NavigationUiTestTags
                                                 .ExperiencePackOpen,
@@ -1556,6 +1577,18 @@ internal fun NavigationScreen(
 
             onMoveViaDown =
                 onMoveViaDown,
+        )
+    }
+
+    if (
+        drivingPreferencesOpen &&
+        snapshot.state ==
+            NavigationSessionState.Preview
+    ) {
+        DrivingPreferencesSettingsDialog(
+            preferences = drivingPreferences,
+            onSave = onDrivingPreferencesChanged,
+            onDismiss = { drivingPreferencesOpen = false },
         )
     }
 
@@ -2919,3 +2952,23 @@ private fun routeFamilyLabel(family: NavigationRouteFamily): String =
         NavigationRouteFamily.Scenic -> "Landschaftlich"
         NavigationRouteFamily.Stable -> "Stabile Route"
     }
+
+
+private fun drivingPreferenceSummary(preferences: DrivingPreferences): String =
+    listOf(
+        when (preferences.style) {
+            org.routingplatform.app.profile.DrivingStylePreference.Relaxed -> "Entspannt"
+            org.routingplatform.app.profile.DrivingStylePreference.Balanced -> "Ausgewogen"
+            org.routingplatform.app.profile.DrivingStylePreference.Direct -> "Direkt"
+        },
+        when {
+            preferences.preferMajorRoads -> "Hauptstraßen"
+            preferences.avoidComplexTurns -> "einfache Manöver"
+            else -> when (preferences.routeStyle) {
+                org.routingplatform.app.profile.RouteStylePreference.Balanced -> "ausgewogene Route"
+                org.routingplatform.app.profile.RouteStylePreference.Stable -> "stabile Route"
+                org.routingplatform.app.profile.RouteStylePreference.MajorRoads -> "Hauptstraßen"
+                org.routingplatform.app.profile.RouteStylePreference.SimpleManeuvers -> "einfache Manöver"
+            }
+        },
+    ).joinToString(" · ")

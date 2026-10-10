@@ -41,6 +41,7 @@ import org.routingplatform.app.navigation.NavigationDeviceCalibration
 import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
 import org.routingplatform.app.navigation.AndroidOfflineRoutingDatasetStore
 import org.routingplatform.app.navigation.NavigationRouteFamily
+import org.routingplatform.app.navigation.routeFamilyForDrivingPreferences
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.AndroidNavigationBootIdentity
 import org.routingplatform.app.navigation.AndroidNavigationStateStore
@@ -83,6 +84,7 @@ import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AndroidUserProfileStore
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
+import org.routingplatform.app.profile.DrivingPreferences
 import org.routingplatform.app.profile.ExperiencePackSelectionSource
 import org.routingplatform.app.ui.NavigationAssistOverlay
 import org.routingplatform.app.security.SecurityDiagnosticsActivity
@@ -255,8 +257,8 @@ class MainActivity :
                 )
             }
             var socialAiRouteFeedbackAvailable by remember { mutableStateOf(false) }
-            var socialAiRouteFamily by remember {
-                mutableStateOf(NavigationRouteFamily.ProfileOptimal)
+            var socialAiRouteFamily by remember(activeProfile.driving) {
+                mutableStateOf(routeFamilyForDrivingPreferences(activeProfile.driving))
             }
             var socialAiFeedbackPending by remember { mutableStateOf(false) }
 
@@ -425,6 +427,12 @@ class MainActivity :
                         .fromIntent(
                             intent
                         )
+                }
+            val initialRouteFamily =
+                if (intent?.hasExtra(NavigationRouteIntentRequest.FAMILY) == true) {
+                    initialRouteRequest.family
+                } else {
+                    routeFamilyForDrivingPreferences(activeProfile.driving)
                 }
 
             var tripPlan by
@@ -712,7 +720,7 @@ class MainActivity :
                                         onSuccess = { location ->
                                             val baseRequest = tripPlan.toRouteRequest(
                                                 origin = location.position,
-                                                family = initialRouteRequest.family,
+                                                family = initialRouteFamily,
                                             )
                                             val handle = router.evaluateAll(
                                                 baseRequest = baseRequest,
@@ -1320,7 +1328,7 @@ class MainActivity :
                             onSuccess = { planningLocation ->
                                 val request = requestedPlan.toRouteRequest(
                                     origin = planningLocation.position,
-                                    family = initialRouteRequest.family,
+                                    family = initialRouteFamily,
                                 )
 
                                 destinationPlannerMessage =
@@ -2004,6 +2012,10 @@ class MainActivity :
                             activeProfile
                                 .voice,
 
+                        drivingPreferences =
+                            activeProfile
+                                .driving,
+
                         navigationPreferences =
                             activeProfile
                                 .navigation,
@@ -2549,6 +2561,14 @@ class MainActivity :
 
                             activeProfile =
                                 updated
+                        },
+
+                        onDrivingPreferencesChanged = { updatedDriving ->
+                            val updated = activeProfile.copy(driving = updatedDriving)
+                            check(profileStore.saveAndActivate(updated)) {
+                                "Could not persist active profile."
+                            }
+                            activeProfile = updated
                         },
 
                         onExperiencePackSelected = {
