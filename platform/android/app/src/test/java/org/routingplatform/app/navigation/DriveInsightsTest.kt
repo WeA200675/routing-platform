@@ -80,7 +80,7 @@ class DriveInsightsTest {
     @Test
     fun historicalMeanDoesNotTreatSameWeekdayMidnightAsAdjacentAcrossWholeDay() {
         val zone = ZoneId.of("Europe/Berlin")
-        val target = Instant.parse("2026-10-05T22:10:00Z").toEpochMilli() // Monday 00:10
+        val target = Instant.parse("2026-10-04T22:10:00Z").toEpochMilli() // Monday 00:10
         val previousEvening = Instant.parse("2026-09-28T21:50:00Z").toEpochMilli() // Monday 23:50
         val estimate = HistoricalTrafficAverager.estimateDelay(
             listOf(
