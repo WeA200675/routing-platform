@@ -977,6 +977,33 @@ internal fun NavigationScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                tonalElevation = 1.dp,
+                                shape = MaterialTheme.shapes.small,
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Text("Verkehrsdaten", fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        "Kein Live-Verkehrsdienst verbunden. Aktuelle Stauwartezeiten und " +
+                                            "Umfahrungen können deshalb noch nicht ermittelt werden.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        if (historicalRouteObservations.size >= 3) {
+                                            "Lokale Vergleichsfahrten: ${historicalRouteObservations.size}. " +
+                                                "Die Abfahrtsplanung nutzt nur zeitlich passende Fahrten."
+                                        } else {
+                                            "Lokale Vergleichsfahrten: ${historicalRouteObservations.size}/3. " +
+                                                "Bis genügend zeitlich passende Fahrten vorliegen, nutzt die " +
+                                                "Abfahrtsplanung die berechnete Grundfahrzeit."
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            }
+
                             tripPlan?.viaPoints
                                 ?.mapNotNull { it.label?.takeIf(String::isNotBlank) }
                                 ?.takeIf { it.isNotEmpty() }
