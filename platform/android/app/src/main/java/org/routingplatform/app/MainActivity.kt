@@ -93,7 +93,6 @@ import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
-import org.routingplatform.app.ui.NAVIGATION_CAMERA_FOLLOW_RESUME_DELAY_MS
 import org.routingplatform.app.ui.ActiveRouteStopSearchButton
 import org.routingplatform.app.ui.ActiveRouteStopSearchDialog
 import org.routingplatform.app.ui.ActiveRoutePoiRouteEstimate
@@ -1856,6 +1855,13 @@ class MainActivity :
 
                         navigationCalibrationProfile =
                             calibrationProfile,
+
+                        initialCameraFollowSuspendedUntilElapsedRealtimeMs =
+                            cameraFollowSuspendedUntilElapsedRealtimeMs,
+
+                        onCameraFollowDeadlineChanged = { deadline ->
+                            cameraFollowSuspendedUntilElapsedRealtimeMs = deadline
+                        },
 
                         onAcceptCalibrationDisclosure = {
                             calibrationDisclosureStore.accept()

@@ -136,8 +136,10 @@ internal fun NavigationScreen(
         (DisplayPreferences) -> Unit =
         {},
 
-    cameraFollowSuspendedUntilElapsedRealtimeMs: Long? = null,
+    initialCameraFollowSuspendedUntilElapsedRealtimeMs: Long? = null,
     onCameraFollowDeadlineChanged: (Long?) -> Unit = {},
+
+    initialCameraFollowSuspendedUntilElapsedRealtimeMs: Long? = null,
 
     onNavigationControlSideChanged:
         (NavigationControlSide) -> Unit =
@@ -323,6 +325,10 @@ internal fun NavigationScreen(
         {},
 ) {
     var calibrationSummaryOpen by remember { mutableStateOf(false) }
+    var cameraFollowSuspendedUntilElapsedRealtimeMs by rememberSaveable {
+        mutableStateOf(initialCameraFollowSuspendedUntilElapsedRealtimeMs)
+    }
+
 
     if (calibrationSummaryOpen) {
         Dialog(onDismissRequest = { calibrationSummaryOpen = false }) {
