@@ -32,8 +32,37 @@ class SocialAiRoutePreferenceMemoryTest {
             NavigationRouteFamily.Shortest,
             SocialAiRoutePreferenceMemory.recall(repository, storeId),
         )
+        assertTrue(
+            SocialAiRoutePreferenceMemory.rememberPostDriveRating(
+                repository = repository,
+                storeId = storeId,
+                key = RouteFeedbackQuestionKind.RoadChoice.name,
+                value = "Ruhige Nebenstraßen",
+                learningEnabled = true,
+                nowEpochMillis = 250L,
+            )
+        )
+        repository.rememberExplicitly(
+            storeId = storeId,
+            id = "social-style",
+            kind = SocialAiKnowledgeKind.Preference,
+            key = "social.humor.style",
+            value = "concise",
+            observedAtEpochMillis = 275L,
+        )
+
         assertTrue(SocialAiRoutePreferenceMemory.forget(repository, storeId))
         assertNull(SocialAiRoutePreferenceMemory.recall(repository, storeId))
+        assertTrue(
+            repository
+                .recall(storeId, maximumEntries = 64)
+                .none { it.key.startsWith("post_drive.") || it.key == "routing.family" }
+        )
+        assertTrue(
+            repository
+                .recall(storeId, maximumEntries = 64)
+                .any { it.id == "social-style" }
+        )
     }
 
     @Test

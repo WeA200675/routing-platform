@@ -102,6 +102,23 @@ internal object SocialAiRoutePreferenceMemory {
         return true
     }
 
-    fun forget(repository: SocialAiLearningRepository, storeId: String): Boolean =
-        repository.forget(storeId, ENTRY_ID)
+    fun forget(repository: SocialAiLearningRepository, storeId: String): Boolean {
+        val routeMemoryIds =
+            repository
+                .recall(storeId, maximumEntries = 64)
+                .filter {
+                    it.kind == SocialAiKnowledgeKind.Preference &&
+                        (it.id == ENTRY_ID || it.key.startsWith("post_drive."))
+                }
+                .map { it.id }
+                .distinct()
+
+        var removedAny = false
+        routeMemoryIds.forEach { id ->
+            if (repository.forget(storeId, id)) {
+                removedAny = true
+            }
+        }
+        return removedAny
+    }
 }
