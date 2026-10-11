@@ -297,6 +297,12 @@ class JniNavigationCoreBridge :
 
             routeDiagnostics =
                 route.diagnostics,
+
+            speedLimitSegments =
+                route.speedLimitSegments,
+
+            speedLimitDataStatus =
+                route.speedLimitDataStatus,
         )
     }
 

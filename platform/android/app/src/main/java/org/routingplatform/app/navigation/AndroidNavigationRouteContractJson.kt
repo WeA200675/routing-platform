@@ -181,6 +181,33 @@ object AndroidNavigationRouteContractJson {
                 }
             }
 
+        val speedLimitSegments =
+            buildList {
+                val sourceArray = root.optJSONArray("speedLimitSegments")
+                if (sourceArray != null) {
+                    for (index in 0 until sourceArray.length()) {
+                        val source = sourceArray.getJSONObject(index)
+                        val rawLimit = source.optDouble("speedLimitKmh", Double.NaN)
+                        add(
+                            NavigationSpeedLimitSegment(
+                                beginShapeIndex = source.getInt("beginShapeIndex"),
+                                endShapeIndex = source.getInt("endShapeIndex"),
+                                speedLimitKmh = rawLimit.takeIf { it.isFinite() && it > 0.0 },
+                                unlimited = source.optBoolean("unlimited", false),
+                                isUrban = source.optionalBoolean("isUrban"),
+                            )
+                        )
+                    }
+                }
+            }
+
+        val speedLimitDataStatus =
+            when (root.optString("speedLimitDataStatus", "unavailable")) {
+                "complete" -> NavigationSpeedLimitDataStatus.Complete
+                "partial" -> NavigationSpeedLimitDataStatus.Partial
+                else -> NavigationSpeedLimitDataStatus.Unavailable
+            }
+
         return NavigationRouteContract(
             schemaVersion =
                 schemaVersion,
@@ -232,9 +259,20 @@ object AndroidNavigationRouteContractJson {
 
             diagnostics =
                 diagnostics,
+
+            speedLimitSegments =
+                speedLimitSegments,
+
+            speedLimitDataStatus =
+                speedLimitDataStatus,
         )
     }
 }
+
+private fun JSONObject.optionalBoolean(
+    key: String,
+): Boolean? =
+    if (!has(key) || isNull(key)) null else optBoolean(key)
 
 private fun JSONObject.optionalInt(
     key: String,

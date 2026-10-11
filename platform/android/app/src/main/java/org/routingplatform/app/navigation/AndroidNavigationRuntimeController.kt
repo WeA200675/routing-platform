@@ -73,6 +73,14 @@ data class NavigationRuntimeTelemetry(
         Long? =
         null,
 
+    val currentSpeedMps:
+        Double? =
+        null,
+
+    val currentSpeedAccuracyMps:
+        Double? =
+        null,
+
     val safetyApprovedCandidate:
         RouteProgressAnchor? =
         null,
@@ -712,6 +720,14 @@ class AndroidNavigationRuntimeController(
                     lastLocationElapsedRealtimeNanos =
                         sample
                             .elapsedRealtimeNanos,
+
+                    currentSpeedMps =
+                        sample
+                            .speedMps,
+
+                    currentSpeedAccuracyMps =
+                        sample
+                            .speedAccuracyMps,
 
                     safetyApprovedCandidate =
                         result

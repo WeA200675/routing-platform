@@ -198,6 +198,22 @@ internal class NavigationVoicePlaybackRuntime(
         }
     }
 
+    fun presentSpeedLimitWarning(
+        snapshot: NavigationUiSnapshot,
+        warning: NavigationSpeedLimitWarning,
+        voice: VoicePreferences,
+    ) {
+        val cue = NavigationVoicePresentation.speedLimitCue(snapshot, warning, voice) ?: return
+        ensurePlaybackSession(snapshot.sessionId, snapshot.routeId)
+        val deliveryKey = NavigationVoiceDeliveryKey(cue.key, null)
+        if (deliveryKey in deliveredKeys) return
+        when (speaker.submit(cue)) {
+            NavigationSpeechSubmission.Queued,
+            NavigationSpeechSubmission.Spoken -> deliveredKeys.add(deliveryKey)
+            NavigationSpeechSubmission.Rejected -> Unit
+        }
+    }
+
     private fun trackFallbackManeuver(
         snapshot: NavigationUiSnapshot,
     ): Long? {
