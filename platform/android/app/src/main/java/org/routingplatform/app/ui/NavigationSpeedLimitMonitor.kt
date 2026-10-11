@@ -78,10 +78,11 @@ internal class NavigationSpeedLimitMonitor {
             snapshot.shapeSegmentIndex.toDouble() + snapshot.segmentFraction
         val sortedSegments = snapshot.speedLimitSegments.sortedBy { it.beginShapeIndex }
         val currentSegment = sortedSegments
-            .lastOrNull { segment ->
+            .filter { segment ->
                 shapePosition >= segment.beginShapeIndex &&
                     shapePosition <= segment.endShapeIndex
             }
+            .minByOrNull { it.endShapeIndex - it.beginShapeIndex }
         val currentLimit = currentSegment
             ?.speedLimitKmh
             ?.roundToInt()
@@ -110,10 +111,11 @@ internal class NavigationSpeedLimitMonitor {
             .asSequence()
             .filter { it.beginShapeIndex.toDouble() > shapePosition + SHAPE_INDEX_EPSILON }
             .filter { it.speedLimitKmh != null }
-            .firstOrNull { segment ->
+            .filter { segment ->
                 val upcomingLimit = segment.speedLimitKmh!!.roundToInt()
                 currentLimit == null || upcomingLimit < currentLimit
             }
+            .minByOrNull { it.beginShapeIndex }
         val distanceToUpcoming =
             upcoming?.let {
                 distanceFromCurrentToShapeIndex(
