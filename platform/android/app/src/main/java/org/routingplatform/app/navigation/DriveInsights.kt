@@ -98,7 +98,10 @@ object HistoricalTrafficAverager {
             .filter {
                 val local = Instant.ofEpochMilli(it.startedAtEpochMillis).atZone(zoneId)
                 local.dayOfWeek == target.dayOfWeek &&
-                    minOf(abs(local.hour - target.hour), 24 - abs(local.hour - target.hour)) <= SIMILAR_HOUR_WINDOW
+                    abs(
+                        (local.hour * 60 + local.minute) -
+                            (target.hour * 60 + target.minute)
+                    ) <= SIMILAR_HOUR_WINDOW * 60
             }
             .map { it.delaySeconds }
             .toList()

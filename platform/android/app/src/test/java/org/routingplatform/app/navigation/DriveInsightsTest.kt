@@ -77,4 +77,22 @@ class DriveInsightsTest {
         assertEquals(arrival - 2_100_000L, baseline.recommendedDepartureEpochMillis)
         assertEquals(DepartureEstimateKind.BaselineOnly, baseline.estimateKind)
     }
+    @Test
+    fun historicalMeanDoesNotTreatSameWeekdayMidnightAsAdjacentAcrossWholeDay() {
+        val zone = ZoneId.of("Europe/Berlin")
+        val target = Instant.parse("2026-10-05T22:10:00Z").toEpochMilli() // Monday 00:10
+        val previousEvening = Instant.parse("2026-09-28T21:50:00Z").toEpochMilli() // Monday 23:50
+        val estimate = HistoricalTrafficAverager.estimateDelay(
+            listOf(
+                HistoricalRouteObservation("night", previousEvening, 1_000, 2_000),
+                HistoricalRouteObservation("night", previousEvening - 7 * 24 * 60 * 60_000L, 1_000, 2_000),
+                HistoricalRouteObservation("night", previousEvening - 14 * 24 * 60 * 60_000L, 1_000, 2_000),
+            ),
+            routeKey = "night",
+            targetDepartureEpochMillis = target,
+            zoneId = zone,
+        )
+        assertNull(estimate)
+    }
+
 }
