@@ -232,13 +232,7 @@ internal fun rememberNavigationVoiceRuntime(
             )
         },
 
-        speedLimitWarning = { warningSnapshot, warning ->
-            runtime.presentSpeedLimitWarning(
-                snapshot = warningSnapshot,
-                warning = warning,
-                voice = effectiveVoice,
-            )
-        },
+        
     )
 }
 

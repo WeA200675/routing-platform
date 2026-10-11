@@ -50,15 +50,15 @@ internal fun NavigationOnboardingDialog(
                 Text("Dein Navi einrichten", style = MaterialTheme.typography.titleLarge)
                 Text("Wähle kurz aus, wie du am liebsten fährst und angesagt werden möchtest. Du kannst alles später ändern.")
                 Text("Fahrstil", style = MaterialTheme.typography.titleMedium)
-                ChoiceRow(listOf("Entspannt", "Ausgewogen", "Direkt"), draftDriving.style.ordinal) {
+                OnboardingChoiceRow(listOf("Entspannt", "Ausgewogen", "Direkt"), draftDriving.style.ordinal) {
                     draftDriving = draftDriving.copy(style = DrivingStylePreference.values()[it])
                 }
                 Text("Routenart", style = MaterialTheme.typography.titleMedium)
-                ChoiceRow(listOf("Ausgewogen", "Stabil", "Hauptstraßen", "Einfache Abbiegungen"), draftDriving.routeStyle.ordinal) {
+                OnboardingChoiceRow(listOf("Ausgewogen", "Stabil", "Hauptstraßen", "Einfache Abbiegungen"), draftDriving.routeStyle.ordinal) {
                     draftDriving = draftDriving.copy(routeStyle = RouteStylePreference.values()[it])
                 }
                 Text("Ansagezeitpunkt", style = MaterialTheme.typography.titleMedium)
-                ChoiceRow(listOf("Früh", "Standard", "Spät"), when (draftNavigation.instructionLeadTime) {
+                OnboardingChoiceRow(listOf("Früh", "Standard", "Spät"), when (draftNavigation.instructionLeadTime) {
                     InstructionLeadTimePreference.Early -> 0
                     InstructionLeadTimePreference.Standard -> 1
                     InstructionLeadTimePreference.Late -> 2
@@ -81,6 +81,26 @@ internal fun NavigationOnboardingDialog(
                         onDismiss()
                     }) { Text("Speichern") }
                 }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun OnboardingChoiceRow(
+    labels: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Column {
+        labels.forEachIndexed { index, label ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = selected == index,
+                    onClick = { onSelect(index) },
+                )
+                Text(label, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

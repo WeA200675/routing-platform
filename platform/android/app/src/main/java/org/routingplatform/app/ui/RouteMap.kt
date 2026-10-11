@@ -4,6 +4,7 @@ import android.util.Log
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -83,7 +84,7 @@ internal const val NAVIGATION_CAMERA_FOLLOW_RESUME_DELAY_MS = 30_000L
  * when the positioning/safety contract is wired in G3.
  */
 @Composable
-fun RouteMap(
+internal fun RouteMap(
     points: List<RoutePoint>,
     shapeSegmentIndex: Int,
     segmentFraction: Double,
@@ -239,15 +240,15 @@ fun RouteMap(
         }
 
     val bearingStabilizer =
-        remember(mapLibreMap) {
+        remember {
             NavigationBearingStabilizer()
         }
 
-    var displayedMapBearing by remember(mapLibreMap) {
+    var displayedMapBearing by remember {
         mutableStateOf(0.0)
     }
 
-    var lastCameraFollowSessionId by remember(mapLibreMap) {
+    var lastCameraFollowSessionId by remember {
         mutableStateOf<String?>(null)
     }
 
@@ -1520,7 +1521,7 @@ private fun NavigationCompass(
     }
 }
 
-private private fun installNavigationBuildingLayer(
+private fun installNavigationBuildingLayer(
     style: Style,
     darkMode: Boolean,
 ) {

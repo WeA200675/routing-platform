@@ -1879,34 +1879,7 @@ class MainActivity :
 
                         postDriveFeedback = postDriveFeedback?.first,
                         postDriveRouteSummary = stoppedDriveRouteSummary.orEmpty(),
-                        onPostDriveFeedbackAnswer = { answerIndex ->
-                            val question = postDriveFeedback?.first
-                            val option = answerIndex.toIntOrNull()?.let { question?.options?.getOrNull(it) }
-                            if (question != null && option != null) {
-                                SocialAiRoutePreferenceMemory.rememberPostDriveRating(
-                                    repository = socialAiLearningRepository,
-                                    storeId = routePreferenceStoreId,
-                                    key = question.kind.name,
-                                    value = option,
-                                    learningEnabled = activeProfile.ai.learningEnabled,
-                                    nowEpochMillis = System.currentTimeMillis(),
-                                )
-                                if (question.kind == org.routingplatform.app.ai.RouteFeedbackQuestionKind.GuidanceTiming) {
-                                    val lead = when (answerIndex.toInt()) {
-                                        1 -> InstructionLeadTimePreference.Early
-                                        2 -> InstructionLeadTimePreference.Late
-                                        else -> null
-                                    }
-                                    if (lead != null) {
-                                        val updated = activeProfile.copy(navigation = activeProfile.navigation.copy(instructionLeadTime = lead))
-                                        check(profileStore.saveAndActivate(updated)) { "Could not persist active profile." }
-                                        activeProfile = updated
-                                    }
-                                }
-                            }
-                            postDriveFeedback = null
-                        },
-                        onDismissPostDriveFeedback = { postDriveFeedback = null },
+                        
 
                         onOnboardingSave = { updatedDriving, updatedNavigation, learningEnabled ->
                             val updated = activeProfile.copy(
@@ -2838,7 +2811,7 @@ class MainActivity :
                             navigationStartedAtNanos =
                                 SystemClock
                                     .elapsedRealtimeNanos()
-                            navigationStartRouteFamily = snapshot.routeFamily.name
+                            navigationStartRouteFamily = socialAiRouteFamily.name
 
                             locationPermissionGranted =
                                 hasNavigationLocationPermission(
