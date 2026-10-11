@@ -29,6 +29,39 @@ internal object SocialAiRoutePreferenceMemory {
         family: NavigationRouteFamily,
         learningEnabled: Boolean,
         nowEpochMillis: Long,
+    ): Boolean =
+        rememberFamily(
+            repository = repository,
+            storeId = storeId,
+            family = family,
+            learningEnabled = learningEnabled,
+            nowEpochMillis = nowEpochMillis,
+            source = "route-preview-rating",
+        )
+
+    fun rememberPostDriveRecommendation(
+        repository: SocialAiLearningRepository,
+        storeId: String,
+        family: NavigationRouteFamily,
+        learningEnabled: Boolean,
+        nowEpochMillis: Long,
+    ): Boolean =
+        rememberFamily(
+            repository = repository,
+            storeId = storeId,
+            family = family,
+            learningEnabled = learningEnabled,
+            nowEpochMillis = nowEpochMillis,
+            source = "post-drive-route-feedback",
+        )
+
+    private fun rememberFamily(
+        repository: SocialAiLearningRepository,
+        storeId: String,
+        family: NavigationRouteFamily,
+        learningEnabled: Boolean,
+        nowEpochMillis: Long,
+        source: String,
     ): Boolean {
         require(nowEpochMillis >= 0L)
         if (!learningEnabled) return false
@@ -39,7 +72,7 @@ internal object SocialAiRoutePreferenceMemory {
             key = MEMORY_KEY,
             value = family.name,
             scope = SocialAiMemoryScope.LongTerm,
-            source = "route-preview-rating",
+            source = source,
             observedAtEpochMillis = nowEpochMillis,
         )
         return true

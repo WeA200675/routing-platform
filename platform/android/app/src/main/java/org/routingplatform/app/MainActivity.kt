@@ -1925,37 +1925,51 @@ class MainActivity :
                                     nowEpochMillis = System.currentTimeMillis(),
                                 )
                                 if (question.kind == org.routingplatform.app.ai.RouteFeedbackQuestionKind.GuidanceTiming) {
-                                    val lead = when (answerIndex.toInt()) {
+                                    val answer = answerIndex.toInt()
+                                    val lead = when (answer) {
                                         1 -> InstructionLeadTimePreference.Early
                                         2 -> InstructionLeadTimePreference.Late
                                         else -> null
                                     }
-                                    if (lead != null) {
-                                        val updated = activeProfile.copy(
-                                            navigation = activeProfile.navigation.copy(instructionLeadTime = lead),
-                                        )
+                                    val updated = activeProfile.copy(
+                                        navigation = lead?.let {
+                                            activeProfile.navigation.copy(instructionLeadTime = it)
+                                        } ?: activeProfile.navigation,
+                                        voice = if (answer == 3) {
+                                            activeProfile.voice.copy(
+                                                verbosity = org.routingplatform.app.profile.VoiceGuidanceVerbosity.Minimal,
+                                            )
+                                        } else {
+                                            activeProfile.voice
+                                        },
+                                    )
+                                    if (updated != activeProfile) {
                                         check(profileStore.saveAndActivate(updated)) { "Could not persist active profile." }
                                         activeProfile = updated
                                     }
                                 }
-                                if (question.kind == org.routingplatform.app.ai.RouteFeedbackQuestionKind.PersonalPriority) {
-                                    val family = when (answerIndex.toInt()) {
-                                        0 -> NavigationRouteFamily.Fastest
-                                        1 -> NavigationRouteFamily.Comfort
-                                        2 -> NavigationRouteFamily.Stable
-                                        3 -> NavigationRouteFamily.LowUrban
-                                        else -> null
-                                    }
-                                    if (family != null && activeProfile.ai.learningEnabled) {
-                                        SocialAiRoutePreferenceMemory.rememberPositiveRating(
-                                            repository = socialAiLearningRepository,
-                                            storeId = routePreferenceStoreId,
-                                            family = family,
-                                            learningEnabled = true,
-                                            nowEpochMillis = System.currentTimeMillis(),
-                                        )
-                                        rememberedRouteFamily = family
-                                    }
+                                val currentFamily =
+                                    sequenceOf(stoppedDriveFamily, navigationStartRouteFamily, socialAiRouteFamily.name)
+                                        .filterNotNull()
+                                        .mapNotNull { value ->
+                                            runCatching { NavigationRouteFamily.valueOf(value) }.getOrNull()
+                                        }
+                                        .firstOrNull()
+                                        ?: socialAiRouteFamily
+                                val recommendedFamily = org.routingplatform.app.ai.RouteFeedbackRoutePreference.recommendedFamily(
+                                    kind = question.kind,
+                                    answer = option,
+                                    currentFamily = currentFamily,
+                                )
+                                if (recommendedFamily != null && activeProfile.ai.learningEnabled) {
+                                    SocialAiRoutePreferenceMemory.rememberPostDriveRecommendation(
+                                        repository = socialAiLearningRepository,
+                                        storeId = routePreferenceStoreId,
+                                        family = recommendedFamily,
+                                        learningEnabled = true,
+                                        nowEpochMillis = System.currentTimeMillis(),
+                                    )
+                                    rememberedRouteFamily = recommendedFamily
                                 }
                             }
                             postDriveFeedback = null
