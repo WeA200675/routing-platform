@@ -201,13 +201,14 @@ class NavigationVoicePlaybackRuntimeTest {
         )
 
         assertEquals(
-            2,
+            3,
             speaker.submitted.size,
         )
 
         assertEquals(
             listOf(
                 NavigationVoiceCueStage.Now,
+                NavigationVoiceCueStage.Early,
                 NavigationVoiceCueStage.Now,
             ),
             speaker.submitted.map {
