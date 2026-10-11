@@ -56,6 +56,29 @@ data class NavigationManeuver(
         null,
 )
 
+enum class NavigationSpeedLimitDataStatus {
+    Unavailable,
+    Partial,
+    Complete,
+}
+
+data class NavigationSpeedLimitSegment(
+    val beginShapeIndex: Int,
+    val endShapeIndex: Int,
+    val speedLimitKmh: Double? = null,
+    val unlimited: Boolean = false,
+    val isUrban: Boolean? = null,
+) {
+    init {
+        require(beginShapeIndex >= 0)
+        require(endShapeIndex >= beginShapeIndex)
+        require(speedLimitKmh == null || (
+            speedLimitKmh.isFinite() && speedLimitKmh in 1.0..300.0
+        ))
+        require(!unlimited || speedLimitKmh == null)
+    }
+}
+
 data class NavigationUiSnapshot(
     val schemaVersion: Int = 1,
     val sessionId: String,
@@ -108,6 +131,14 @@ data class NavigationUiSnapshot(
     val routeDiagnostics:
         List<NavigationRouteDiagnostic> =
         emptyList(),
+
+    val speedLimitSegments:
+        List<NavigationSpeedLimitSegment> =
+        emptyList(),
+
+    val speedLimitDataStatus:
+        NavigationSpeedLimitDataStatus =
+        NavigationSpeedLimitDataStatus.Unavailable,
 ) {
     init {
         require(schemaVersion == 1) {

@@ -28,6 +28,9 @@ internal data class NavigationVoiceRuntimePresentation(
 
     val refreshCatalog:
         () -> Unit,
+
+    val speedLimitWarning:
+        (NavigationUiSnapshot, NavigationSpeedLimitWarning) -> Unit,
 )
 
 /*
@@ -89,6 +92,14 @@ internal class AndroidNavigationVoiceRuntime(
             personality =
                 personality,
         )
+    }
+
+    fun presentSpeedLimitWarning(
+        snapshot: NavigationUiSnapshot,
+        warning: NavigationSpeedLimitWarning,
+        voice: VoicePreferences,
+    ) {
+        playback.presentSpeedLimitWarning(snapshot, warning, voice)
     }
 
     fun preview(
@@ -211,6 +222,22 @@ internal fun rememberNavigationVoiceRuntime(
 
         refreshCatalog = {
             runtime.refreshCatalog()
+        },
+
+        speedLimitWarning = { warningSnapshot, warning ->
+            runtime.presentSpeedLimitWarning(
+                snapshot = warningSnapshot,
+                warning = warning,
+                voice = effectiveVoice,
+            )
+        },
+
+        speedLimitWarning = { warningSnapshot, warning ->
+            runtime.presentSpeedLimitWarning(
+                snapshot = warningSnapshot,
+                warning = warning,
+                voice = effectiveVoice,
+            )
         },
     )
 }

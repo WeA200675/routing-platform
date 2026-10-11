@@ -3,43 +3,56 @@ package org.routingplatform.app.ui
 import kotlin.math.abs
 
 /**
- * Dampens small trusted-heading fluctuations before they reach MapLibre.
- *
- * This class only stabilizes presentation. It does not change the navigation
- * matcher, accepted progress, observed position, or reroute decisions.
+ * Smooths map rotation while retaining a bounded angular velocity.
+ * The first trusted heading after startup/reset is applied immediately.
  */
 internal class NavigationBearingStabilizer(
-    private val deadbandDegrees: Double = 2.5,
+    private val deadbandDegrees: Double = 1.0,
     private val smoothingFactor: Double = 0.35,
+    private val maximumDegreesPerSecond: Double = 90.0,
 ) {
     private var stableBearingDegrees: Double? = null
+    private var lastUpdateElapsedRealtimeMs: Long? = null
 
     init {
         require(deadbandDegrees.isFinite() && deadbandDegrees >= 0.0)
         require(smoothingFactor.isFinite() && smoothingFactor in 0.0..1.0)
+        require(maximumDegreesPerSecond.isFinite() && maximumDegreesPerSecond > 0.0)
     }
 
-    fun update(targetBearingDegrees: Double): Double {
+    fun update(targetBearingDegrees: Double, elapsedRealtimeMs: Long): Double {
         require(targetBearingDegrees.isFinite())
+        require(elapsedRealtimeMs >= 0L)
 
         val target = normalize(targetBearingDegrees)
         val current = stableBearingDegrees
         if (current == null) {
             stableBearingDegrees = target
+            lastUpdateElapsedRealtimeMs = elapsedRealtimeMs
             return target
         }
 
+        val previousTime = lastUpdateElapsedRealtimeMs
+        lastUpdateElapsedRealtimeMs = elapsedRealtimeMs
+        val elapsedMs =
+            previousTime
+                ?.let { (elapsedRealtimeMs - it).coerceIn(0L, MAX_FILTER_INTERVAL_MS) }
+                ?: 0L
         val delta = shortestSignedDelta(current, target)
-        if (abs(delta) > deadbandDegrees) {
-            stableBearingDegrees =
-                normalize(current + delta * smoothingFactor)
+        if (abs(delta) <= deadbandDegrees || elapsedMs == 0L) {
+            return current
         }
 
+        val smoothedStep = delta * smoothingFactor
+        val maximumStep = maximumDegreesPerSecond * elapsedMs / 1000.0
+        val boundedStep = smoothedStep.coerceIn(-maximumStep, maximumStep)
+        stableBearingDegrees = normalize(current + boundedStep)
         return checkNotNull(stableBearingDegrees)
     }
 
     fun reset() {
-        stableBearingDegrees = 0.0
+        stableBearingDegrees = null
+        lastUpdateElapsedRealtimeMs = null
     }
 
     private fun shortestSignedDelta(from: Double, to: Double): Double =
@@ -50,3 +63,5 @@ internal class NavigationBearingStabilizer(
         return if (remainder < 0.0) remainder + 360.0 else remainder
     }
 }
+
+private const val MAX_FILTER_INTERVAL_MS = 1_000L

@@ -1,5 +1,8 @@
 package org.routingplatform.app.ui
 
+import android.os.SystemClock
+import androidx.compose.runtime.LaunchedEffect
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -114,6 +117,12 @@ internal fun NavigationScreen(
     trustedTravelBearingDegrees:
         Double? =
         null,
+
+    currentSpeedMps: Double? = null,
+    currentSpeedAccuracyMps: Double? = null,
+    speedSampleElapsedRealtimeNanos: Long? = null,
+    speedPositionTrusted: Boolean = false,
+    onSpeedLimitWarning: (NavigationSpeedLimitWarning) -> Unit = {},
 
     nightPresentation:
         NavigationNightPresentation =
@@ -465,6 +474,33 @@ internal fun NavigationScreen(
                         .Navigating,
         )
 
+    val speedLimitMonitor = remember(snapshot.sessionId, snapshot.routeId) {
+        NavigationSpeedLimitMonitor()
+    }
+    var speedLimitPresentation by remember(snapshot.sessionId, snapshot.routeId) {
+        mutableStateOf(NavigationSpeedLimitPresentation())
+    }
+
+    LaunchedEffect(
+        speedLimitMonitor,
+        snapshot,
+        currentSpeedMps,
+        currentSpeedAccuracyMps,
+        speedSampleElapsedRealtimeNanos,
+        speedPositionTrusted,
+    ) {
+        val update = speedLimitMonitor.update(
+            snapshot = snapshot,
+            speedMps = currentSpeedMps,
+            speedAccuracyMps = currentSpeedAccuracyMps,
+            speedSampleElapsedRealtimeNanos = speedSampleElapsedRealtimeNanos,
+            speedPositionTrusted = speedPositionTrusted,
+            nowElapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos(),
+        )
+        speedLimitPresentation = update.presentation
+        update.warning?.let(onSpeedLimitWarning)
+    }
+
     val runtimeDisplayPreferences =
         ExperiencePackRuntimeResolver
             .resolveDisplayPreferences(
@@ -505,6 +541,8 @@ internal fun NavigationScreen(
                     .fillMaxWidth(),
         ) {
             RouteMap(
+                cameraFollowSessionId = snapshot.sessionId,
+                speedLimitPresentation = speedLimitPresentation,
                 points =
                     snapshot.geometry,
 

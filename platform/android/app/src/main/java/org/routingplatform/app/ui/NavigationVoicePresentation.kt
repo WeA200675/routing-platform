@@ -71,6 +71,34 @@ internal data class NavigationVoiceCue(
 )
 
 internal object NavigationVoicePresentation {
+    fun speedLimitCue(
+        snapshot: NavigationUiSnapshot,
+        warning: NavigationSpeedLimitWarning,
+        voice: VoicePreferences,
+    ): NavigationVoiceCue? {
+        if (!voice.enabled || snapshot.state != NavigationSessionState.Navigating || snapshot.arrived || warning.routeId != snapshot.routeId) return null
+
+        val stage = when (warning.kind) {
+            NavigationSpeedLimitWarningKind.Approaching500m -> NavigationVoiceCueStage.Early
+            NavigationSpeedLimitWarningKind.Approaching150m -> NavigationVoiceCueStage.Prepare
+            NavigationSpeedLimitWarningKind.OverLimit -> NavigationVoiceCueStage.Now
+        }
+        val german = voice.languageTag.startsWith("de", ignoreCase = true)
+        val text = when (warning.kind) {
+            NavigationSpeedLimitWarningKind.Approaching500m -> if (german) "In 500 Metern gilt ein Tempolimit von ${warning.limitKmh} Stundenkilometern." else "Speed limit of ${warning.limitKmh} kilometers per hour in 500 meters."
+            NavigationSpeedLimitWarningKind.Approaching150m -> if (german) "In 150 Metern gilt ein Tempolimit von ${warning.limitKmh} Stundenkilometern." else "Speed limit of ${warning.limitKmh} kilometers per hour in 150 meters."
+            NavigationSpeedLimitWarningKind.OverLimit -> if (german) "Achtung. Das Tempolimit beträgt ${warning.limitKmh} Stundenkilometer." else "Caution. The speed limit is ${warning.limitKmh} kilometers per hour."
+        }
+        return NavigationVoiceCue(
+            key = NavigationVoiceCueKey(
+                sessionId = snapshot.sessionId, routeId = snapshot.routeId,
+                maneuverType = ManeuverType.Continue,
+                instruction = "speed-limit:${warning.deliveryId}",
+                beginShapeIndex = warning.beginShapeIndex, endShapeIndex = warning.beginShapeIndex, stage = stage,
+            ),
+            text = text, languageTag = voice.languageTag, voiceId = voice.voiceId, speechRate = voice.speechRate,
+        )
+    }
 
     private const val NOW_DISTANCE_METERS =
         35.0

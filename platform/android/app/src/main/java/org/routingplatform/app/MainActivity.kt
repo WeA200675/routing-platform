@@ -64,6 +64,8 @@ import org.routingplatform.app.navigation.NavigationViaCandidateEvaluation
 import org.routingplatform.app.navigation.NavigationViaCandidateSelection
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionHandle
 import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
+import org.routingplatform.app.navigation.NavigationPositionConfidence
+import org.routingplatform.app.navigation.NavigationFusionMode
 import org.routingplatform.app.navigation.NavigationRouteSourceFactory
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
 import org.routingplatform.app.navigation.NavigationSessionState
@@ -1932,6 +1934,34 @@ class MainActivity :
                         trustedTravelBearingDegrees =
                             telemetry
                                 .trustedTravelBearingDegrees,
+
+                        currentSpeedMps =
+                            telemetry.currentSpeedMps,
+
+                        currentSpeedAccuracyMps =
+                            telemetry.currentSpeedAccuracyMps,
+
+                        speedSampleElapsedRealtimeNanos =
+                            telemetry.lastLocationElapsedRealtimeNanos,
+
+                        speedPositionTrusted =
+                            telemetry.safetyStatus ==
+                                NavigationRouteProgressSafetyStatus.Accepted &&
+                                telemetry.fusionMode ==
+                                    NavigationFusionMode.DirectObservation &&
+                                (
+                                    telemetry.confidence ==
+                                        NavigationPositionConfidence.High ||
+                                        telemetry.confidence ==
+                                        NavigationPositionConfidence.Medium
+                                ),
+
+                        onSpeedLimitWarning = { warning ->
+                            voiceRuntime.speedLimitWarning(
+                                snapshot,
+                                warning,
+                            )
+                        },
 
                         nightPresentation =
                             nightPresentation,

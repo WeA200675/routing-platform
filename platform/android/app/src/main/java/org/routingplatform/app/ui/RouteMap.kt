@@ -36,9 +36,12 @@ import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.FillExtrusionLayer
 import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
@@ -120,6 +123,7 @@ fun RouteMap(
         {},
 
     cameraFollowSuspendedUntilElapsedRealtimeMs: Long? = null,
+    cameraFollowSessionId: String? = null,
     onCameraFollowDeadlineChanged: (Long?) -> Unit = {},
 
 
@@ -135,6 +139,10 @@ fun RouteMap(
     selectedTarget:
         RoutePoint? =
         null,
+
+    speedLimitPresentation:
+        NavigationSpeedLimitPresentation =
+        NavigationSpeedLimitPresentation(),
 
     mapSelectionEnabled:
         Boolean =
@@ -220,7 +228,8 @@ fun RouteMap(
                             .mapOrientation,
 
                     trustedTravelBearingDegrees =
-                        trustedTravelBearingDegrees,
+                        NavigationRouteBearing.at(points, shapeSegmentIndex)
+                            ?: trustedTravelBearingDegrees,
 
                     cameraFollowAllowed =
                         observedPosition
@@ -230,9 +239,17 @@ fun RouteMap(
         }
 
     val bearingStabilizer =
-        remember {
+        remember(mapLibreMap) {
             NavigationBearingStabilizer()
         }
+
+    var displayedMapBearing by remember(mapLibreMap) {
+        mutableStateOf(0.0)
+    }
+
+    var lastCameraFollowSessionId by remember(mapLibreMap) {
+        mutableStateOf<String?>(null)
+    }
 
     val mapView =
         remember {
@@ -721,6 +738,11 @@ fun RouteMap(
                                 segmentFraction,
                         )
 
+                    installNavigationBuildingLayer(
+                        style = style,
+                        darkMode = automaticNightMode,
+                    )
+
                     installNavigationLayers(
                         style =
                             style,
@@ -1070,23 +1092,25 @@ fun RouteMap(
                             distanceToCurrentManeuverEndM,
                     )
 
-            val stableMapBearing =
-                if (compassPresentation.headingUpActive) {
-                    bearingStabilizer.update(
-                        compassPresentation.mapBearingDegrees
-                    )
-                } else {
-                    bearingStabilizer.reset()
-                    0.0
-                }
-
             val followSuspended =
                 cameraFollowSuspendedUntilElapsedRealtimeMs?.let {
                     SystemClock.elapsedRealtime() < it
                 } == true
 
             if (!followSuspended) {
-                map.cameraPosition =
+                val stableMapBearing =
+                    if (compassPresentation.headingUpActive) {
+                        bearingStabilizer.update(
+                            compassPresentation.mapBearingDegrees,
+                            SystemClock.elapsedRealtime(),
+                        )
+                    } else {
+                        bearingStabilizer.reset()
+                        0.0
+                    }
+                displayedMapBearing = stableMapBearing
+
+                val cameraPosition =
                     CameraPosition
                         .Builder()
                         .target(
@@ -1099,6 +1123,20 @@ fun RouteMap(
                         .tilt(displayPreferences.mapTiltDegrees)
                         .bearing(stableMapBearing)
                         .build()
+
+                val newNavigationStart =
+                    cameraFollowSessionId == null ||
+                        lastCameraFollowSessionId != cameraFollowSessionId
+                if (newNavigationStart) {
+                    // One clean orientation snap at navigation start.
+                    map.cameraPosition = cameraPosition
+                } else {
+                    map.animateCamera(
+                        CameraUpdateFactory.newCameraPosition(cameraPosition),
+                        NAVIGATION_CAMERA_ANIMATION_DURATION_MS,
+                    )
+                }
+                lastCameraFollowSessionId = cameraFollowSessionId
             }
         } else {
             if (
@@ -1157,10 +1195,86 @@ fun RouteMap(
                 Modifier.fillMaxSize(),
         )
 
+        if (
+            speedLimitPresentation.speedKmh != null ||
+            speedLimitPresentation.limitKmh != null ||
+            speedLimitPresentation.dataStatus !=
+                org.routingplatform.app.navigation.NavigationSpeedLimitDataStatus.Unavailable
+        ) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 8.dp,
+                        bottom = if (observedPosition != null) 58.dp else 8.dp,
+                    ),
+                color = if (speedLimitPresentation.overLimit) {
+                    MaterialTheme.colorScheme.errorContainer
+                } else {
+                    MaterialTheme.colorScheme.surface
+                },
+                tonalElevation = 6.dp,
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Text(
+                        text = speedLimitPresentation.speedKmh?.let {
+                            it.toString() + " km/h"
+                        } ?: speedLimitPresentation.label,
+                        fontWeight = FontWeight.Bold,
+                        color = if (speedLimitPresentation.overLimit) {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                    if (speedLimitPresentation.limitKmh != null) {
+                        Text(
+                            text = "Tempolimit " + speedLimitPresentation.limitKmh + " km/h",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (speedLimitPresentation.overLimit) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    } else if (speedLimitPresentation.unlimited) {
+                        Text(
+                            text = "Kein Zahlenlimit laut Karte",
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                    if (speedLimitPresentation.overLimit) {
+                        Text(
+                            text = "Geschwindigkeit über dem Kartentempolimit",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                    if (
+                        speedLimitPresentation.upcomingLimitKmh != null &&
+                        speedLimitPresentation.distanceToUpcomingLimitM != null
+                    ) {
+                        Text(
+                            text = "In " + speedLimitPresentation.distanceToUpcomingLimitM +
+                                " m: " + speedLimitPresentation.upcomingLimitKmh + " km/h",
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                }
+            }
+        }
+
         if (!focusModeActive) {
             NavigationCompass(
                 presentation =
-                    compassPresentation,
+                    compassPresentation.copy(
+                        mapBearingDegrees = displayedMapBearing,
+                        compassNorthRotationDegrees =
+                            normalizeSignedDegrees(-displayedMapBearing),
+                    ),
 
                 modifier =
                     Modifier
@@ -1404,6 +1518,56 @@ private fun NavigationCompass(
                 }
         }
     }
+}
+
+private private fun installNavigationBuildingLayer(
+    style: Style,
+    darkMode: Boolean,
+) {
+    if (
+        style.getSource("openmaptiles") == null ||
+        style.getLayer(NAVIGATION_BUILDING_EXTRUSION_LAYER_ID) != null
+    ) {
+        return
+    }
+
+    val buildingLayer =
+        FillExtrusionLayer(
+            NAVIGATION_BUILDING_EXTRUSION_LAYER_ID,
+            "openmaptiles",
+        )
+            .withSourceLayer("building")
+            .withProperties(
+                PropertyFactory.fillExtrusionColor(
+                    if (darkMode) "#34363D" else "#B9B5B2"
+                ),
+                PropertyFactory.fillExtrusionOpacity(0.58f),
+                PropertyFactory.fillExtrusionHeight(
+                    Expression.coalesce(
+                        Expression.get("render_height"),
+                        Expression.literal(7.0),
+                    )
+                ),
+                PropertyFactory.fillExtrusionBase(
+                    Expression.coalesce(
+                        Expression.get("render_min_height"),
+                        Expression.literal(0.0),
+                    )
+                ),
+            )
+
+    val firstLabelLayer =
+        style.layers.firstOrNull { it is SymbolLayer }
+    if (firstLabelLayer != null) {
+        style.addLayerBelow(buildingLayer, firstLabelLayer.id)
+    } else {
+        style.addLayer(buildingLayer)
+    }
+}
+
+private fun normalizeSignedDegrees(degrees: Double): Double {
+    val normalized = ((degrees % 360.0) + 360.0) % 360.0
+    return if (normalized > 180.0) normalized - 360.0 else normalized
 }
 
 private fun installNavigationLayers(
@@ -1794,6 +1958,10 @@ private fun observedAccuracyGeoJson(
 private fun emptyFeatureCollectionGeoJson():
     String =
     """{"type":"FeatureCollection","features":[]}"""
+
+private const val NAVIGATION_CAMERA_ANIMATION_DURATION_MS = 650
+private const val NAVIGATION_BUILDING_EXTRUSION_LAYER_ID =
+    "routing-platform-building-extrusions"
 
 private const val PREVIEW_ROUTE_SOURCE_ID =
     "routing-platform-preview-route-source"

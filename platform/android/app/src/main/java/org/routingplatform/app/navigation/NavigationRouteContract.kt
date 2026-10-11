@@ -133,6 +133,14 @@ data class NavigationRouteContract(
 
     val diagnostics:
         List<NavigationRouteDiagnostic>,
+
+    val speedLimitSegments:
+        List<NavigationSpeedLimitSegment> =
+        emptyList(),
+
+    val speedLimitDataStatus:
+        NavigationSpeedLimitDataStatus =
+        NavigationSpeedLimitDataStatus.Unavailable,
 ) {
     init {
         require(schemaVersion == 1) {
@@ -167,6 +175,12 @@ data class NavigationRouteContract(
                 it.longitude.isFinite() &&
                     it.longitude in -180.0..180.0
             )
+        }
+
+        speedLimitSegments.forEach { segment ->
+            require(segment.endShapeIndex < geometry.size) {
+                "Speed limit segment shape index exceeds route geometry."
+            }
         }
 
         var previousBegin =

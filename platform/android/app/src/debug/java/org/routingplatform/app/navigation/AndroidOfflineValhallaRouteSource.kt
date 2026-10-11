@@ -129,8 +129,118 @@ internal class AndroidOfflineValhallaRouteSource(
         check(AndroidOfflineRoutingDatasetStore.isInstalled(appContext)) {
             "On-device DACH routing data is not installed or failed its integrity checks."
         }
-        val raw = engine().routeRaw(buildRequestJson(request))
-        return parseResponse(raw, request.family)
+        val valhalla = engine()
+        val raw = valhalla.routeRaw(buildRequestJson(request))
+        val route = parseResponse(raw, request.family)
+        return attachSpeedLimitAttributes(valhalla, route)
+    }
+
+    /**
+     * Read speed-limit attributes from the same on-device DACH graph.
+     * Requests are deliberately chunked so long routes never create a
+     * single oversized trace_attributes map-match on the Android stack.
+     * Speed metadata is advisory presentation data: failure never blocks
+     * a valid route.
+     */
+    private fun attachSpeedLimitAttributes(
+        valhalla: Valhalla,
+        route: NavigationRouteContract,
+    ): NavigationRouteContract {
+        val segments = mutableListOf<NavigationSpeedLimitSegment>()
+        var failedChunks = 0
+        var chunkStart = 0
+        while (chunkStart < route.geometry.lastIndex) {
+            val chunkEnd = (chunkStart + TRACE_ATTRIBUTE_CHUNK_POINTS)
+                .coerceAtMost(route.geometry.lastIndex)
+            val shape = JSONArray()
+            for (index in chunkStart..chunkEnd) {
+                val point = route.geometry[index]
+                shape.put(
+                    JSONObject()
+                        .put("lat", point.latitude)
+                        .put("lon", point.longitude)
+                )
+            }
+            val filters =
+                JSONObject()
+                    .put("action", "include")
+                    .put(
+                        "attributes",
+                        JSONArray()
+                            .put("edge.speed_limit")
+                            .put("edge.is_urban")
+                            .put("edge.begin_shape_index")
+                            .put("edge.end_shape_index"),
+                    )
+            val request =
+                JSONObject()
+                    .put("shape", shape)
+                    .put("costing", "auto")
+                    .put("units", "kilometers")
+                    .put("shape_match", "walk_or_snap")
+                    .put("filters", filters)
+
+            val chunkResult = runCatching {
+                val response = JSONObject(valhalla.traceAttributesRaw(request.toString()))
+                val edges = response.optJSONArray("edges")
+                    ?: error("Valhalla trace_attributes returned no edges array.")
+                for (edgeIndex in 0 until edges.length()) {
+                    val edge = edges.getJSONObject(edgeIndex)
+                    val begin = edge.optInt("begin_shape_index", -1)
+                    val end = edge.optInt("end_shape_index", -1)
+                    if (begin < 0 || end < begin || end > chunkEnd - chunkStart) continue
+
+                    val rawLimit = edge.opt("speed_limit")
+                    val unlimited = rawLimit is String &&
+                        rawLimit.equals("unlimited", ignoreCase = true)
+                    val numericLimit = when (rawLimit) {
+                        is Number -> rawLimit.toDouble()
+                        is String -> rawLimit.toDoubleOrNull()
+                        else -> null
+                    }?.takeIf { it.isFinite() && it in 1.0..300.0 }
+                    segments += NavigationSpeedLimitSegment(
+                        beginShapeIndex = chunkStart + begin,
+                        endShapeIndex = chunkStart + end,
+                        speedLimitKmh = numericLimit,
+                        unlimited = unlimited,
+                        isUrban = edge.opt("is_urban") as? Boolean,
+                    )
+                }
+            }
+            if (chunkResult.isFailure) failedChunks += 1
+            chunkStart = chunkEnd
+        }
+
+        val distinctSegments = segments
+            .distinctBy { it.beginShapeIndex to it.endShapeIndex }
+            .sortedWith(compareBy<NavigationSpeedLimitSegment> { it.beginShapeIndex }.thenBy { it.endShapeIndex })
+        val status = when {
+            distinctSegments.isEmpty() -> NavigationSpeedLimitDataStatus.Unavailable
+            failedChunks > 0 -> NavigationSpeedLimitDataStatus.Partial
+            else -> NavigationSpeedLimitDataStatus.Complete
+        }
+        val diagnostic = when (status) {
+            NavigationSpeedLimitDataStatus.Complete ->
+                NavigationRouteDiagnostic(
+                    "speed_limit_attributes_complete",
+                    "Speed-limit attributes were read from the installed on-device map tiles.",
+                )
+            NavigationSpeedLimitDataStatus.Partial ->
+                NavigationRouteDiagnostic(
+                    "speed_limit_attributes_partial",
+                    "Some route sections have no speed-limit attribute result.",
+                )
+            NavigationSpeedLimitDataStatus.Unavailable ->
+                NavigationRouteDiagnostic(
+                    "speed_limit_attributes_unavailable",
+                    "No reliable speed-limit attributes were returned for this route.",
+                )
+        }
+        return route.copy(
+            speedLimitSegments = distinctSegments,
+            speedLimitDataStatus = status,
+            diagnostics = route.diagnostics + diagnostic,
+        )
     }
 
     private fun engine(): Valhalla =
@@ -339,3 +449,5 @@ internal class AndroidOfflineValhallaRouteSource(
         }
     }
 }
+
+private const val TRACE_ATTRIBUTE_CHUNK_POINTS = 128
