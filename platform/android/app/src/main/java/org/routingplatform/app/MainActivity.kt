@@ -2966,6 +2966,9 @@ class MainActivity :
                         lastLocationAccuracyM =
                             telemetry.lastLocationAccuracyM,
 
+                        rawGnssQuality =
+                            telemetry.rawGnssQuality,
+
                         modifier =
                             Modifier.align(
                                 Alignment.TopEnd

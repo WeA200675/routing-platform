@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationPositionConfidence
+import org.routingplatform.app.navigation.NavigationRawGnssQuality
 import org.routingplatform.app.navigation.NavigationRouteEventAhead
 import org.routingplatform.app.navigation.NavigationRuntimePipelineStatus
 import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
@@ -48,6 +49,10 @@ fun NavigationAssistOverlay(
 
     lastLocationAccuracyM:
         Double? =
+        null,
+
+    rawGnssQuality:
+        NavigationRawGnssQuality? =
         null,
 ) {
     if (
@@ -216,6 +221,35 @@ fun NavigationAssistOverlay(
                         fontWeight =
                             FontWeight.SemiBold,
                     )
+
+                    Text(
+                        text =
+                            gnssReceptionLabel(
+                                rawGnssQuality
+                            ),
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+
+                        fontWeight =
+                            FontWeight.SemiBold,
+                    )
+
+                    gnssReceptionAdvice(
+                        rawGnssQuality
+                    )?.let { advice ->
+                        Text(
+                            text =
+                                advice,
+
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall,
+                        )
+                    }
 
                     lastLocationAccuracyM
                         ?.takeIf {
@@ -465,4 +499,39 @@ private fun runtimeStatusText(
 
         NavigationRuntimePipelineStatus.NativeUpdateFailed ->
             "Native Fortschrittsübergabe fehlgeschlagen"
+    }
+internal fun gnssReceptionLabel(
+    quality:
+        NavigationRawGnssQuality?,
+): String =
+    when (quality) {
+        NavigationRawGnssQuality.Strong ->
+            "GNSS-Empfang: gut"
+
+        NavigationRawGnssQuality.Usable ->
+            "GNSS-Empfang: brauchbar"
+
+        NavigationRawGnssQuality.Weak ->
+            "GNSS-Empfang: schwach"
+
+        null ->
+            "GNSS-Qualität nicht verfügbar"
+    }
+
+internal fun gnssReceptionAdvice(
+    quality:
+        NavigationRawGnssQuality?,
+): String? =
+    when (quality) {
+        NavigationRawGnssQuality.Strong ->
+            null
+
+        NavigationRawGnssQuality.Usable ->
+            "Freie Sicht zum Himmel verbessert die Positionsstabilität."
+
+        NavigationRawGnssQuality.Weak ->
+            "Handy höher und näher an die Frontscheibe setzen; Halterung testweise abnehmen."
+
+        null ->
+            "Ortungsfreigabe und freie Sicht zum Himmel prüfen."
     }
