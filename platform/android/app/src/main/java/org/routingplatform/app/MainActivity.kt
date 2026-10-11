@@ -34,6 +34,8 @@ import org.routingplatform.app.ai.SocialAiPoiPreferenceMemory
 import org.routingplatform.app.ai.DeterministicDestinationFallback
 import org.routingplatform.app.ai.SocialAiProductionRoutingResult
 import org.routingplatform.app.ai.SocialAiRoutingIntent
+import org.routingplatform.app.ai.RouteFeedbackQuestionPolicy
+import org.routingplatform.app.ai.RouteFeedbackQuestion
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
 import org.routingplatform.app.navigation.AndroidNavigationCalibrationDisclosureStore
 import org.routingplatform.app.navigation.AndroidNavigationCalibrationStore
@@ -87,6 +89,7 @@ import org.routingplatform.app.places.DestinationSearchHandle
 import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AndroidUserProfileStore
+import org.routingplatform.app.profile.InstructionLeadTimePreference
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.ExperiencePackSelectionSource
 import org.routingplatform.app.ui.NavigationAssistOverlay
@@ -95,6 +98,8 @@ import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
+import org.routingplatform.app.ui.NavigationOnboardingDialog
+import org.routingplatform.app.ui.PostDriveFeedbackDialog
 import org.routingplatform.app.ui.ActiveRouteStopSearchButton
 import org.routingplatform.app.ui.ActiveRouteStopSearchDialog
 import org.routingplatform.app.ui.ActiveRoutePoiRouteEstimate
@@ -137,6 +142,24 @@ class MainActivity :
                             .loadActiveProfile()
                     )
                 }
+
+            val onboardingStore = remember {
+                getSharedPreferences("routing-platform-onboarding-v1", MODE_PRIVATE)
+            }
+            var firstRunOnboardingComplete by remember {
+                mutableStateOf(onboardingStore.getBoolean("preferences-complete", false))
+            }
+            var onboardingOpen by remember {
+                mutableStateOf(!firstRunOnboardingComplete)
+            }
+            var postDriveQuestionIndex by remember {
+                mutableIntStateOf(onboardingStore.getInt("post-drive-question-index", -1))
+            }
+            var postDriveFeedback by remember {
+                mutableStateOf<Pair<RouteFeedbackQuestion, String>?>(null)
+            }
+            var stoppedDriveRouteSummary by remember { mutableStateOf<String?>(null) }
+            var stoppedDriveFamily by remember { mutableStateOf<String?>(null) }
 
             var navigationBrightnessCorrection by
                 remember {
@@ -606,6 +629,7 @@ class MainActivity :
                     )
                 }
 
+            var navigationStartRouteFamily by remember { mutableStateOf<String?>(null) }
             var navigationStartedAtNanos by
                 remember {
                     mutableStateOf<Long?>(
@@ -1852,6 +1876,54 @@ class MainActivity :
                         snapshot =
                             snapshot,
 
+
+                        postDriveFeedback = postDriveFeedback?.first,
+                        postDriveRouteSummary = stoppedDriveRouteSummary.orEmpty(),
+                        onPostDriveFeedbackAnswer = { answerIndex ->
+                            val question = postDriveFeedback?.first
+                            val option = answerIndex.toIntOrNull()?.let { question?.options?.getOrNull(it) }
+                            if (question != null && option != null) {
+                                SocialAiRoutePreferenceMemory.rememberPostDriveRating(
+                                    repository = socialAiLearningRepository,
+                                    storeId = routePreferenceStoreId,
+                                    key = question.kind.name,
+                                    value = option,
+                                    learningEnabled = activeProfile.ai.learningEnabled,
+                                    nowEpochMillis = System.currentTimeMillis(),
+                                )
+                                if (question.kind == org.routingplatform.app.ai.RouteFeedbackQuestionKind.GuidanceTiming) {
+                                    val lead = when (answerIndex.toInt()) {
+                                        1 -> InstructionLeadTimePreference.Early
+                                        2 -> InstructionLeadTimePreference.Late
+                                        else -> null
+                                    }
+                                    if (lead != null) {
+                                        val updated = activeProfile.copy(navigation = activeProfile.navigation.copy(instructionLeadTime = lead))
+                                        check(profileStore.saveAndActivate(updated)) { "Could not persist active profile." }
+                                        activeProfile = updated
+                                    }
+                                }
+                            }
+                            postDriveFeedback = null
+                        },
+                        onDismissPostDriveFeedback = { postDriveFeedback = null },
+
+                        onOnboardingSave = { updatedDriving, updatedNavigation, learningEnabled ->
+                            val updated = activeProfile.copy(
+                                driving = updatedDriving,
+                                navigation = updatedNavigation,
+                                ai = activeProfile.ai.copy(
+                                    personalizationEnabled = true,
+                                    learningEnabled = learningEnabled,
+                                ),
+                            )
+                            check(profileStore.saveAndActivate(updated)) { "Could not persist active profile." }
+                            activeProfile = updated
+                            firstRunOnboardingComplete = true
+                            onboardingOpen = false
+                            onboardingStore.edit().putBoolean("preferences-complete", true).apply()
+                        },
+
                         calibrationDisclosureRequired =
                             !calibrationDisclosureAccepted,
 
@@ -1864,6 +1936,59 @@ class MainActivity :
                         onCameraFollowDeadlineChanged = { deadline ->
                             cameraFollowSuspendedUntilElapsedRealtimeMs = deadline
                         },
+
+                        
+                        
+                        onPostDriveFeedbackAnswer = { answerIndex ->
+                            val question = postDriveFeedback?.first
+                            val option = answerIndex.toIntOrNull()?.let { question?.options?.getOrNull(it) }
+                            if (question != null && option != null) {
+                                SocialAiRoutePreferenceMemory.rememberPostDriveRating(
+                                    repository = socialAiLearningRepository,
+                                    storeId = routePreferenceStoreId,
+                                    key = question.kind.name,
+                                    value = option,
+                                    learningEnabled = activeProfile.ai.learningEnabled,
+                                    nowEpochMillis = System.currentTimeMillis(),
+                                )
+                                if (question.kind == org.routingplatform.app.ai.RouteFeedbackQuestionKind.GuidanceTiming) {
+                                    val lead = when (answerIndex.toInt()) {
+                                        1 -> InstructionLeadTimePreference.Early
+                                        2 -> InstructionLeadTimePreference.Late
+                                        else -> null
+                                    }
+                                    if (lead != null) {
+                                        val updated = activeProfile.copy(
+                                            navigation = activeProfile.navigation.copy(instructionLeadTime = lead),
+                                        )
+                                        check(profileStore.saveAndActivate(updated)) { "Could not persist active profile." }
+                                        activeProfile = updated
+                                    }
+                                }
+                                if (question.kind == org.routingplatform.app.ai.RouteFeedbackQuestionKind.PersonalPriority) {
+                                    val family = when (answerIndex.toInt()) {
+                                        0 -> NavigationRouteFamily.Fastest
+                                        1 -> NavigationRouteFamily.Comfort
+                                        2 -> NavigationRouteFamily.Stable
+                                        3 -> NavigationRouteFamily.LowUrban
+                                        else -> null
+                                    }
+                                    if (family != null && activeProfile.ai.learningEnabled) {
+                                        SocialAiRoutePreferenceMemory.rememberPositiveRating(
+                                            repository = socialAiLearningRepository,
+                                            storeId = routePreferenceStoreId,
+                                            family = family,
+                                            learningEnabled = true,
+                                            nowEpochMillis = System.currentTimeMillis(),
+                                        )
+                                        rememberedRouteFamily = family
+                                    }
+                                }
+                            }
+                            postDriveFeedback = null
+                        },
+
+                        onDismissPostDriveFeedback = { postDriveFeedback = null },
 
                         onAcceptCalibrationDisclosure = {
                             calibrationDisclosureStore.accept()
@@ -2586,6 +2711,9 @@ class MainActivity :
 
                             activeProfile =
                                 updated
+                            if (firstRunOnboardingComplete) {
+                                onboardingOpen = false
+                            }
                         },
 
                         onDrivingPreferencesChanged = { updatedDriving ->
@@ -2710,6 +2838,7 @@ class MainActivity :
                             navigationStartedAtNanos =
                                 SystemClock
                                     .elapsedRealtimeNanos()
+                            navigationStartRouteFamily = snapshot.routeFamily.name
 
                             locationPermissionGranted =
                                 hasNavigationLocationPermission(
@@ -2781,14 +2910,40 @@ class MainActivity :
                                             )
                                     )
 
-                            navigationStartedAtNanos =
-                                null
-
+                            val completedDrive =
+                                navigationStartedAtNanos != null &&
+                                    snapshot.state == NavigationSessionState.Navigating
+                            if (navigationStartedAtNanos == null) {
+                                snapshot = bridge.stopNavigation()
+                                navigationStateStore.clear()
+                            } else {
+                            val completedSnapshot = snapshot
+                            val startedAt = navigationStartedAtNanos
+                            navigationStartedAtNanos = null
                             snapshot =
                                 bridge
                                     .stopNavigation()
 
+                            if (completedDrive) {
+                                val elapsedMinutes = startedAt
+                                    ?.let { ((SystemClock.elapsedRealtimeNanos() - it) / 60_000_000_000L).toInt() }
+                                    ?: 0
+                                val (nextIndex, question) = RouteFeedbackQuestionPolicy.next(
+                                    lastQuestionIndex = postDriveQuestionIndex,
+                                    routeFamilyName = navigationStartRouteFamily,
+                                    driveDurationMinutes = elapsedMinutes,
+                                )
+                                postDriveQuestionIndex = nextIndex
+                                onboardingStore.edit().putInt("post-drive-question-index", nextIndex).apply()
+                                stoppedDriveFamily = navigationStartRouteFamily
+                                stoppedDriveRouteSummary =
+                                    completedSnapshot.routeDistanceM.let { "%.1f km".format(java.util.Locale.GERMANY, it / 1000.0) } +
+                                        " · " + (elapsedMinutes.coerceAtLeast(1)) + " min"
+                                postDriveFeedback = question to (nextIndex.toString())
+                            }
+
                             navigationStateStore.clear()
+                            }
                         },
 
                         onRestartNavigation = {

@@ -119,10 +119,17 @@ internal fun NavigationScreen(
         null,
 
     currentSpeedMps: Double? = null,
+
     currentSpeedAccuracyMps: Double? = null,
     speedSampleElapsedRealtimeNanos: Long? = null,
     speedPositionTrusted: Boolean = false,
     onSpeedLimitWarning: (NavigationSpeedLimitWarning) -> Unit = {},
+
+    onOnboardingSave: (DrivingPreferences, NavigationPreferences, Boolean) -> Unit = { _, _, _ -> },
+    postDriveFeedback: org.routingplatform.app.ai.RouteFeedbackQuestion? = null,
+    postDriveRouteSummary: String = "",
+    onPostDriveFeedbackAnswer: (String) -> Unit = {},
+    onDismissPostDriveFeedback: () -> Unit = {},
 
     nightPresentation:
         NavigationNightPresentation =
@@ -332,10 +339,47 @@ internal fun NavigationScreen(
         {},
 ) {
     var calibrationSummaryOpen by remember { mutableStateOf(false) }
+
+    var onboardingDialogOpen by rememberSaveable { mutableStateOf(false) }
     var cameraFollowSuspendedUntilElapsedRealtimeMs by rememberSaveable {
         mutableStateOf(initialCameraFollowSuspendedUntilElapsedRealtimeMs)
     }
 
+
+    LaunchedEffect(snapshot.state) {
+        if (snapshot.state != NavigationSessionState.Preview) {
+            onboardingDialogOpen = false
+        }
+    }
+
+    LaunchedEffect(snapshot.state, selectedTripStop, tripPlan?.destination?.label) {
+        if (
+            snapshot.state == NavigationSessionState.Preview &&
+            selectedTripStop == null &&
+            tripPlan?.destination?.label.isNullOrBlank()
+        ) {
+            onboardingDialogOpen = true
+        }
+    }
+
+    if (onboardingDialogOpen && snapshot.state == NavigationSessionState.Preview) {
+        NavigationOnboardingDialog(
+            driving = drivingPreferences,
+            navigation = navigationPreferences,
+            learningEnabled = aiPreferences.learningEnabled,
+            onSave = onOnboardingSave,
+            onDismiss = { onboardingDialogOpen = false },
+        )
+    }
+
+    if (postDriveFeedback != null) {
+        PostDriveFeedbackDialog(
+            question = postDriveFeedback,
+            routeSummary = postDriveRouteSummary,
+            onAnswer = onPostDriveFeedbackAnswer,
+            onDismiss = onDismissPostDriveFeedback,
+        )
+    }
 
     if (calibrationSummaryOpen) {
         Dialog(onDismissRequest = { calibrationSummaryOpen = false }) {
