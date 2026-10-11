@@ -95,4 +95,30 @@ class DriveInsightsTest {
         assertNull(estimate)
     }
 
+    @Test
+    fun plannedArrivalParserAcceptsFutureAndRejectsInvalidPastAndDaylightGap() {
+        val zone = ZoneId.of("Europe/Berlin")
+        val now = Instant.parse("2026-10-11T10:00:00Z").toEpochMilli()
+        val valid = PlannedArrivalTimeParser.parse("12.10.2026", "08:30", now, zone)
+        assertEquals(
+            Instant.parse("2026-10-12T06:30:00Z").toEpochMilli(),
+            (valid as? PlannedArrivalParseResult.Valid)?.epochMillis,
+        )
+        assertEquals(
+            "Bitte ein gültiges Datum im Format TT.MM.JJJJ eingeben.",
+            (PlannedArrivalTimeParser.parse("31.02.2026", "08:30", now, zone)
+                as? PlannedArrivalParseResult.Invalid)?.message,
+        )
+        assertEquals(
+            "Die Ankunft muss in der Zukunft liegen.",
+            (PlannedArrivalTimeParser.parse("11.10.2026", "11:00", now, zone)
+                as? PlannedArrivalParseResult.Invalid)?.message,
+        )
+        assertEquals(
+            "Diese Uhrzeit existiert wegen der Zeitumstellung nicht. Bitte eine andere Uhrzeit wählen.",
+            (PlannedArrivalTimeParser.parse("29.03.2026", "02:30", now, zone)
+                as? PlannedArrivalParseResult.Invalid)?.message,
+        )
+    }
+
 }

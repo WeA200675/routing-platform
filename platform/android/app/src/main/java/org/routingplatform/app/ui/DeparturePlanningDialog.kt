@@ -30,6 +30,8 @@ import org.routingplatform.app.navigation.DepartureRecommendation
 import org.routingplatform.app.navigation.DepartureRecommendationPolicy
 import org.routingplatform.app.navigation.HistoricalRouteObservation
 import org.routingplatform.app.navigation.HistoricalTrafficAverager
+import org.routingplatform.app.navigation.PlannedArrivalParseResult
+import org.routingplatform.app.navigation.PlannedArrivalTimeParser
 
 @Composable
 internal fun DeparturePlanningDialog(
@@ -37,6 +39,9 @@ internal fun DeparturePlanningDialog(
     historicalObservations: List<HistoricalRouteObservation>,
     onDismiss: () -> Unit,
 ) {
+    var arrivalDateText by remember {
+        mutableStateOf(LocalDate.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd.MM.uuuu", Locale.GERMANY)))
+    }
     var arrivalText by remember { mutableStateOf("08:00") }
     var result by remember { mutableStateOf<DepartureRecommendation?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -49,7 +54,18 @@ internal fun DeparturePlanningDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text("Abfahrtszeit planen", style = MaterialTheme.typography.titleLarge)
-                Text("Gewünschte Ankunft · 5 Minuten Puffer · Daten bleiben auf diesem Handy")
+                Text("Ankunft bis ein Jahr im Voraus · 5 Minuten Puffer · Daten bleiben auf diesem Handy")
+                OutlinedTextField(
+                    value = arrivalDateText,
+                    onValueChange = {
+                        arrivalDateText = it.take(10)
+                        result = null
+                        error = null
+                    },
+                    label = { Text("Ankunftsdatum (TT.MM.JJJJ)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("departure_arrival_date"),
+                )
                 OutlinedTextField(
                     value = arrivalText,
                     onValueChange = {
@@ -81,15 +97,21 @@ internal fun DeparturePlanningDialog(
                 Button(
                     modifier = Modifier.fillMaxWidth().testTag("departure_calculate"),
                     onClick = {
-                        val localTime = runCatching { LocalTime.parse(arrivalText) }.getOrNull()
-                        if (localTime == null) {
-                            error = "Bitte eine gültige Uhrzeit wie 08:30 eingeben."
-                            return@Button
-                        }
                         val now = System.currentTimeMillis()
-                        val today = LocalDate.now(zone)
-                        var arrival = today.atTime(localTime).atZone(zone).toInstant().toEpochMilli()
-                        if (arrival <= now) arrival = today.plusDays(1).atTime(localTime).atZone(zone).toInstant().toEpochMilli()
+                        val arrival = when (
+                            val parsed = PlannedArrivalTimeParser.parse(
+                                dateText = arrivalDateText,
+                                timeText = arrivalText,
+                                nowEpochMillis = now,
+                                zoneId = zone,
+                            )
+                        ) {
+                            is PlannedArrivalParseResult.Valid -> parsed.epochMillis
+                            is PlannedArrivalParseResult.Invalid -> {
+                                error = parsed.message
+                                return@Button
+                            }
+                        }
                         val targetDeparture = (arrival - routeDurationSeconds.coerceAtLeast(1) * 1_000L - 300_000L)
                             .coerceAtLeast(now)
                         val routeKey = historicalObservations.firstOrNull()?.routeKey
