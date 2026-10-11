@@ -141,3 +141,73 @@ object TrafficDetourOfferPolicy {
         return if (accepted) TrafficDetourDecision.AcceptAlternative else TrafficDetourDecision.KeepCurrentRoute
     }
 }
+
+
+/**
+ * Combines temporally comparable, fresh delay observations for one road.
+ * Freshness and provider confidence determine each sample's weight.
+ */
+data class TrafficDelayConsensus(
+    val roadLabel: String,
+    val meanDelaySeconds: Int,
+    val minimumDelaySeconds: Int,
+    val maximumDelaySeconds: Int,
+    val sampleCount: Int,
+    val providerCount: Int,
+    val confidence: Double,
+    val latestObservedAtEpochMillis: Long,
+)
+
+object TrafficDelayConsensusAverager {
+    fun average(
+        reports: Iterable<TrafficCongestionReport>,
+        roadLabel: String,
+        nowEpochMillis: Long,
+        freshnessPolicy: TrafficReportFreshnessPolicy = TrafficReportFreshnessPolicy(),
+    ): TrafficDelayConsensus? {
+        require(roadLabel.isNotBlank() && roadLabel.length <= 160)
+        require(nowEpochMillis >= 0L)
+        val normalizedRoad = normalizeRoad(roadLabel)
+        val usable = reports
+            .distinctBy { it.id }
+            .mapNotNull { report ->
+                if (report.roadLabel?.let(::normalizeRoad) != normalizedRoad) return@mapNotNull null
+                val delay = report.estimatedDelaySeconds ?: return@mapNotNull null
+                val status = freshnessPolicy.evaluate(report, nowEpochMillis)
+                if (status !is TrafficReportStatus.Current) return@mapNotNull null
+                val freshness = (1.0 - status.ageSeconds.toDouble() /
+                    (freshnessPolicy.maximumAgeMillis / 1_000.0)).coerceIn(0.05, 1.0)
+                val weight = freshness * report.confidence
+                if (weight <= 0.0) return@mapNotNull null
+                WeightedDelay(report, delay, weight, freshness)
+            }
+        if (usable.isEmpty()) return null
+        val totalWeight = usable.sumOf { it.weight }
+        if (totalWeight <= 0.0) return null
+        val mean = usable.sumOf { it.delaySeconds * it.weight } / totalWeight
+        val confidenceWeight = usable.sumOf { it.freshnessWeight }
+        val confidence = if (confidenceWeight > 0.0) {
+            usable.sumOf { it.report.confidence * it.freshnessWeight } / confidenceWeight
+        } else 0.0
+        return TrafficDelayConsensus(
+            roadLabel = roadLabel.trim(),
+            meanDelaySeconds = mean.toInt(),
+            minimumDelaySeconds = usable.minOf { it.delaySeconds },
+            maximumDelaySeconds = usable.maxOf { it.delaySeconds },
+            sampleCount = usable.size,
+            providerCount = usable.map { it.report.provider }.distinct().size,
+            confidence = confidence.coerceIn(0.0, 1.0),
+            latestObservedAtEpochMillis = usable.maxOf { it.report.observedAtEpochMillis },
+        )
+    }
+
+    private data class WeightedDelay(
+        val report: TrafficCongestionReport,
+        val delaySeconds: Int,
+        val weight: Double,
+        val freshnessWeight: Double,
+    )
+
+    private fun normalizeRoad(value: String): String =
+        value.trim().replace(Regex("\\s+"), " ").uppercase()
+}
