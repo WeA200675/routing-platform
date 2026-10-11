@@ -557,37 +557,23 @@ class NavigationRouteLifecycleController(
         onSnapshot: (NavigationUiSnapshot) -> Unit,
         onTelemetry: (NavigationRouteAcquisitionTelemetry) -> Unit,
     ) {
-        val request = activeRequest ?: return
+        require(nowMs >= 0L)
         val current = snapshotProvider()
         if (current.state != NavigationSessionState.Navigating) return
 
         /*
-         * A periodic refresh cannot safely reuse the trip's original origin:
-         * the vehicle may already be far along the route. With via points we
-         * additionally cannot prove which stops have already been visited.
-         * Until trusted current-origin/remaining-via tracking is available,
-         * fail closed rather than installing a route for the wrong trip leg.
+         * The configured route endpoint returns route geometry and maneuvers,
+         * not timestamped traffic events or an exactly comparable remaining-time
+         * baseline. Keep the active route stable and report that limitation.
+         * TrafficDetourOfferPolicy admits a proposal only from a future, validated
+         * live-feed integration with a current delay estimate and alternate route.
          */
-        if (request.viaPoints.isNotEmpty()) {
-            onTelemetry(
-                NavigationRouteAcquisitionTelemetry(
-                    state = NavigationRouteAcquisitionState.LiveReady,
-                    message = "Routenprüfung mit offenen Via-Punkten aus Sicherheitsgründen ausgesetzt",
-                )
-            )
-            return
-        }
-
-        // A moving-origin candidate is not comparable with the active route's
-        // original-trip duration. Until the provider exposes an exact remaining-route
-        // baseline with matching provenance, periodic replacement must fail closed.
         onTelemetry(
             NavigationRouteAcquisitionTelemetry(
                 state = NavigationRouteAcquisitionState.LiveReady,
-                message = "Routenprüfung ausgesetzt: keine exakt vergleichbare Reststreckenmetrik",
+                message = "Live-Verkehrsfeed nicht verbunden – aktuelle Route bleibt aktiv",
             )
         )
-        return
     }
 
     fun resetRerouteEvidence() {
