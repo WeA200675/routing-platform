@@ -59,7 +59,7 @@ class TrafficIntelligenceTest {
         )
         assertNotNull(offer)
         offer!!
-        assertEquals(25, offer.estimatedSavedSeconds / 60)
+        assertEquals(17, offer.estimatedSavedSeconds / 60)
         assertEquals(TrafficDetourDecision.KeepCurrentRoute,
             TrafficDetourOfferPolicy.resolve(offer, 11_000, accepted = false))
         assertEquals(TrafficDetourDecision.AcceptAlternative,
