@@ -53,6 +53,7 @@ import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationTripPlan
 import org.routingplatform.app.navigation.NavigationTripStop
 import org.routingplatform.app.navigation.HistoricalRouteObservation
+import org.routingplatform.app.navigation.TrafficDetourOffer
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.places.DestinationSearchResult
@@ -109,6 +110,10 @@ internal fun NavigationScreen(
     routeAcquisitionFaultCode:
         NavigationFaultCode? =
         null,
+
+    trafficDetourOffer: TrafficDetourOffer? = null,
+    onAcceptTrafficDetour: (TrafficDetourOffer) -> Unit = {},
+    onDismissTrafficDetour: () -> Unit = {},
 
     manualProgressEnabled:
         Boolean =
@@ -805,6 +810,15 @@ internal fun NavigationScreen(
                         .navigationBarsPadding()
                         .padding(18.dp),
             ) {
+                if (snapshot.state == NavigationSessionState.Navigating && trafficDetourOffer != null) {
+                    TrafficDetourOfferCard(
+                        offer = trafficDetourOffer,
+                        onAccept = onAcceptTrafficDetour,
+                        onExpireOrDismiss = onDismissTrafficDetour,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 if (
                     !routeAcquisitionMessage
                         .isNullOrBlank()
