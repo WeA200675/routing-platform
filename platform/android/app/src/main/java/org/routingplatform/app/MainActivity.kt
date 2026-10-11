@@ -2939,7 +2939,9 @@ class MainActivity :
 
                         startOrientation =
                             if (
-                                showStartOrientation
+                                showStartOrientation &&
+                                snapshot.state ==
+                                    NavigationSessionState.Preview
                             ) {
                                 startOrientation
                             } else {

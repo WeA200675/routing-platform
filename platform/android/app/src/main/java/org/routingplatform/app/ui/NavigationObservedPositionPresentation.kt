@@ -203,7 +203,17 @@ data class NavigationObservedPositionPresentation(
                     "Position: beobachtet · " +
                         "$confidenceText · " +
                         "$accuracyText · " +
-                        safetyText,
+                        safetyText +
+                        if (
+                            confidence == NavigationPositionConfidence.Low ||
+                                confidence == NavigationPositionConfidence.Lost ||
+                                safetyStatus == NavigationRouteProgressSafetyStatus.HeldLowConfidence ||
+                                safetyStatus == NavigationRouteProgressSafetyStatus.HeldNoEstimate
+                        ) {
+                            " · Position unsicher – Handy höher mit freier Sicht zum Himmel platzieren"
+                        } else {
+                            ""
+                        },
             )
         }
 

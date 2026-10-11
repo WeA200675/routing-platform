@@ -79,7 +79,11 @@ class NavigationVoicePresentationTest {
     }
 
     @Test
-    fun minimalVerbosityOnlyEmitsNowCue() {
+    fun minimalVerbosityGetsFiveHundredMeterWarningAndNowCue() {
+        assertEquals(
+            NavigationVoiceCueStage.Early,
+            cue(distanceMeters = 500.0, verbosity = VoiceGuidanceVerbosity.Minimal)?.key?.stage,
+        )
         assertNull(
             cue(
                 distanceMeters =
@@ -105,15 +109,10 @@ class NavigationVoicePresentationTest {
     }
 
     @Test
-    fun standardVerbosityEmitsPrepareAndNowCues() {
-        assertNull(
-            cue(
-                distanceMeters =
-                    500.0,
-
-                verbosity =
-                    VoiceGuidanceVerbosity.Standard,
-            )
+    fun standardVerbosityEmitsEarlyPrepareAndNowCues() {
+        assertEquals(
+            NavigationVoiceCueStage.Early,
+            cue(distanceMeters = 500.0, verbosity = VoiceGuidanceVerbosity.Standard)?.key?.stage,
         )
 
         assertEquals(

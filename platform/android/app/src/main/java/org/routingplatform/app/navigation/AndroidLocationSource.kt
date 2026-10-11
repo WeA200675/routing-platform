@@ -77,34 +77,42 @@ class AndroidLocationSource(
         this.onLocation =
             onLocation
 
-        return try {
-            enabledProviders.forEach {
-                    provider ->
+        var registeredAnyProvider =
+            false
 
-                locationManager
-                    .requestLocationUpdates(
+        enabledProviders.forEach { provider ->
+            val requestIntervalMs =
+                if (provider == LocationManager.GPS_PROVIDER) {
+                    GPS_UPDATE_INTERVAL_MS
+                } else {
+                    NETWORK_UPDATE_INTERVAL_MS
+                }
+
+            val registered =
+                try {
+                    locationManager.requestLocationUpdates(
                         provider,
-                        MIN_UPDATE_TIME_MS,
+                        requestIntervalMs,
                         MIN_UPDATE_DISTANCE_M,
                         this,
                         Looper.getMainLooper(),
                     )
-            }
+                    true
+                } catch (_: SecurityException) {
+                    false
+                } catch (_: IllegalArgumentException) {
+                    false
+                }
 
-            true
-        } catch (
-            _: SecurityException
-        ) {
-            stop()
-
-            false
-        } catch (
-            _: IllegalArgumentException
-        ) {
-            stop()
-
-            false
+            registeredAnyProvider =
+                registeredAnyProvider || registered
         }
+
+        if (!registeredAnyProvider) {
+            stop()
+        }
+
+        return registeredAnyProvider
     }
 
     override fun stop() {
@@ -199,8 +207,11 @@ class AndroidLocationSource(
     }
 }
 
-private const val MIN_UPDATE_TIME_MS =
+private const val GPS_UPDATE_INTERVAL_MS =
+    500L
+
+private const val NETWORK_UPDATE_INTERVAL_MS =
     1000L
 
 private const val MIN_UPDATE_DISTANCE_M =
-    1.0f
+    0.0f

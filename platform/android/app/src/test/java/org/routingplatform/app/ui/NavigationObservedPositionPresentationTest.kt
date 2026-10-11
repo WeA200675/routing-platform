@@ -207,6 +207,10 @@ class NavigationObservedPositionPresentationTest {
         assertFalse(
             presentation.cameraFollowAllowed
         )
+
+        assertTrue(
+            presentation.statusText.contains("Handy höher mit freier Sicht zum Himmel")
+        )
     }
 
     @Test

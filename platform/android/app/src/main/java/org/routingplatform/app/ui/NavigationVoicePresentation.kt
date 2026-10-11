@@ -237,16 +237,20 @@ internal object NavigationVoicePresentation {
                 NavigationVoiceCueStage.Now
 
             verbosity ==
-                VoiceGuidanceVerbosity.Minimal ->
+                VoiceGuidanceVerbosity.Minimal &&
+                distanceMeters <=
+                    PREPARE_DISTANCE_METERS ->
                 null
+
+            verbosity ==
+                VoiceGuidanceVerbosity.Minimal &&
+                distanceMeters <=
+                    EARLY_DISTANCE_METERS ->
+                NavigationVoiceCueStage.Early
 
             distanceMeters <=
                 PREPARE_DISTANCE_METERS ->
                 NavigationVoiceCueStage.Prepare
-
-            verbosity ==
-                VoiceGuidanceVerbosity.Standard ->
-                null
 
             distanceMeters <=
                 EARLY_DISTANCE_METERS ->
