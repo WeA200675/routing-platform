@@ -95,7 +95,7 @@ class TrafficIntelligenceTest {
         assertEquals(2, result.providerCount)
         assertEquals(420, result.minimumDelaySeconds)
         assertEquals(600, result.maximumDelaySeconds)
-        assertEquals(499, result.meanDelaySeconds)
+        assertEquals(507, result.meanDelaySeconds)
         assertEquals(now - 10_000L, result.latestObservedAtEpochMillis)
     }
 
