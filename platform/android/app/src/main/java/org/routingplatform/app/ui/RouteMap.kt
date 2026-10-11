@@ -1,6 +1,7 @@
 package org.routingplatform.app.ui
 
 import android.util.Log
+import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -64,6 +65,8 @@ private fun logNavigationMapReliabilityEvent(
 private const val NAVIGATION_MAP_LOG_TAG =
     "RoutingPlatformMap"
 
+internal const val NAVIGATION_CAMERA_FOLLOW_RESUME_DELAY_MS = 30_000L
+
 /*
  * Presentation boundary only.
  *
@@ -116,6 +119,9 @@ fun RouteMap(
         (Boolean) -> Unit =
         {},
 
+    onCameraFollowDeadlineChanged: (Long?) -> Unit = {},
+    cameraFollowSuspendedUntilElapsedRealtimeMs: Long? = null,
+
     observedPosition:
         NavigationObservedPositionPresentation? =
         null,
@@ -160,6 +166,8 @@ fun RouteMap(
         rememberUpdatedState(
             onMapInteractionChanged
         )
+
+    val currentCameraFollowDeadlineChanged by rememberUpdatedState(onCameraFollowDeadlineChanged)
 
     val mapRecoveryPolicy =
         remember {
@@ -479,15 +487,15 @@ fun RouteMap(
                             reason ==
                             MapLibreMap
                                 .OnCameraMoveStartedListener
-                                .REASON_API_GESTURE &&
-                            !userGestureActive
+                                .REASON_API_GESTURE
                         ) {
-                            userGestureActive =
-                                true
-
-                            currentMapInteractionChanged(
-                                true
+                            currentCameraFollowDeadlineChanged(
+                                SystemClock.elapsedRealtime() + NAVIGATION_CAMERA_FOLLOW_RESUME_DELAY_MS
                             )
+                            if (!userGestureActive) {
+                                userGestureActive = true
+                                currentMapInteractionChanged(true)
+                            }
                         }
                     }
 
@@ -495,11 +503,10 @@ fun RouteMap(
                 MapLibreMap
                     .OnCameraIdleListener {
                         if (userGestureActive) {
-                            userGestureActive =
-                                false
-
-                            currentMapInteractionChanged(
-                                false
+                            userGestureActive = false
+                            currentMapInteractionChanged(false)
+                            currentCameraFollowDeadlineChanged(
+                                SystemClock.elapsedRealtime() + NAVIGATION_CAMERA_FOLLOW_RESUME_DELAY_MS
                             )
                         }
                     }
@@ -785,6 +792,7 @@ fun RouteMap(
         observedPosition,
         selectedTarget,
         compassPresentation,
+        cameraFollowSuspendedUntilElapsedRealtimeMs,
     ) {
         val style =
             loadedStyle
@@ -1070,30 +1078,26 @@ fun RouteMap(
                     0.0
                 }
 
-            map.cameraPosition =
-                CameraPosition
-                    .Builder()
-                    .target(
-                        LatLng(
-                            cameraTarget
-                                .latitude,
+            val followSuspended =
+                cameraFollowSuspendedUntilElapsedRealtimeMs?.let {
+                    SystemClock.elapsedRealtime() < it
+                } == true
 
-                            cameraTarget
-                                .longitude,
+            if (!followSuspended) {
+                map.cameraPosition =
+                    CameraPosition
+                        .Builder()
+                        .target(
+                            LatLng(
+                                cameraTarget.latitude,
+                                cameraTarget.longitude,
+                            )
                         )
-                    )
-                    .zoom(
-                        zoomPresentation
-                            .zoom
-                    )
-                    .tilt(
-                        displayPreferences
-                            .mapTiltDegrees
-                    )
-                    .bearing(
-                        stableMapBearing
-                    )
-                    .build()
+                        .zoom(zoomPresentation.zoom)
+                        .tilt(displayPreferences.mapTiltDegrees)
+                        .bearing(stableMapBearing)
+                        .build()
+            }
         } else {
             if (
                 selectedTarget !=

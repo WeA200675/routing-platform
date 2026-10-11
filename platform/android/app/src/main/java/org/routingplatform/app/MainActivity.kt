@@ -2,6 +2,7 @@ package org.routingplatform.app
 
 import android.Manifest
 import android.os.Bundle
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.content.Intent
 import android.os.SystemClock
 import android.view.WindowManager
@@ -17,6 +18,7 @@ import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,6 +93,7 @@ import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
+import org.routingplatform.app.ui.NAVIGATION_CAMERA_FOLLOW_RESUME_DELAY_MS
 import org.routingplatform.app.ui.ActiveRouteStopSearchButton
 import org.routingplatform.app.ui.ActiveRouteStopSearchDialog
 import org.routingplatform.app.ui.ActiveRoutePoiRouteEstimate
@@ -185,8 +188,9 @@ class MainActivity :
                     )
                 }
 
-            var activeRouteStopSearchOpen by remember { mutableStateOf(false) }
-            var activeRouteStopSearchQuery by remember { mutableStateOf("") }
+            var activeRouteStopSearchOpen by rememberSaveable { mutableStateOf(false) }
+            var activeRouteStopSearchQuery by rememberSaveable { mutableStateOf("") }
+            var destinationPlannerSearchQuery by rememberSaveable { mutableStateOf("") }
             var activeRouteMaximumDetourMinutes by remember { mutableIntStateOf(10) }
             var activeRoutePoiRouteEstimates by remember {
                 mutableStateOf<Map<String, ActiveRoutePoiRouteEstimate>>(emptyMap())
@@ -434,26 +438,17 @@ class MainActivity :
                     routeFamilyForDrivingPreferences(activeProfile.driving)
                 }
 
-            var tripPlan by
-                remember(
-                    initialRouteRequest
-                ) {
-                    mutableStateOf(
-                        NavigationTripPlan
-                            .fromRequest(
-                                initialRouteRequest
-                            )
-                    )
-                }
+            var tripPlan by rememberSaveable(initialRouteRequest, stateSaver = navigationTripPlanSaver) {
+                mutableStateOf(
+                    NavigationTripPlan.fromRequest(initialRouteRequest)
+                )
+            }
 
-            var selectedTripStop by
-                remember {
-                    mutableStateOf<
-                        NavigationTripStop?
-                    >(
-                        null
-                    )
-                }
+            var selectedTripStop by rememberSaveable(
+                stateSaver = navigationTripStopSaver,
+            ) {
+                mutableStateOf(null)
+            }
 
             var snapshot by
                 remember {
@@ -462,6 +457,10 @@ class MainActivity :
                             .snapshot
                     )
                 }
+
+            var cameraFollowSuspendedUntilElapsedRealtimeMs by rememberSaveable {
+                mutableStateOf<Long?>(null)
+            }
 
             LaunchedEffect(
                 snapshot.sessionId,
@@ -962,7 +961,7 @@ class MainActivity :
                                                                     "Intent und Zwischenstopp lokal validiert. Routenvorschau wird berechnet …"
 
                                                                 routeLifecycleController
-                                                                    ?.loadInitial(
+                                                                    ?.submitRouteForCurrentSession(
                                                                         request =
                                                                             ready.request,
 
@@ -1060,7 +1059,7 @@ class MainActivity :
                                                                                     socialAiMessage =
                                                                                         "Geeigneter Zwischenstopp anhand echter Routendaten ausgewählt."
                                                                                     routeLifecycleController
-                                                                                        ?.loadInitial(
+                                                                                        ?.submitRouteForCurrentSession(
                                                                                             request = selection.candidate.request,
                                                                                             snapshotProvider = { snapshot },
                                                                                             onSnapshot = { updated -> snapshot = updated },
@@ -1216,7 +1215,7 @@ class MainActivity :
                                                     is SocialAiProductionRoutingResult.Ready -> {
                                                         socialAiMessage = "Intent lokal validiert. Routenvorschau wird berechnet …"
                                                         socialAiFeedbackPending = true
-                                                        routeLifecycleController?.loadInitial(
+                                                        routeLifecycleController?.submitRouteForCurrentSession(
                                                             request = interpreted.request,
                                                             snapshotProvider = { snapshot },
                                                             onSnapshot = { updated -> snapshot = updated },
@@ -1374,22 +1373,13 @@ class MainActivity :
                                     }
                                 }
 
-                                if (navigating) {
-                                    controller.replaceNavigatingRoute(
-                                        request = request,
-                                        snapshotProvider = { snapshot },
-                                        onSnapshot = snapshotConsumer,
-                                        onTelemetry = telemetryConsumer,
-                                        maximumExtraDurationSeconds = detourBudgetSeconds,
-                                    )
-                                } else {
-                                    controller.loadInitial(
-                                        request = request,
-                                        snapshotProvider = { snapshot },
-                                        onSnapshot = snapshotConsumer,
-                                        onTelemetry = telemetryConsumer,
-                                    )
-                                }
+                                controller.submitRouteForCurrentSession(
+                                    request = request,
+                                    snapshotProvider = { snapshot },
+                                    onSnapshot = snapshotConsumer,
+                                    onTelemetry = telemetryConsumer,
+                                    maximumExtraDurationSeconds = detourBudgetSeconds,
+                                )
                             },
                             onFailure = { error ->
                                 destinationPlannerBusy = false
@@ -2225,7 +2215,7 @@ class MainActivity :
                                                 socialAiMessage =
                                                     "Ausgewählter Zwischenstopp validiert. Routenvorschau wird berechnet …"
                                                 routeLifecycleController
-                                                    ?.loadInitial(
+                                                    ?.submitRouteForCurrentSession(
                                                         request = ready.request,
                                                         snapshotProvider = { snapshot },
                                                         onSnapshot = { updated ->
@@ -2981,3 +2971,60 @@ class MainActivity :
 }
 
 private const val NAVIGATION_RESUME_MAXIMUM_AGE_NANOS = 30L * 60L * 1_000_000_000L
+private fun encodeNavigationTripPlan(plan: NavigationTripPlan): Bundle = Bundle().apply {
+    fun stopBundle(stop: NavigationTripStop) = Bundle().apply {
+        putDouble("lat", stop.point.latitude)
+        putDouble("lon", stop.point.longitude)
+        putString("label", stop.label)
+    }
+    putBundle("destination", stopBundle(plan.destination))
+    putInt("via_count", plan.viaPoints.size)
+    plan.viaPoints.forEachIndexed { index, stop -> putBundle("via_$index", stopBundle(stop)) }
+}
+
+private fun decodeNavigationTripPlan(bundle: Bundle): NavigationTripPlan? = runCatching {
+    fun readStop(source: Bundle) = NavigationTripStop(
+        point = org.routingplatform.app.navigation.RoutePoint(
+            latitude = source.getDouble("lat"),
+            longitude = source.getDouble("lon"),
+        ),
+        label = source.getString("label"),
+    )
+    val destination = bundle.getBundle("destination")?.let(::readStop) ?: return null
+    val vias = (0 until bundle.getInt("via_count").coerceIn(0, 16)).mapNotNull { index ->
+        bundle.getBundle("via_$index")?.let(::readStop)
+    }
+    NavigationTripPlan(destination, vias)
+}.getOrNull()
+
+private val navigationTripPlanSaver = Saver<NavigationTripPlan, Bundle>(
+    save = { encodeNavigationTripPlan(it) },
+    restore = { decodeNavigationTripPlan(it) ?: NavigationTripPlan(
+        NavigationTripStop(org.routingplatform.app.navigation.RoutePoint(0.0, 0.0))
+    ) },
+)
+
+private val navigationTripStopSaver = Saver<NavigationTripStop?, Bundle?>(
+    save = { stop ->
+        stop?.let {
+            Bundle().apply {
+                putDouble("lat", it.point.latitude)
+                putDouble("lon", it.point.longitude)
+                putString("label", it.label)
+            }
+        }
+    },
+    restore = { bundle ->
+        bundle?.let {
+            runCatching {
+                NavigationTripStop(
+                    point = org.routingplatform.app.navigation.RoutePoint(
+                        latitude = it.getDouble("lat"),
+                        longitude = it.getDouble("lon"),
+                    ),
+                    label = it.getString("label"),
+                )
+            }.getOrNull()
+        }
+    },
+)

@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -349,12 +350,9 @@ internal fun NavigationScreen(
         }
     }
 
-    var plannerOpen by
-        remember {
-            mutableStateOf(
-                false
-            )
-        }
+    var plannerOpen by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     var drivingPreferencesOpen by
         remember {
@@ -434,12 +432,9 @@ internal fun NavigationScreen(
             )
         }
 
-    var searchQuery by
-        remember {
-            mutableStateOf(
-                ""
-            )
-        }
+    var searchQuery by rememberSaveable {
+        mutableStateOf("")
+    }
 
     var customFavoriteLabel by
         remember {
@@ -573,6 +568,13 @@ internal fun NavigationScreen(
                 onMapInteractionChanged =
                     focusMode
                         .setInteractionActive,
+
+                cameraFollowSuspendedUntilElapsedRealtimeMs =
+                    cameraFollowSuspendedUntilElapsedRealtimeMs,
+
+                onCameraFollowDeadlineChanged = { deadline ->
+                    cameraFollowSuspendedUntilElapsedRealtimeMs = deadline
+                },
 
                 selectedTarget =
                     selectedTripStop

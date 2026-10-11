@@ -188,6 +188,36 @@ class NavigationRouteLifecycleController(
      * acquired and the same navigation session is still active. A failed
      * lookup leaves the current route and guidance untouched.
      */
+    fun submitRouteForCurrentSession(
+        request: NavigationRouteRequest,
+        snapshotProvider: () -> NavigationUiSnapshot,
+        onSnapshot: (NavigationUiSnapshot) -> Unit,
+        onTelemetry: (NavigationRouteAcquisitionTelemetry) -> Unit,
+        maximumExtraDurationSeconds: Double? = null,
+    ) {
+        when (snapshotProvider().state) {
+            NavigationSessionState.Preview -> loadInitial(
+                request = request,
+                snapshotProvider = snapshotProvider,
+                onSnapshot = onSnapshot,
+                onTelemetry = onTelemetry,
+            )
+            NavigationSessionState.Navigating -> replaceNavigatingRoute(
+                request = request,
+                snapshotProvider = snapshotProvider,
+                onSnapshot = onSnapshot,
+                onTelemetry = onTelemetry,
+                maximumExtraDurationSeconds = maximumExtraDurationSeconds,
+            )
+            else -> onTelemetry(
+                NavigationRouteAcquisitionTelemetry(
+                    state = NavigationRouteAcquisitionState.RerouteFailed,
+                    message = "Route kann im aktuellen Navigationsstatus nicht geändert werden.",
+                )
+            )
+        }
+    }
+
     fun replaceNavigatingRoute(
         request: NavigationRouteRequest,
         snapshotProvider: () -> NavigationUiSnapshot,
