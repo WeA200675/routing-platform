@@ -213,6 +213,7 @@ internal class NavigationVoicePlaybackRuntime(
             NavigationSpeechSubmission.Rejected -> Unit
         }
     }
+
     private fun trackFallbackManeuver(
         snapshot: NavigationUiSnapshot,
     ): Long? {
