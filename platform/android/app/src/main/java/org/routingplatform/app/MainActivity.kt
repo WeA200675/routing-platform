@@ -438,7 +438,7 @@ class MainActivity :
                     routeFamilyForDrivingPreferences(activeProfile.driving)
                 }
 
-            var tripPlan by rememberSaveable(initialRouteRequest, stateSaver = navigationTripPlanSaver) {
+            var tripPlan by rememberSaveable(initialRouteRequest, stateSaver = navigationTripPlanSaver(NavigationTripPlan.fromRequest(initialRouteRequest))) {
                 mutableStateOf(
                     NavigationTripPlan.fromRequest(initialRouteRequest)
                 )
@@ -2997,11 +2997,9 @@ private fun decodeNavigationTripPlan(bundle: Bundle): NavigationTripPlan? = runC
     NavigationTripPlan(destination, vias)
 }.getOrNull()
 
-private val navigationTripPlanSaver = Saver<NavigationTripPlan, Bundle>(
+private fun navigationTripPlanSaver(fallback: NavigationTripPlan) = Saver<NavigationTripPlan, Bundle>(
     save = { encodeNavigationTripPlan(it) },
-    restore = { decodeNavigationTripPlan(it) ?: NavigationTripPlan(
-        NavigationTripStop(org.routingplatform.app.navigation.RoutePoint(0.0, 0.0))
-    ) },
+    restore = { decodeNavigationTripPlan(it) ?: fallback },
 )
 
 private val navigationTripStopSaver = Saver<NavigationTripStop?, Bundle?>(
