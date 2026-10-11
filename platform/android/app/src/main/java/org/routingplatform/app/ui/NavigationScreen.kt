@@ -52,6 +52,7 @@ import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationTripPlan
 import org.routingplatform.app.navigation.NavigationTripStop
+import org.routingplatform.app.navigation.HistoricalRouteObservation
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.places.DestinationSearchResult
@@ -84,6 +85,9 @@ internal fun NavigationScreen(
     onOpenSecurityDiagnostics: () -> Unit = {},
     onOpenOfflineRoutingSetup: () -> Unit = {},
     offlineRoutingDatasetSummary: String = "DACH-Kartenpaket nicht installiert",
+    driveStatisticsSummary: String = "Lokal · noch keine Fahrten gespeichert",
+    onClearDriveStatistics: () -> Unit = {},
+    historicalRouteObservations: List<HistoricalRouteObservation> = emptyList(),
     navigationCalibrationProfile: NavigationDeviceCalibrationProfile = NavigationDeviceCalibrationProfile(),
 
     navigationStartEnabled:
@@ -411,6 +415,12 @@ internal fun NavigationScreen(
     }
 
     var plannerOpen by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var departurePlannerOpen by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var driveStatisticsOpen by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -970,6 +980,14 @@ internal fun NavigationScreen(
                             ) {
                                 Text("Zwischenziel hinzufügen")
                             }
+                            if (snapshot.routeDurationS > 0.0) {
+                                OutlinedButton(
+                                    modifier = Modifier.fillMaxWidth().testTag("departure_planner_open"),
+                                    onClick = { departurePlannerOpen = true },
+                                ) {
+                                    Text("Abfahrtszeit planen")
+                                }
+                            }
                         }
                     }
 
@@ -1191,6 +1209,12 @@ internal fun NavigationScreen(
                                         title = "Offline-Routing auf diesem Handy",
                                         value = offlineRoutingDatasetSummary,
                                         onClick = onOpenOfflineRoutingSetup,
+                                    ),
+                                    NavigationSettingTile(
+                                        testTag = "drive_statistics",
+                                        title = "Fahrstatistik",
+                                        value = driveStatisticsSummary,
+                                        onClick = { driveStatisticsOpen = true },
                                     ),
                                     NavigationSettingTile(
                                         testTag = "driving_preferences_open",
@@ -1754,6 +1778,36 @@ internal fun NavigationScreen(
 
             onMoveViaDown =
                 onMoveViaDown,
+        )
+    }
+
+    if (driveStatisticsOpen) {
+        Dialog(onDismissRequest = { driveStatisticsOpen = false }) {
+            Surface(shape = MaterialTheme.shapes.large) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("Fahrstatistik", style = MaterialTheme.typography.titleLarge)
+                    Text(driveStatisticsSummary)
+                    Text("Die Werte und Zeitmittel werden nur lokal gespeichert.")
+                    TextButton(onClick = {
+                        onClearDriveStatistics()
+                        driveStatisticsOpen = false
+                    }) {
+                        Text("Lokalen Fahrverlauf löschen")
+                    }
+                    TextButton(onClick = { driveStatisticsOpen = false }) { Text("Schließen") }
+                }
+            }
+        }
+    }
+
+    if (departurePlannerOpen && snapshot.state == NavigationSessionState.Preview) {
+        DeparturePlanningDialog(
+            routeDurationSeconds = snapshot.routeDurationS.toInt().coerceAtLeast(1),
+            historicalObservations = historicalRouteObservations,
+            onDismiss = { departurePlannerOpen = false },
         )
     }
 

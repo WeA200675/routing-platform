@@ -46,6 +46,10 @@ import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
 import org.routingplatform.app.navigation.AndroidOfflineRoutingDatasetStore
 import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.routeFamilyForDrivingPreferences
+import org.routingplatform.app.navigation.AndroidDriveStatisticsStore
+import org.routingplatform.app.navigation.CompletedDrive
+import org.routingplatform.app.navigation.DriveStatistics
+import org.routingplatform.app.navigation.HistoricalRouteObservation
 import org.routingplatform.app.navigation.AndroidNavigationRuntimeController
 import org.routingplatform.app.navigation.AndroidNavigationBootIdentity
 import org.routingplatform.app.navigation.AndroidNavigationStateStore
@@ -174,6 +178,19 @@ class MainActivity :
                         applicationContext
                     )
                 }
+
+            val driveStatisticsStore = remember {
+                AndroidDriveStatisticsStore(applicationContext)
+            }
+            var completedDrives by remember {
+                mutableStateOf(driveStatisticsStore.load())
+            }
+
+            LaunchedEffect(activeProfile.profileId, activeProfile.ai.useTripHistoryForPersonalization) {
+                if (!activeProfile.ai.useTripHistoryForPersonalization) {
+                    driveStatisticsStore.clearHistory()
+                }
+            }
 
             var favoriteDestinations by
                 remember(
@@ -1872,6 +1889,24 @@ class MainActivity :
                     modifier =
                         Modifier.fillMaxSize(),
                 ) {
+                    val plannedDepartureObservations = remember(
+                        snapshot.routeId,
+                        activeProfile.profileId,
+                        activeProfile.ai.useTripHistoryForPersonalization,
+                    ) {
+                        if (activeProfile.ai.useTripHistoryForPersonalization &&
+                            snapshot.geometry.size >= 2
+                        ) {
+                            runCatching {
+                                driveStatisticsStore.loadHistory(
+                                    AndroidDriveStatisticsStore.routeKeyForGeometry(snapshot.geometry)
+                                )
+                            }.getOrDefault(emptyList())
+                        } else {
+                            emptyList()
+                        }
+                    }
+
                     NavigationScreen(
                         snapshot =
                             snapshot,
@@ -2000,6 +2035,23 @@ class MainActivity :
                         offlineRoutingDatasetSummary =
                             AndroidOfflineRoutingDatasetStore
                                 .installedSummary(applicationContext),
+                        historicalRouteObservations = plannedDepartureObservations,
+                        onClearDriveStatistics = {
+                            driveStatisticsStore.clear()
+                            completedDrives = emptyList()
+                        },
+
+                        driveStatisticsSummary =
+                            DriveStatistics.from(completedDrives).let { statistics ->
+                                if (statistics.driveCount == 0) {
+                                    "Lokal · noch keine Fahrten gespeichert"
+                                } else {
+                                    "Lokal · ${statistics.driveCount} Fahrten · " +
+                                        "${"%.1f".format(java.util.Locale.GERMANY, statistics.totalDistanceMeters / 1000.0)} km · Ø " +
+                                        "${statistics.averageDurationSeconds?.div(60)?.coerceAtLeast(1) ?: 0} min"
+                                }
+                            },
+
 
                         navigationStartEnabled =
                             routeBootstrap
@@ -2912,9 +2964,33 @@ class MainActivity :
                                     .stopNavigation()
 
                             if (completedDrive) {
-                                val elapsedMinutes = startedAt
-                                    ?.let { ((SystemClock.elapsedRealtimeNanos() - it) / 60_000_000_000L).toInt() }
-                                    ?: 0
+                                val elapsedSeconds = startedAt
+                                    ?.let { ((SystemClock.elapsedRealtimeNanos() - it) / 1_000_000_000L).toInt().coerceAtLeast(1) }
+                                    ?: 1
+                                val elapsedMinutes = (elapsedSeconds / 60).coerceAtLeast(1)
+                                val completedAtEpochMillis = System.currentTimeMillis()
+                                val routeFamily = navigationStartRouteFamily ?: "unknown"
+                                completedDrives = driveStatisticsStore.record(
+                                    CompletedDrive(
+                                        completedAtEpochMillis = completedAtEpochMillis,
+                                        distanceMeters = completedSnapshot.routeDistanceM.toInt().coerceAtLeast(1),
+                                        durationSeconds = elapsedSeconds,
+                                        routeFamily = routeFamily,
+                                    )
+                                )
+                                if (activeProfile.ai.useTripHistoryForPersonalization) {
+                                    val routeKey = AndroidDriveStatisticsStore.routeKeyForGeometry(
+                                        completedSnapshot.geometry
+                                    )
+                                    driveStatisticsStore.recordHistory(
+                                        HistoricalRouteObservation(
+                                            routeKey = routeKey,
+                                            startedAtEpochMillis = (completedAtEpochMillis - elapsedSeconds * 1_000L).coerceAtLeast(0L),
+                                            baselineDurationSeconds = completedSnapshot.routeDurationS.toInt().coerceAtLeast(1),
+                                            observedDurationSeconds = elapsedSeconds,
+                                        )
+                                    )
+                                }
                                 val (nextIndex, question) = RouteFeedbackQuestionPolicy.next(
                                     lastQuestionIndex = postDriveQuestionIndex,
                                     routeFamilyName = navigationStartRouteFamily,
