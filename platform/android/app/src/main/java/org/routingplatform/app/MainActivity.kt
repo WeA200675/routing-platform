@@ -447,7 +447,7 @@ class MainActivity :
             var selectedTripStop by rememberSaveable(
                 stateSaver = navigationTripStopSaver,
             ) {
-                mutableStateOf(null)
+                mutableStateOf<NavigationTripStop?>(null)
             }
 
             var snapshot by
@@ -3002,25 +3002,21 @@ private fun navigationTripPlanSaver(fallback: NavigationTripPlan) = Saver<Naviga
     restore = { decodeNavigationTripPlan(it) ?: fallback },
 )
 
-private val navigationTripStopSaver = Saver<NavigationTripStop?, Bundle?>(
+private val navigationTripStopSaver = Saver<NavigationTripStop?, Any>(
     save = { stop ->
         stop?.let {
-            Bundle().apply {
-                putDouble("lat", it.point.latitude)
-                putDouble("lon", it.point.longitude)
-                putString("label", it.label)
-            }
+            listOf(it.point.latitude, it.point.longitude, it.label)
         }
     },
     restore = { bundle ->
-        bundle?.let {
+        (bundle as? List<*>)?.takeIf { it.size >= 2 }?.let { values ->
             runCatching {
                 NavigationTripStop(
                     point = org.routingplatform.app.navigation.RoutePoint(
-                        latitude = it.getDouble("lat"),
-                        longitude = it.getDouble("lon"),
+                        latitude = values[0] as Double,
+                        longitude = values[1] as Double,
                     ),
-                    label = it.getString("label"),
+                    label = values.getOrNull(2) as? String,
                 )
             }.getOrNull()
         }

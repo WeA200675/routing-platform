@@ -136,6 +136,9 @@ internal fun NavigationScreen(
         (DisplayPreferences) -> Unit =
         {},
 
+    cameraFollowSuspendedUntilElapsedRealtimeMs: Long? = null,
+    onCameraFollowDeadlineChanged: (Long?) -> Unit = {},
+
     onNavigationControlSideChanged:
         (NavigationControlSide) -> Unit =
         {},

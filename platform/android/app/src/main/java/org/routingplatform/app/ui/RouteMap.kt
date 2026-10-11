@@ -119,8 +119,9 @@ fun RouteMap(
         (Boolean) -> Unit =
         {},
 
-    onCameraFollowDeadlineChanged: (Long?) -> Unit = {},
     cameraFollowSuspendedUntilElapsedRealtimeMs: Long? = null,
+    onCameraFollowDeadlineChanged: (Long?) -> Unit = {},
+
 
     observedPosition:
         NavigationObservedPositionPresentation? =
