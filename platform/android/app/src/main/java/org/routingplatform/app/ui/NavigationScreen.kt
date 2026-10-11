@@ -361,6 +361,10 @@ internal fun NavigationScreen(
             mutableStateOf(false)
         }
 
+    var previewSettingsExpanded by remember(snapshot.routeId, tripPlan?.destination?.label) {
+        mutableStateOf(tripPlan?.destination?.label.isNullOrBlank())
+    }
+
     var experiencePackOpen by
         remember {
             mutableStateOf(
@@ -816,6 +820,71 @@ internal fun NavigationScreen(
                     }
                 }
 
+                if (snapshot.state == NavigationSessionState.Preview) {
+                    val routeRoadNames = snapshot.routeManeuvers
+                        .flatMap { it.streetNames }
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .distinct()
+                    val majorRoadNames = routeRoadNames.filter { road ->
+                        Regex("^(?:A\\s*\\d{1,3}|B\\s*\\d{1,4}|Bundesautobahn.*|Bundesstraße.*)", RegexOption.IGNORE_CASE)
+                            .containsMatchIn(road)
+                    }
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        tonalElevation = 2.dp,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Streckenüberblick", fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "${NavigationFormatter.distance(snapshot.routeDistanceM)} · " +
+                                    NavigationFormatter.duration(snapshot.routeDurationS),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Text(
+                                text = when {
+                                    majorRoadNames.isNotEmpty() ->
+                                        "Autobahnen / Bundesstraßen: ${majorRoadNames.take(8).joinToString(" → ")}"
+                                    routeRoadNames.isNotEmpty() ->
+                                        "Keine benannten Autobahnen oder Bundesstraßen in den Routendaten."
+                                    else ->
+                                        "Straßennamen sind für diese Route nicht verfügbar."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            if (routeRoadNames.isNotEmpty()) {
+                                Text(
+                                    "Straßenverlauf: ${routeRoadNames.take(8).joinToString(" → ")}" +
+                                        if (routeRoadNames.size > 8) " …" else "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            tripPlan?.viaPoints
+                                ?.mapNotNull { it.label?.takeIf(String::isNotBlank) }
+                                ?.takeIf { it.isNotEmpty() }
+                                ?.let { stops ->
+                                    Text(
+                                        "Zwischenziele: ${stops.joinToString(" → ")}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !destinationPlannerBusy,
+                                onClick = { plannerOpen = true },
+                            ) {
+                                Text("Zwischenziel hinzufügen")
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 if (
                     informationDensityPresentation
                         .showManeuverDistance
@@ -980,6 +1049,22 @@ internal fun NavigationScreen(
                                 )
                         )
 
+                        TextButton(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("preview_settings_toggle"),
+                            onClick = { previewSettingsExpanded = !previewSettingsExpanded },
+                        ) {
+                            Text(
+                                if (previewSettingsExpanded) {
+                                    "▾ Einstellungen ausblenden"
+                                } else {
+                                    "▸ Einstellungen anzeigen"
+                                }
+                            )
+                        }
+
+                        if (previewSettingsExpanded) {
                         val activePack =
                             ExperiencePackRuntimeResolver
                                 .resolvePackOverride(
@@ -1268,6 +1353,7 @@ internal fun NavigationScreen(
                                     ),
                                 ),
                         )
+                        }
 
                         if (
                             !navigationStartEnabled &&
