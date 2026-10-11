@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package routing.v1;
+
+enum VehicleType {
+  VEHICLE_TYPE_UNSPECIFIED = 0;
+  VEHICLE_TYPE_CAR = 1;
+  VEHICLE_TYPE_MOTORCYCLE = 2;
+  VEHICLE_TYPE_CAMPER = 3;
+  VEHICLE_TYPE_CAR_WITH_TRAILER = 4;
+  VEHICLE_TYPE_VAN = 5;
+  VEHICLE_TYPE_TRUCK = 6;
+  VEHICLE_TYPE_BUS = 7;
+  VEHICLE_TYPE_EV = 8;
+}
+
+message VehicleProfile {
+  string vehicle_profile_id = 1;
+  string name = 2;
+  VehicleType type = 3;
+  optional double height_m = 4;
+  optional double width_m = 5;
+  optional double length_m = 6;
+  optional double weight_t = 7;
+  optional double axle_load_t = 8;
+  optional uint32 axle_count = 9;
+  bool trailer = 10;
+  string emission_class = 11;
+  optional double battery_capacity_kwh = 12;
+  optional double current_soc_pct = 13;
+  optional double desired_arrival_soc_pct = 14;
+}

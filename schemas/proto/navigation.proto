@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package routing.v1;
+
+import "common.proto";
+
+enum NavigationPhase {
+  NAVIGATION_PHASE_UNSPECIFIED = 0;
+  NAVIGATION_PHASE_IDLE = 1;
+  NAVIGATION_PHASE_ROUTE_READY = 2;
+  NAVIGATION_PHASE_NAVIGATING = 3;
+  NAVIGATION_PHASE_DEVIATED = 4;
+  NAVIGATION_PHASE_REROUTING = 5;
+  NAVIGATION_PHASE_GPS_DEGRADED = 6;
+  NAVIGATION_PHASE_PAUSED = 7;
+  NAVIGATION_PHASE_ARRIVING = 8;
+  NAVIGATION_PHASE_ARRIVED = 9;
+  NAVIGATION_PHASE_ERROR_RECOVERABLE = 10;
+}
+
+message Maneuver {
+  string maneuver_id = 1;
+  string type = 2;
+  double distance_m = 3;
+  string road_name = 4;
+  string route_reference = 5;
+  string destination_sign = 6;
+  repeated string lane_indications = 7;
+}
+
+message NavigationState {
+  NavigationPhase phase = 1;
+  GeoPoint matched_position = 2;
+  double location_confidence = 3;
+  string current_segment_id = 4;
+  string current_road_name = 5;
+  optional double current_speed_kmh = 6;
+  optional double speed_limit_kmh = 7;
+  Maneuver next_maneuver = 8;
+  Maneuver following_maneuver = 9;
+  double remaining_distance_m = 10;
+  double remaining_time_s = 11;
+  string route_status = 12;
+  string gps_quality = 13;
+}

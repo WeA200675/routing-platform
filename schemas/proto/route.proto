@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package routing.v1;
+
+import "common.proto";
+import "cost.proto";
+import "profile.proto";
+import "vehicle.proto";
+
+enum CandidateFamily {
+  CANDIDATE_FAMILY_UNSPECIFIED = 0;
+  CANDIDATE_FAMILY_FASTEST = 1;
+  CANDIDATE_FAMILY_SHORTEST = 2;
+  CANDIDATE_FAMILY_PROFILE_OPTIMAL = 3;
+  CANDIDATE_FAMILY_MAJOR_ROADS = 4;
+  CANDIDATE_FAMILY_COMFORT = 5;
+  CANDIDATE_FAMILY_LOW_URBAN = 6;
+  CANDIDATE_FAMILY_LOW_CURVATURE = 7;
+  CANDIDATE_FAMILY_LOW_GRADIENT = 8;
+  CANDIDATE_FAMILY_LOW_TRAFFIC = 9;
+  CANDIDATE_FAMILY_ENERGY = 10;
+  CANDIDATE_FAMILY_SCENIC = 11;
+  CANDIDATE_FAMILY_STABLE = 12;
+}
+
+message RouteRequest {
+  GeoPoint origin = 1;
+  GeoPoint destination = 2;
+  repeated GeoPoint via_points = 3;
+  UserProfile user_profile = 4;
+  VehicleProfile vehicle_profile = 5;
+  TripOverride trip_override = 6;
+  VersionStamp versions = 7;
+}
+
+message RouteMetrics {
+  double total_distance_m = 1;
+  double total_time_s = 2;
+  double motorway_m = 3;
+  double major_road_m = 4;
+  double tempo30_m = 5;
+  double residential_m = 6;
+  double narrow_road_m = 7;
+  double unpaved_m = 8;
+  double serpentine_m = 9;
+  uint32 hairpin_count = 10;
+  double ascent_m = 11;
+  double descent_m = 12;
+  uint32 town_count = 13;
+  uint32 traffic_light_count = 14;
+  uint32 roundabout_count = 15;
+  uint32 turn_count = 16;
+  uint32 road_change_count = 17;
+  double comfort_score = 18;
+  double stress_score = 19;
+  double uncertainty_score = 20;
+}
+
+message RouteCandidate {
+  string candidate_id = 1;
+  CandidateFamily family = 2;
+  repeated string segment_ids = 3;
+  repeated GeoPoint geometry = 4;
+  RouteMetrics metrics = 5;
+  CostVector cost = 6;
+  FeasibilityResult feasibility = 7;
+  repeated CostContribution contributions = 8;
+  double overlap_ratio = 9;
+  uint32 final_rank = 10;
+  string label = 11;
+}
+
+message RouteResult {
+  string route_result_id = 1;
+  RouteCandidate selected = 2;
+  repeated RouteCandidate alternatives = 3;
+  VersionStamp versions = 4;
+}

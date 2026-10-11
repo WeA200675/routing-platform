@@ -1,0 +1,21 @@
+/build/
+/.cache/
+*.osm.pbf
+*.mbtiles
+*.pmtiles
+*.tar
+*.tar.gz
+*.zip
+*.sqlite
+*.db
+.DS_Store
+
+# Android local/build artifacts
+/platform/android/.gradle/
+/platform/android/.kotlin/
+/platform/android/local.properties
+/platform/android/build/
+/platform/android/app/build/
+/platform/android/.idea/
+/platform/android/*.iml
+/platform/android/app/.cxx/

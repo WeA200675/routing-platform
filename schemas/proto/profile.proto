@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package routing.v1;
+
+import "rule.proto";
+
+message UserProfile {
+  string profile_id = 1;
+  string name = 2;
+  string parent_profile_id = 3;
+  RuleSet rule_set = 4;
+  uint32 max_extra_time_min = 5;
+  uint32 max_extra_distance_km = 6;
+  uint32 shortcut_min_gain_min = 7;
+  uint32 reroute_min_gain_min = 8;
+  string preferred_vehicle_profile_id = 9;
+  bool learning_suggestions_enabled = 10;
+}
+
+message TripOverride {
+  string override_id = 1;
+  repeated RoutingRule rules = 2;
+  optional uint32 max_extra_time_min = 3;
+  optional uint32 shortcut_min_gain_min = 4;
+}

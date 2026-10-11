@@ -1,0 +1,47 @@
+name: Core CI
+
+on:
+  push:
+    branches:
+      - main
+      - "g6.*/*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Configure, build and test Core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Verify immutable workflow action revisions
+        run: python3 tools/g620/verify_workflow_action_pins.py
+
+      - name: Test OSRM navigation adapter contract
+        run: python3 -m unittest backend/test_osrm_adapter.py
+
+      - name: Configure CMake
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DROUTING_PLATFORM_BUILD_TESTS=ON
+          -DROUTING_PLATFORM_WITH_VALHALLA=OFF
+
+      - name: Build Core
+        run: cmake --build build --parallel 2
+
+      - name: Run Core Tests
+        run: ctest --test-dir build --output-on-failure

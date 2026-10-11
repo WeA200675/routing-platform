@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package routing.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message SemanticVersion {
+  uint32 major = 1;
+  uint32 minor = 2;
+  uint32 patch = 3;
+  string prerelease = 4;
+}
+
+message GeoPoint {
+  double latitude = 1;
+  double longitude = 2;
+  optional double elevation_m = 3;
+}
+
+message BoundingBox {
+  GeoPoint southwest = 1;
+  GeoPoint northeast = 2;
+}
+
+enum DataOrigin {
+  DATA_ORIGIN_UNSPECIFIED = 0;
+  DATA_ORIGIN_DIRECT = 1;
+  DATA_ORIGIN_EXTERNAL = 2;
+  DATA_ORIGIN_DERIVED = 3;
+  DATA_ORIGIN_OBSERVED = 4;
+  DATA_ORIGIN_USER = 5;
+}
+
+message DataProvenance {
+  string source_name = 1;
+  string source_id = 2;
+  DataOrigin origin = 3;
+  double confidence = 4; // [0,1]
+  google.protobuf.Timestamp observed_at = 5;
+  google.protobuf.Timestamp valid_from = 6;
+  google.protobuf.Timestamp valid_to = 7;
+  bool inferred = 8;
+  string inference_method = 9;
+}
+
+message VersionStamp {
+  string platform_version = 1;
+  string street_model_version = 2;
+  string rule_engine_version = 3;
+  string cost_model_version = 4;
+  string candidate_engine_version = 5;
+  string navigation_version = 6;
+  string map_version = 7;
+  string routing_graph_version = 8;
+}

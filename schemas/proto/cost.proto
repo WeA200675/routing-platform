@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package routing.v1;
+
+enum FeasibilityStatus {
+  FEASIBILITY_STATUS_UNSPECIFIED = 0;
+  FEASIBILITY_STATUS_ALLOWED = 1;
+  FEASIBILITY_STATUS_BLOCKED = 2;
+  FEASIBILITY_STATUS_ALLOWED_BY_EXCEPTION = 3;
+}
+
+message FeasibilityResult {
+  FeasibilityStatus status = 1;
+  repeated string reason_codes = 2;
+}
+
+message CostVector {
+  double time_s = 1;
+  double distance_m = 2;
+  double comfort_s_eq = 3;
+  double stress_s_eq = 4;
+  double traffic_s_eq = 5;
+  double road_quality_s_eq = 6;
+  double curvature_s_eq = 7;
+  double gradient_s_eq = 8;
+  double urban_s_eq = 9;
+  double turn_s_eq = 10;
+  double energy_s_eq = 11;
+  double weather_s_eq = 12;
+  double uncertainty_s_eq = 13;
+  double preference_s_eq = 14;
+  double monetary_s_eq = 15;
+  double total_s_eq = 16;
+}
+
+message CostContribution {
+  string source_id = 1;
+  string rule_id = 2;
+  string category = 3;
+  double seconds_equivalent = 4;
+  string explanation = 5;
+}

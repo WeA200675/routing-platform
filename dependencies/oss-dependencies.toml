@@ -1,0 +1,51 @@
+# Architecture inventory. Exact versions are pinned when introduced into the build.
+
+[[dependency]]
+name = "Valhalla"
+spdx = "MIT"
+role = "routing and map matching"
+required_by_core = true
+
+[[dependency]]
+name = "MapLibre Native"
+spdx = "BSD-2-Clause"
+role = "map rendering"
+required_by_core = false
+
+[[dependency]]
+name = "Protocol Buffers"
+spdx = "BSD-3-Clause"
+role = "cross-language schemas"
+required_by_core = false
+
+[[dependency]]
+name = "SQLite"
+spdx = "LicenseRef-Public-Domain"
+role = "local application storage"
+required_by_core = false
+
+[[dependency]]
+name = "PostgreSQL"
+spdx = "PostgreSQL"
+role = "backend database"
+required_by_core = false
+
+[[dependency]]
+name = "PostGIS"
+spdx = "GPL-2.0-only"
+role = "backend spatial database extension"
+required_by_core = false
+isolation = "separate backend database process"
+
+[[dependency]]
+name = "Nominatim"
+spdx = "GPL-3.0-or-later AND GPL-2.0-only"
+role = "geocoding service (mixed licensing by file group)"
+required_by_core = false
+isolation = "separate service behind IGeocoder"
+
+[[dependency]]
+name = "SmartDeviceLink"
+spdx = "BSD-3-Clause"
+role = "vehicle integration where supported"
+required_by_core = false

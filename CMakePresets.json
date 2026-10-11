@@ -1,0 +1,50 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "windows-debug",
+      "displayName": "Windows x64 Debug",
+      "generator": "Visual Studio 16 2019",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2019"
+    },
+    {
+      "name": "wsl-valhalla-debug",
+      "displayName": "WSL Valhalla Debug",
+      "generator": "Unix Makefiles",
+      "binaryDir": "$env{HOME}/.cache/routing-platform/wsl-valhalla",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ROUTING_PLATFORM_WITH_VALHALLA": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-debug",
+      "configurePreset": "windows-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "build-wsl-valhalla",
+      "configurePreset": "wsl-valhalla-debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "test-debug",
+      "configurePreset": "windows-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "test-wsl-valhalla",
+      "configurePreset": "wsl-valhalla-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

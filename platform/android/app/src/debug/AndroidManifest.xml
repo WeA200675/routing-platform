@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Development only:
+        adb reverse tcp:8787 tcp:8787
+
+        Production route endpoints are still required to use HTTPS by
+        AndroidHttpNavigationRouteSource.
+    -->
+    <application
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".OfflineRoutingSetupActivity"
+            android:exported="false"
+            android:label="Offline-Routing" />
+
+        <meta-data
+            android:name="org.routingplatform.navigation.ROUTE_ENDPOINT"
+            android:value="http://127.0.0.1:8787/v1/navigation/route" />
+
+        <!-- Local-AI acceptance surface: debug/device candidate only. -->
+        <activity
+            android:name=".ai.SocialAiDeviceTestActivity"
+            android:exported="true"
+            android:label="G6 Local AI Test" />
+
+        <!--
+            G5R5 device fault probe.
+            Debug build only; never merged into release/production manifest.
+        -->
+        <activity
+            android:name=".navigation.G5R5FaultProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true" />
+
+        <!-- Debug-only drive-proof recorder control surface. -->
+        <activity
+            android:name=".navigation.G5R6DriveProofControlActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="Drive-Proof beenden"
+            android:launchMode="singleTask"
+            android:taskAffinity="org.routingplatform.app.driveproofcontrol">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
