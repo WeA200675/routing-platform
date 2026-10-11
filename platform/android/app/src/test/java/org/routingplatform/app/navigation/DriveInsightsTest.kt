@@ -116,7 +116,7 @@ class DriveInsightsTest {
         )
         assertEquals(
             "Diese Uhrzeit existiert wegen der Zeitumstellung nicht. Bitte eine andere Uhrzeit wählen.",
-            (PlannedArrivalTimeParser.parse("29.03.2026", "02:30", now, zone)
+            (PlannedArrivalTimeParser.parse("28.03.2027", "02:30", now, zone)
                 as? PlannedArrivalParseResult.Invalid)?.message,
         )
     }
