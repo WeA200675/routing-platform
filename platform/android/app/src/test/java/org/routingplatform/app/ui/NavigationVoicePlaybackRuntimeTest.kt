@@ -14,6 +14,26 @@ import org.routingplatform.app.profile.VoicePreferences
 
 class NavigationVoicePlaybackRuntimeTest {
     @Test
+    fun stageProgressionDoesNotReplayEarlyWarningAfterDistanceJitter() {
+        val speaker = FakeSpeaker()
+        val runtime = NavigationVoicePlaybackRuntime(speaker)
+
+        runtime.present(snapshot(distanceMeters = 500.0, withShapeIndices = false), voice())
+        runtime.present(snapshot(distanceMeters = 180.0, withShapeIndices = false), voice())
+        runtime.present(snapshot(distanceMeters = 220.0, withShapeIndices = false), voice())
+        runtime.present(snapshot(distanceMeters = 35.0, withShapeIndices = false), voice())
+
+        assertEquals(
+            listOf(
+                NavigationVoiceCueStage.Early,
+                NavigationVoiceCueStage.Prepare,
+                NavigationVoiceCueStage.Now,
+            ),
+            speaker.submitted.map { it.key.stage },
+        )
+    }
+
+    @Test
     fun duplicateCueIsSubmittedOnce() {
         val speaker = FakeSpeaker()
         val runtime = NavigationVoicePlaybackRuntime(speaker)

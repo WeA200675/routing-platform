@@ -36,6 +36,24 @@ private data class NavigationVoiceDeliveryKey(
     val fallbackManeuverEpoch: Long?,
 )
 
+private data class NavigationVoiceManeuverProgressKey(
+    val sessionId: String,
+    val routeId: String,
+    val maneuverType: ManeuverType,
+    val instruction: String,
+    val beginShapeIndex: Int?,
+    val endShapeIndex: Int?,
+    val fallbackManeuverEpoch: Long?,
+)
+
+private fun NavigationVoiceCueStage.progressRank(): Int =
+    when (this) {
+        NavigationVoiceCueStage.Early -> 0
+        NavigationVoiceCueStage.Prepare -> 1
+        NavigationVoiceCueStage.Now -> 2
+        NavigationVoiceCueStage.CriticalRepeat -> 3
+    }
+
 private data class FallbackManeuverSignature(
     val type: ManeuverType,
     val instruction: String,
@@ -59,6 +77,9 @@ internal class NavigationVoicePlaybackRuntime(
 
     private val deliveredKeys =
         linkedSetOf<NavigationVoiceDeliveryKey>()
+
+    private val highestDeliveredStageByManeuver =
+        mutableMapOf<NavigationVoiceManeuverProgressKey, Int>()
 
     private var fallbackManeuverEpoch =
         0L
@@ -131,12 +152,46 @@ internal class NavigationVoicePlaybackRuntime(
             return
         }
 
+        val cueKey = cue.key
+        val maneuverProgressKey =
+            NavigationVoiceManeuverProgressKey(
+                sessionId = cueKey.sessionId,
+                routeId = cueKey.routeId,
+                maneuverType = cueKey.maneuverType,
+                instruction = cueKey.instruction,
+                beginShapeIndex = cueKey.beginShapeIndex,
+                endShapeIndex = cueKey.endShapeIndex,
+                fallbackManeuverEpoch =
+                    if (
+                        cueKey.beginShapeIndex == null ||
+                        cueKey.endShapeIndex == null
+                    ) {
+                        fallbackEpoch
+                    } else {
+                        null
+                    },
+            )
+        val stageRank = cueKey.stage.progressRank()
+        if (
+            highestDeliveredStageByManeuver[maneuverProgressKey]
+                ?.let { stageRank < it }
+                ?: false
+        ) {
+            // Distance can wobble backwards; never replay an earlier cue
+            // after the driver has already received a later-stage instruction.
+            return
+        }
+
         when (speaker.submit(cue)) {
             NavigationSpeechSubmission.Queued,
-            NavigationSpeechSubmission.Spoken ->
-                deliveredKeys.add(
-                    deliveryKey
-                )
+            NavigationSpeechSubmission.Spoken -> {
+                deliveredKeys.add(deliveryKey)
+                highestDeliveredStageByManeuver[maneuverProgressKey] =
+                    maxOf(
+                        stageRank,
+                        highestDeliveredStageByManeuver[maneuverProgressKey] ?: stageRank,
+                    )
+            }
 
             NavigationSpeechSubmission.Rejected ->
                 Unit
@@ -225,6 +280,7 @@ internal class NavigationVoicePlaybackRuntime(
 
         speaker.clearPending()
         deliveredKeys.clear()
+        highestDeliveredStageByManeuver.clear()
         resetFallbackIdentity()
 
         activeSessionId = sessionId
@@ -239,6 +295,7 @@ internal class NavigationVoicePlaybackRuntime(
         }
 
         deliveredKeys.clear()
+        highestDeliveredStageByManeuver.clear()
         resetFallbackIdentity()
 
         activeSessionId = null
