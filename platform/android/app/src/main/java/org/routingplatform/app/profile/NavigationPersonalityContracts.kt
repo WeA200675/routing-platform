@@ -294,6 +294,82 @@ object ExperiencePackCatalog {
 
             ExperiencePackDefinition(
                 packId =
+                    "cozy",
+
+                version =
+                    1,
+
+                displayName =
+                    "Wohlfühlmodus",
+
+                description =
+                    "Freundlich, warm und mit angenehm ausführlichen Hinweisen.",
+
+                genre =
+                    ExperiencePackGenre.Seasonal,
+
+                tone =
+                    NavigationPersonalityTone.Warm,
+
+                voiceVerbosity =
+                    VoiceGuidanceVerbosity.Detailed,
+
+                mapStyle =
+                    ProfileMapStyle.Standard,
+
+                humorLevel =
+                    10,
+
+                warmthLevel =
+                    90,
+
+                directnessLevel =
+                    65,
+
+                surpriseLevel =
+                    2,
+            ),
+
+            ExperiencePackDefinition(
+                packId =
+                    "focus",
+
+                version =
+                    1,
+
+                displayName =
+                    "Fokus",
+
+                description =
+                    "Knappe Ansagen und eine reduzierte, kontrastreiche Karte.",
+
+                genre =
+                    ExperiencePackGenre.Experimental,
+
+                tone =
+                    NavigationPersonalityTone.CoPilot,
+
+                voiceVerbosity =
+                    VoiceGuidanceVerbosity.Minimal,
+
+                mapStyle =
+                    ProfileMapStyle.HighContrast,
+
+                humorLevel =
+                    0,
+
+                warmthLevel =
+                    45,
+
+                directnessLevel =
+                    100,
+
+                surpriseLevel =
+                    2,
+            ),
+
+            ExperiencePackDefinition(
+                packId =
                     GALACTIC_PACK_ID,
 
                 version =
