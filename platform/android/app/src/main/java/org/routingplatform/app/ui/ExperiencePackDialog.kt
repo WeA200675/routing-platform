@@ -173,6 +173,22 @@ internal fun ExperiencePackDialog(
                             .bodySmall,
                 )
 
+                if (preferences.weeklyDiscoveryEnabled) {
+                    Text(
+                        text =
+                            "Wochenvorschlag für " +
+                                ExperiencePackRuntimeResolver.currentWeekKey() +
+                                ": " +
+                                activePack.displayName +
+                                ". Der Stil wird automatisch mit der neuen Kalenderwoche geprüft.",
+
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall,
+                    )
+                }
+
                 Spacer(
                     modifier =
                         Modifier.height(
@@ -269,7 +285,7 @@ internal fun ExperiencePackDialog(
 
                         Text(
                             text =
-                                "Jede Woche darf ein neuer Stil vorgeschlagen werden.",
+                                "Der Stil wechselt automatisch mit der Kalenderwoche. Deine Auswahl bleibt als Basis gespeichert.",
 
                             style =
                                 MaterialTheme
