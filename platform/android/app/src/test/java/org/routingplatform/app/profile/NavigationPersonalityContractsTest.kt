@@ -181,7 +181,9 @@ class NavigationPersonalityContractsTest {
                     rejectedPackIds =
                         setOf(
                             ExperiencePackCatalog
-                                .ZEN_PACK_ID
+                                .ZEN_PACK_ID,
+                            "cozy",
+                            "focus",
                         ),
                 )
 
@@ -201,7 +203,9 @@ class NavigationPersonalityContractsTest {
                     rejectedPackIds =
                         setOf(
                             ExperiencePackCatalog
-                                .ZEN_PACK_ID
+                                .ZEN_PACK_ID,
+                            "cozy",
+                            "focus",
                         ),
                 )
 
