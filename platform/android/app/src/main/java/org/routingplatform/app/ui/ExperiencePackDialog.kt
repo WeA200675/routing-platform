@@ -196,6 +196,19 @@ internal fun ExperiencePackDialog(
                         )
                 )
 
+                Text(
+                    text =
+                        "Thema auswählen",
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleMedium,
+
+                    fontWeight =
+                        FontWeight.SemiBold,
+                )
+
                 ExperiencePackCatalog
                     .builtIns
                     .forEach {
