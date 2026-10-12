@@ -222,6 +222,40 @@ class ExperiencePackRuntimeTest {
     }
 
     @Test
+    fun weeklyDiscoveryAdvancesToADifferentPackEachAdjacentWeek() {
+        val intensity =
+            WeeklyDiscoveryIntensity.Wild
+
+        val firstWeek =
+            WeeklyExperiencePackSelector.select(
+                weekKey = "2026-W37",
+                currentPackId = ExperiencePackCatalog.CLASSIC_PACK_ID,
+                intensity = intensity,
+            )
+
+        val nextWeek =
+            WeeklyExperiencePackSelector.select(
+                weekKey = "2026-W38",
+                currentPackId = ExperiencePackCatalog.CLASSIC_PACK_ID,
+                intensity = intensity,
+            )
+
+        assertEquals(false, firstWeek.packId == nextWeek.packId)
+    }
+
+    @Test
+    fun weeklyDiscoveryIntensityFiltersOutHigherSurprisePacks() {
+        val subtle =
+            WeeklyExperiencePackSelector.select(
+                weekKey = "2026-W37",
+                currentPackId = ExperiencePackCatalog.CLASSIC_PACK_ID,
+                intensity = WeeklyDiscoveryIntensity.Subtle,
+            )
+
+        assertEquals(true, subtle.surpriseLevel <= 1)
+    }
+
+    @Test
     fun disabledWeeklySourceFailsClosedToExistingPresentation() {
         val display =
             customDisplayPreferences()
