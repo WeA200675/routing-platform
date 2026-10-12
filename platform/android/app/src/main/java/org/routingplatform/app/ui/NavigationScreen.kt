@@ -1127,6 +1127,14 @@ internal fun NavigationScreen(
                     presentation =
                         navigationControl,
 
+                    viaPointEnabled =
+                        !destinationPlannerBusy,
+
+                    onAddViaPoint = {
+                        focusMode.notifyUserActivity()
+                        plannerOpen = true
+                    },
+
                     onRestartNavigation =
                         onRestartNavigation,
 
@@ -3042,6 +3050,12 @@ private fun NavigationPrimaryControl(
     presentation:
         NavigationControlPresentation,
 
+    viaPointEnabled:
+        Boolean,
+
+    onAddViaPoint:
+        () -> Unit,
+
     onRestartNavigation:
         () -> Unit,
 
@@ -3161,6 +3175,22 @@ private fun NavigationPrimaryControl(
         }
 
         if (presentation.destructive) {
+            OutlinedButton(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
+                        .testTag("navigation-via-point-add"),
+
+                enabled =
+                    viaPointEnabled,
+
+                onClick =
+                    onAddViaPoint,
+            ) {
+                Text("+ Zwischenziel")
+            }
+
             OutlinedButton(
                 modifier =
                     Modifier
