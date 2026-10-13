@@ -27,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -1238,31 +1240,43 @@ internal fun RouteMap(
                         Spacer(Modifier.width(10.dp))
                     }
                     Column {
-                        speedLimitPresentation.speedKmh?.let { speed ->
-                            Text(
-                                text = "$speed km/h",
-                                fontWeight = FontWeight.Bold,
-                                color = if (speedLimitPresentation.overLimit) {
-                                    MaterialTheme.colorScheme.onErrorContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                            )
-                        }
+                        Text(
+                            text = speedLimitPresentation.speedKmh?.let { "$it km/h" }
+                                ?: "GPS-Geschwindigkeit nicht verfügbar",
+                            fontWeight = FontWeight.Bold,
+                            color = if (speedLimitPresentation.overLimit) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        )
                         when {
                             speedLimitPresentation.overLimit -> {
                                 Text(
-                                    text = "Tempolimit überschritten",
+                                    text = "Kartentempolimit überschritten",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onErrorContainer,
                                 )
                             }
-                            speedLimitPresentation.limitKmh == null &&
-                                speedLimitPresentation.dataStatus ==
-                                    org.routingplatform.app.navigation.NavigationSpeedLimitDataStatus.Unavailable -> {
+                            speedLimitPresentation.limitKmh != null -> {
                                 Text(
-                                    text = "Tempolimit unbekannt",
+                                    text = "Kartengrenze",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            speedLimitPresentation.dataStatus ==
+                                org.routingplatform.app.navigation.NavigationSpeedLimitDataStatus.Unavailable -> {
+                                Text(
+                                    text = "Tempolimitdaten nicht verfügbar",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            else -> {
+                                Text(
+                                    text = "Kartentempolimit unbekannt",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -2016,7 +2030,11 @@ private fun SpeedLimitRoadSign(
     emphasized: Boolean,
 ) {
     Surface(
-        modifier = Modifier.size(width = 52.dp, height = 58.dp),
+        modifier = Modifier
+            .size(width = 52.dp, height = 58.dp)
+            .semantics {
+                contentDescription = "Geschwindigkeitsbegrenzung $limitKmh km/h"
+            },
         color = androidx.compose.ui.graphics.Color.White,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
         shadowElevation = if (emphasized) 3.dp else 1.dp,
