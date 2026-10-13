@@ -132,4 +132,52 @@ class NavigationRouteGuidanceTest {
             0.0,
         )
     }
+
+    @Test
+    fun rightExitTypeOverridesContradictoryLeftProviderText() {
+        val maneuver =
+            NavigationManeuver(
+                type = ManeuverType.Exit,
+                instruction = "Auf die Ausfahrt links halten",
+                distanceM = 100.0,
+                durationS = 10.0,
+                engineType = 20,
+            )
+
+        assertEquals(
+            "Ausfahrt rechts nehmen. Bitte Beschilderung beachten.",
+            maneuver.guidanceInstruction,
+        )
+    }
+
+    @Test
+    fun leftExitTypeOverridesContradictoryRightProviderText() {
+        val maneuver =
+            NavigationManeuver(
+                type = ManeuverType.Exit,
+                instruction = "Take the exit on the right",
+                distanceM = 100.0,
+                durationS = 10.0,
+                engineType = 21,
+            )
+
+        assertEquals(
+            "Take the exit on the left. Follow road signs.",
+            maneuver.guidanceInstruction,
+        )
+    }
+
+    @Test
+    fun matchingExitSideKeepsProviderInstruction() {
+        val maneuver =
+            NavigationManeuver(
+                type = ManeuverType.Exit,
+                instruction = "Auf die Ausfahrt rechts halten",
+                distanceM = 100.0,
+                durationS = 10.0,
+                engineType = 20,
+            )
+
+        assertEquals(maneuver.instruction, maneuver.guidanceInstruction)
+    }
 }
