@@ -742,11 +742,15 @@ internal fun RouteMap(
                                 segmentFraction,
                         )
 
-                    if (effectiveMapStyle == ProfileMapStyle.ThreeDimensional) {
+                    if (styleDescriptor.showBuildingExtrusions) {
                         installNavigationBuildingLayer(
                             style = style,
                             darkMode = automaticNightMode,
                         )
+                    }
+
+                    if (styleDescriptor.roadsOnly) {
+                        installRoadOnlyMapLayers(style)
                     }
 
                     installNavigationLayers(
@@ -2028,6 +2032,27 @@ private fun SpeedLimitRoadSign(
                 fontWeight = FontWeight.ExtraBold,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
+            )
+        }
+    }
+}
+
+private fun installRoadOnlyMapLayers(style: Style) {
+    // The Positron base style is intentionally reduced further: only named
+    // road line layers remain visible. Route/progress/position layers are
+    // installed afterward and are preserved.
+    style.layers.toList().forEach { layer ->
+        val layerId = layer.id.lowercase()
+        val isRoadLine =
+            layer is LineLayer &&
+                (
+                    layerId.contains("road") ||
+                        layerId.contains("highway") ||
+                        layerId.contains("street")
+                    )
+        if (!isRoadLine) {
+            layer.setProperties(
+                PropertyFactory.visibility(Property.NONE)
             )
         }
     }
