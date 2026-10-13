@@ -49,6 +49,9 @@ internal fun ExperiencePackDialog(
     onWeeklyDiscoveryIntensityChanged:
         (WeeklyDiscoveryIntensity) -> Unit,
 
+    onGenerateConversation:
+        (String, (String?) -> Unit) -> Unit = { _, complete -> complete(null) },
+
     onDismiss:
         () -> Unit,
 ) {
@@ -137,8 +140,8 @@ internal fun ExperiencePackDialog(
 
                 Text(
                     text =
-                        "Mach die Navigation zu deiner Navigation. " +
-                            "Mit Überraschung darf der Stil wöchentlich wechseln. Ohne Überraschung bleibt deine Auswahl aktiv.",
+                        "Wähle ein Thema für Kartenstil, Ansagen und die Routenfamilie deiner nächsten Vorschau. " +
+                            "Mit Überraschung kann das Thema wöchentlich wechseln. Eine aktive Route wird dabei nicht heimlich geändert.",
 
                     style =
                         MaterialTheme
@@ -417,6 +420,12 @@ internal fun ExperiencePackDialog(
 
                     onChanged =
                         onAiPreferencesChanged,
+
+                    experiencePack =
+                        activePack,
+
+                    onGenerateConversation =
+                        onGenerateConversation,
                 )
             }
         }
