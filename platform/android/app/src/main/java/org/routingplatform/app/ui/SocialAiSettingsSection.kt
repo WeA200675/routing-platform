@@ -5,18 +5,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import org.routingplatform.app.profile.AiPreferences
+import org.routingplatform.app.profile.ExperiencePackDefinition
 
 internal object SocialAiUiTestTags {
     const val Section =
@@ -52,7 +59,13 @@ internal fun SocialAiSettingsSection(
     preferences: AiPreferences,
     onChanged: (AiPreferences) -> Unit,
     modifier: Modifier = Modifier,
+    experiencePack: ExperiencePackDefinition? = null,
+    onGenerateConversation: (String, (String?) -> Unit) -> Unit = { _, complete -> complete(null) },
 ) {
+    var conversationInput by remember { mutableStateOf("") }
+    var conversationReply by remember { mutableStateOf<String?>(null) }
+    var conversationBusy by remember { mutableStateOf(false) }
+
     Column(
         modifier =
             modifier
@@ -78,10 +91,10 @@ internal fun SocialAiSettingsSection(
         )
 
         SettingToggle(
-            title = "Routenlernen",
+            title = "Routen- und Themenlernen",
             description =
-                "Speichert nach einer positiven Bewertung nur die Routenpriorität lokal für dieses Profil. " +
-                    "Ziele und Koordinaten werden nicht gespeichert; Ausschalten löscht die gemerkte Priorität.",
+                "Lernt aus bestätigten positiven Routen- und Themenbewertungen, lokal auf diesem Gerät. " +
+                    "Ziele, Koordinaten und rohe Fahrten werden nicht gespeichert; Ausschalten löscht diese Lernwerte.",
             checked = preferences.learningEnabled,
             testTag = SocialAiUiTestTags.RouteLearningToggle,
             onCheckedChange = { enabled ->
@@ -159,10 +172,10 @@ internal fun SocialAiSettingsSection(
         HorizontalDivider()
 
         SettingToggle(
-            title = "Flirtmodus für Erwachsene",
+            title = "Erwachsenenmodus (18+)",
             description =
-                "Nur nach deiner ausdrücklichen Aktivierung. " +
-                    "Navigation und sicherheitskritische Hinweise bleiben davon ausgeschlossen.",
+                "Bestätige, dass du mindestens 18 bist. Bei hohem Flirtwert darf die KI im Gespräch frech, derb und anzüglich werden. " +
+                    "Navigation und sicherheitskritische Hinweise bleiben immer sachlich.",
             checked = preferences.adultFlirtOptIn,
             testTag = SocialAiUiTestTags.AdultFlirtOptIn,
             onCheckedChange = { enabled ->
@@ -187,6 +200,41 @@ internal fun SocialAiSettingsSection(
                 )
             },
         )
+
+        Text(
+            text = "KI-Gespräch testen" + (experiencePack?.let { " · ${it.displayName}" } ?: ""),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text(
+            text = "Teste hier den tatsächlich installierten lokalen KI-Laufzeitpfad. Antworten bleiben außerhalb der Navigation.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(
+            value = conversationInput,
+            onValueChange = { conversationInput = it.take(1200); conversationReply = null },
+            modifier = Modifier.fillMaxWidth().testTag("rp.social_ai.conversation_input"),
+            label = { Text("Nachricht an die KI") },
+            enabled = !conversationBusy,
+            minLines = 2,
+            maxLines = 4,
+        )
+        Button(
+            onClick = {
+                conversationBusy = true
+                conversationReply = null
+                onGenerateConversation(conversationInput) { reply ->
+                    conversationReply = reply ?: "Keine lokale Antwort verfügbar. Prüfe, ob das KI-Modell installiert und bereit ist."
+                    conversationBusy = false
+                }
+            },
+            enabled = conversationInput.isNotBlank() && !conversationBusy,
+            modifier = Modifier.testTag("rp.social_ai.conversation_test"),
+        ) {
+            Text(if (conversationBusy) "KI antwortet …" else "Gespräch ausprobieren")
+        }
+        conversationReply?.let { reply ->
+            Text(reply, modifier = Modifier.testTag("rp.social_ai.conversation_reply"))
+        }
 
         if (!preferences.adultFlirtOptIn) {
             Text(
