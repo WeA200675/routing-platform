@@ -108,7 +108,12 @@ internal object SocialAiRoutePreferenceMemory {
                 .recall(storeId, maximumEntries = 64)
                 .filter {
                     it.kind == SocialAiKnowledgeKind.Preference &&
-                        (it.id == ENTRY_ID || it.key.startsWith("post_drive."))
+                        (
+                            it.id == ENTRY_ID ||
+                                it.key.startsWith("post_drive.") ||
+                                it.key.startsWith("poi.category.") ||
+                                it.key.startsWith("experience_pack.")
+                            )
                 }
                 .map { it.id }
                 .distinct()
