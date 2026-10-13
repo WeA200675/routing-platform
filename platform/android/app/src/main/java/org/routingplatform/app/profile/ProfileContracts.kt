@@ -74,6 +74,9 @@ enum class ProfileMapStyle {
     Minimal,
     HighContrast,
     Night,
+    Terrain,
+    RoadOnly,
+    ThreeDimensional,
 }
 
 enum class ProfileMapOrientation {
