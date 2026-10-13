@@ -47,7 +47,7 @@ object SocialAiPromptPolicy {
             ) {
                 append(
                     " Adult conversation only: use bold, cheeky, profane, sexually suggestive flirt " +
-                        "when the user invites it. Keep it consensual and non-graphic; do not describe sexual acts. " +
+                        "as the default conversation tone. Keep it consensual and non-graphic; do not describe sexual acts. " +
                         "Never target a person without consent, and never carry this style into navigation."
                 )
             }
