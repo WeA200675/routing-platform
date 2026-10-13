@@ -243,6 +243,10 @@ internal fun NavigationScreen(
         (WeeklyDiscoveryIntensity) -> Unit =
         {},
 
+    onGenerateSocialAiConversation:
+        (String, (String?) -> Unit) -> Unit =
+        { _, complete -> complete(null) },
+
     selectedTripStop:
         NavigationTripStop? =
         null,
@@ -1895,6 +1899,9 @@ internal fun NavigationScreen(
 
             onWeeklyDiscoveryIntensityChanged =
                 onWeeklyDiscoveryIntensityChanged,
+
+            onGenerateConversation =
+                onGenerateSocialAiConversation,
 
             onDismiss = {
                 experiencePackOpen =
