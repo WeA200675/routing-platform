@@ -81,7 +81,7 @@ fun buildNavigationRouteEvents(
                 maneuver.type,
 
             instruction =
-                maneuver.instruction
+                maneuver.guidanceInstruction
                     .takeIf {
                         it.isNotBlank()
                     },
