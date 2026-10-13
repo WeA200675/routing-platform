@@ -68,14 +68,14 @@ data class NavigationManeuver(
                 else -> null
             } ?: return instruction
 
-            val saysLeft = Regex("""\\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\\b""", RegexOption.IGNORE_CASE)
+            val saysLeft = Regex("""\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\b""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(instruction)
-            val saysRight = Regex("""\\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\\b""", RegexOption.IGNORE_CASE)
+            val saysRight = Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(instruction)
             val contradicts = if (expectedSide == "right") saysLeft && !saysRight else saysRight && !saysLeft
             if (!contradicts) return instruction
 
-            val german = Regex("""\\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\\b""", RegexOption.IGNORE_CASE)
+            val german = Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\b""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(instruction)
             return when {
                 german && (engineType == 20 || engineType == 21) ->
