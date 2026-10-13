@@ -739,10 +739,12 @@ internal fun RouteMap(
                                 segmentFraction,
                         )
 
-                    installNavigationBuildingLayer(
-                        style = style,
-                        darkMode = automaticNightMode,
-                    )
+                    if (effectiveMapStyle == ProfileMapStyle.ThreeDimensional) {
+                        installNavigationBuildingLayer(
+                            style = style,
+                            darkMode = automaticNightMode,
+                        )
+                    }
 
                     installNavigationLayers(
                         style =
