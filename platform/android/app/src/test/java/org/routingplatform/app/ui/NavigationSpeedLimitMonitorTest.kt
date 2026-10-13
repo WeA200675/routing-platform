@@ -63,13 +63,13 @@ class NavigationSpeedLimitMonitorTest {
         assertFalse(first.presentation.overLimit)
 
         val firstAboveThreshold = monitor.update(
-            snapshot, 58.0 / 3.6, 0.5, 2_000_000_000L, true, 2_100_000_000L, 5,
+            snapshot, 56.0 / 3.6, 0.0, 2_000_000_000L, true, 2_100_000_000L, 5,
         )
         assertFalse(firstAboveThreshold.presentation.overLimit)
         assertNull(firstAboveThreshold.warning)
 
         val second = monitor.update(
-            snapshot, 58.0 / 3.6, 0.5, 3_000_000_000L, true, 3_100_000_000L, 5,
+            snapshot, 56.0 / 3.6, 0.0, 3_000_000_000L, true, 3_100_000_000L, 5,
         )
         assertTrue(second.presentation.overLimit)
         assertNotNull(second.warning)
