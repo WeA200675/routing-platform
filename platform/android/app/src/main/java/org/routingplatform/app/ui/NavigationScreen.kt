@@ -1098,41 +1098,11 @@ internal fun NavigationScreen(
                         }
                 }
 
-                if (
-                    snapshot.state ==
-                        NavigationSessionState.Navigating
-                ) {
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-
-                        horizontalArrangement =
-                            Arrangement.SpaceBetween,
-
-                        verticalAlignment =
-                            Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text =
-                                "Karte: Dunkel",
-
-                            style =
-                                MaterialTheme.typography.bodySmall,
-                        )
-
-                        TextButton(
-                            enabled =
-                                nightPresentation.brightnessCorrection >
-                                    NAVIGATION_BRIGHTNESS_CORRECTION_MIN,
-
-                            onClick = {
-                                focusMode.notifyUserActivity()
-                                onNightBrightnessDarker()
-                            },
-                        ) {
-                            Text("Display dunkler")
-                        }
-                    }
+                if (snapshot.state == NavigationSessionState.Navigating) {
+                    Text(
+                        text = "Karte: " + if (nightPresentation.nightMode) "Nacht" else "System",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
 
                 Spacer(
