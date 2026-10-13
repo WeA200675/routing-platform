@@ -89,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: weekly-surprise-test-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: platform/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
 
