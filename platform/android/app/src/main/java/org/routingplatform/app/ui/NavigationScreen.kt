@@ -1650,51 +1650,7 @@ internal fun NavigationScreen(
                                         FontWeight.Medium,
                                 )
 
-                                Row(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth(),
 
-                                    horizontalArrangement =
-                                        Arrangement
-                                            .SpaceBetween,
-                                ) {
-                                    TextButton(
-                                        enabled =
-                                            nightPresentation
-                                                .brightnessCorrection >
-                                                NAVIGATION_BRIGHTNESS_CORRECTION_MIN,
-
-                                        onClick = {
-                                            focusMode
-                                                .notifyUserActivity()
-
-                                            onNightBrightnessDarker()
-                                        },
-                                    ) {
-                                        Text(
-                                            "Dunkler"
-                                        )
-                                    }
-
-                                    TextButton(
-                                        enabled =
-                                            nightPresentation
-                                                .brightnessCorrection <
-                                                NAVIGATION_BRIGHTNESS_CORRECTION_MAX,
-
-                                        onClick = {
-                                            focusMode
-                                                .notifyUserActivity()
-
-                                            onNightBrightnessBrighter()
-                                        },
-                                    ) {
-                                        Text(
-                                            "Heller"
-                                        )
-                                    }
-                                }
                             }
                         }
                         }
