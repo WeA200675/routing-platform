@@ -48,38 +48,8 @@ data class NavigationNightPresentation(
         }
 
     fun statusText(): String {
-        val sourceText =
-            when (source) {
-                NavigationNightLightSource.Sensor ->
-                    smoothedLux
-                        ?.roundToInt()
-                        ?.let {
-                            "$it lx"
-                        }
-                        ?: "Sensor"
-
-                NavigationNightLightSource.AwaitingSensor ->
-                    "Sensor wird eingemessen"
-
-                NavigationNightLightSource.SystemFallback ->
-                    "System-Fallback"
-            }
-
-        val levelText =
-            brightnessLevel
-                ?.let {
-                    "  |  $it/$NAVIGATION_BRIGHTNESS_LEVEL_COUNT"
-                }
-                ?: ""
-
-        val modeText =
-            if (nightMode) {
-                "  |  Nacht"
-            } else {
-                "  |  Tag"
-            }
-
-        return "Display: Auto  |  $sourceText$levelText$modeText"
+        val nightLabel = if (nightMode) "Nachtkarte" else "Tageskarte"
+        return "Displayhelligkeit: Systemeinstellung | $nightLabel"
     }
 
     companion object {
