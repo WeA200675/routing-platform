@@ -14,7 +14,7 @@ class NavigationPersonalityContractsTest {
                 .builtIns
 
         assertEquals(
-            3,
+            5,
             packs.size,
         )
 
@@ -33,6 +33,20 @@ class NavigationPersonalityContractsTest {
                 it.version >=
                     1
             }
+        )
+    }
+
+    @Test
+    fun allFiveThemesCanBeSelectedFromTheCatalog() {
+        val ids =
+            ExperiencePackCatalog
+                .builtIns
+                .map { it.packId }
+                .toSet()
+
+        assertEquals(
+            setOf("classic", "zen", "galactic", "cozy", "focus"),
+            ids,
         )
     }
 
@@ -167,7 +181,9 @@ class NavigationPersonalityContractsTest {
                     rejectedPackIds =
                         setOf(
                             ExperiencePackCatalog
-                                .ZEN_PACK_ID
+                                .ZEN_PACK_ID,
+                            "cozy",
+                            "focus",
                         ),
                 )
 
@@ -187,7 +203,9 @@ class NavigationPersonalityContractsTest {
                     rejectedPackIds =
                         setOf(
                             ExperiencePackCatalog
-                                .ZEN_PACK_ID
+                                .ZEN_PACK_ID,
+                            "cozy",
+                            "focus",
                         ),
                 )
 

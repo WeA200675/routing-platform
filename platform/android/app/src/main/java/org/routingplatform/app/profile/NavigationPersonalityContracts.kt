@@ -294,6 +294,82 @@ object ExperiencePackCatalog {
 
             ExperiencePackDefinition(
                 packId =
+                    "cozy",
+
+                version =
+                    1,
+
+                displayName =
+                    "Wohlfühlmodus",
+
+                description =
+                    "Freundlich, warm und mit angenehm ausführlichen Hinweisen.",
+
+                genre =
+                    ExperiencePackGenre.Seasonal,
+
+                tone =
+                    NavigationPersonalityTone.Warm,
+
+                voiceVerbosity =
+                    VoiceGuidanceVerbosity.Detailed,
+
+                mapStyle =
+                    ProfileMapStyle.Standard,
+
+                humorLevel =
+                    10,
+
+                warmthLevel =
+                    90,
+
+                directnessLevel =
+                    65,
+
+                surpriseLevel =
+                    2,
+            ),
+
+            ExperiencePackDefinition(
+                packId =
+                    "focus",
+
+                version =
+                    1,
+
+                displayName =
+                    "Fokus",
+
+                description =
+                    "Knappe Ansagen und eine reduzierte, kontrastreiche Karte.",
+
+                genre =
+                    ExperiencePackGenre.Experimental,
+
+                tone =
+                    NavigationPersonalityTone.CoPilot,
+
+                voiceVerbosity =
+                    VoiceGuidanceVerbosity.Minimal,
+
+                mapStyle =
+                    ProfileMapStyle.HighContrast,
+
+                humorLevel =
+                    0,
+
+                warmthLevel =
+                    45,
+
+                directnessLevel =
+                    100,
+
+                surpriseLevel =
+                    2,
+            ),
+
+            ExperiencePackDefinition(
+                packId =
                     GALACTIC_PACK_ID,
 
                 version =
@@ -461,14 +537,34 @@ object WeeklyExperiencePackSelector {
                 )
         }
 
+        // Use the ISO week ordinal so adjacent weeks advance through the
+        // eligible packs instead of relying on a hash that may repeat.
+        val weekParts =
+            Regex("(\\d{4})-W(\\d{2})")
+                .matchEntire(weekKey)
+
+        val weekOrdinal =
+            weekParts
+                ?.let {
+                    val year =
+                        it.groupValues[1].toInt()
+
+                    val week =
+                        it.groupValues[2].toInt()
+
+                    if (week in 1..53) {
+                        year * 53L + week
+                    } else {
+                        weekKey.hashCode().toLong()
+                    }
+                }
+                ?: weekKey.hashCode().toLong()
+
         val stableIndex =
             Math.floorMod(
-                (
-                    "$weekKey|" +
-                        intensity.name
-                ).hashCode(),
-                candidates.size,
-            )
+                weekOrdinal,
+                candidates.size.toLong(),
+            ).toInt()
 
         return candidates[
             stableIndex
