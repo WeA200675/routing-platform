@@ -1233,20 +1233,11 @@ internal fun RouteMap(
                             MaterialTheme.colorScheme.onSurface
                         },
                     )
-                    if (speedLimitPresentation.limitKmh != null) {
+                    if (speedLimitPresentation.overLimit && speedLimitPresentation.limitKmh != null) {
                         Text(
                             text = "Tempolimit " + speedLimitPresentation.limitKmh + " km/h",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (speedLimitPresentation.overLimit) {
-                                MaterialTheme.colorScheme.onErrorContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    } else if (speedLimitPresentation.unlimited) {
-                        Text(
-                            text = "Kein Zahlenlimit laut Karte",
-                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                         )
                     }
                     if (speedLimitPresentation.overLimit) {
@@ -1254,16 +1245,6 @@ internal fun RouteMap(
                             text = "Geschwindigkeit über dem Kartentempolimit",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                    }
-                    if (
-                        speedLimitPresentation.upcomingLimitKmh != null &&
-                        speedLimitPresentation.distanceToUpcomingLimitM != null
-                    ) {
-                        Text(
-                            text = "In " + speedLimitPresentation.distanceToUpcomingLimitM +
-                                " m: " + speedLimitPresentation.upcomingLimitKmh + " km/h",
-                            style = MaterialTheme.typography.labelSmall,
                         )
                     }
                 }
