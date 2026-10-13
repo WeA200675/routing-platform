@@ -30,8 +30,7 @@ internal object NavigationMapPresentation {
     ): NavigationMapStyleDescriptor =
         NavigationMapStyleDescriptor(
             styleUri =
-                styleUri =
-                    when (mapStyle) {
+                when (mapStyle) {
                         ProfileMapStyle.Standard ->
                             "https://tiles.openfreemap.org/styles/liberty"
                         ProfileMapStyle.Minimal ->
