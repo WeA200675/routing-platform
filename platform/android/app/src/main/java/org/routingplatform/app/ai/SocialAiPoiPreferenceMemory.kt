@@ -82,12 +82,14 @@ object SocialAiPoiPreferenceMemory {
         category: String,
         helpful: Boolean,
         nowEpochMillis: Long,
+        learningEnabled: Boolean = true,
     ): SocialAiPoiCategoryFeedback {
         require(category in categories) { "Unsupported POI category." }
         require(nowEpochMillis >= 0L) { "Timestamp must be non-negative." }
 
         val current = recall(repository, storeId)[category]
             ?: SocialAiPoiCategoryFeedback(helpful = 0, notHelpful = 0)
+        if (!learningEnabled) return current
         val next = if (helpful) {
             current.copy(helpful = (current.helpful + 1).coerceAtMost(MAX_RATINGS_PER_KIND))
         } else {
