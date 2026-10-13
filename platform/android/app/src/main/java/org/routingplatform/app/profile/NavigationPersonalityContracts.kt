@@ -25,6 +25,14 @@ enum class ExperiencePackGenre {
     Experimental,
 }
 
+enum class ExperiencePackRouteStyle {
+    Balanced,
+    Comfort,
+    Scenic,
+    LowCurvature,
+    LowUrban,
+}
+
 enum class WeeklyDiscoveryIntensity(
     val maximumSurpriseLevel:
         Int,
@@ -91,6 +99,9 @@ data class ExperiencePackDefinition(
 
     val directnessLevel:
         Int,
+
+    val routeStyle:
+        ExperiencePackRouteStyle,
 
     val surpriseLevel:
         Int,
@@ -227,7 +238,7 @@ object ExperiencePackCatalog {
                     "Classic",
 
                 description =
-                    "Sachlich, klar und vertraut.",
+                    "Sachlich, klar und vertraut. Ausgewogene Route.",
 
                 genre =
                     ExperiencePackGenre.Classic,
@@ -250,6 +261,9 @@ object ExperiencePackCatalog {
                 directnessLevel =
                     90,
 
+                routeStyle =
+                    ExperiencePackRouteStyle.Balanced,
+
                 surpriseLevel =
                     0,
             ),
@@ -265,7 +279,7 @@ object ExperiencePackCatalog {
                     "Zen",
 
                 description =
-                    "Ruhig, reduziert und angenehm unaufdringlich.",
+                    "Ruhig, reduziert und angenehm unaufdringlich. Bevorzugt Komfortstrecken.",
 
                 genre =
                     ExperiencePackGenre.Calm,
@@ -288,6 +302,9 @@ object ExperiencePackCatalog {
                 directnessLevel =
                     70,
 
+                routeStyle =
+                    ExperiencePackRouteStyle.Comfort,
+
                 surpriseLevel =
                     1,
             ),
@@ -303,7 +320,7 @@ object ExperiencePackCatalog {
                     "Wohlfühlmodus",
 
                 description =
-                    "Freundlich, warm und mit angenehm ausführlichen Hinweisen.",
+                    "Freundlich, warm und ausführlich. Bevorzugt landschaftliche Strecken.",
 
                 genre =
                     ExperiencePackGenre.Seasonal,
@@ -326,6 +343,9 @@ object ExperiencePackCatalog {
                 directnessLevel =
                     65,
 
+                routeStyle =
+                    ExperiencePackRouteStyle.Scenic,
+
                 surpriseLevel =
                     2,
             ),
@@ -341,7 +361,7 @@ object ExperiencePackCatalog {
                     "Fokus",
 
                 description =
-                    "Knappe Ansagen und eine reduzierte, kontrastreiche Karte.",
+                    "Knappe Ansagen und kontrastreiche Karte. Bevorzugt weniger kurvige Strecken.",
 
                 genre =
                     ExperiencePackGenre.Experimental,
@@ -364,6 +384,9 @@ object ExperiencePackCatalog {
                 directnessLevel =
                     100,
 
+                routeStyle =
+                    ExperiencePackRouteStyle.LowCurvature,
+
                 surpriseLevel =
                     2,
             ),
@@ -379,7 +402,7 @@ object ExperiencePackCatalog {
                     "Galactic",
 
                 description =
-                    "Futuristisch, trocken-humorvoll und eigenstaendig.",
+                    "Futuristisch und trocken-humorvoll. Bevorzugt weniger städtische Strecken.",
 
                 genre =
                     ExperiencePackGenre.ScienceFiction,
@@ -401,6 +424,9 @@ object ExperiencePackCatalog {
 
                 directnessLevel =
                     80,
+
+                routeStyle =
+                    ExperiencePackRouteStyle.LowUrban,
 
                 surpriseLevel =
                     2,
