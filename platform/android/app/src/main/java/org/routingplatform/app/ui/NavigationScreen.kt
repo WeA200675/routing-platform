@@ -551,6 +551,7 @@ internal fun NavigationScreen(
         currentSpeedAccuracyMps,
         speedSampleElapsedRealtimeNanos,
         speedPositionTrusted,
+        navigationPreferences.speedingThresholdKmh,
     ) {
         val update = speedLimitMonitor.update(
             snapshot = snapshot,
@@ -559,6 +560,7 @@ internal fun NavigationScreen(
             speedSampleElapsedRealtimeNanos = speedSampleElapsedRealtimeNanos,
             speedPositionTrusted = speedPositionTrusted,
             nowElapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos(),
+            speedingThresholdKmh = navigationPreferences.speedingThresholdKmh,
         )
         speedLimitPresentation = update.presentation
         update.warning?.let(onSpeedLimitWarning)
