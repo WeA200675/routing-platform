@@ -4,12 +4,16 @@ import android.util.Log
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -1216,36 +1220,51 @@ internal fun RouteMap(
                 } else {
                     MaterialTheme.colorScheme.surface
                 },
-                tonalElevation = 6.dp,
+                tonalElevation = if (speedLimitPresentation.overLimit) 8.dp else 4.dp,
                 shape = MaterialTheme.shapes.medium,
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                 ) {
-                    Text(
-                        text = speedLimitPresentation.speedKmh?.let {
-                            it.toString() + " km/h"
-                        } ?: speedLimitPresentation.label,
-                        fontWeight = FontWeight.Bold,
-                        color = if (speedLimitPresentation.overLimit) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    )
-                    if (speedLimitPresentation.overLimit && speedLimitPresentation.limitKmh != null) {
-                        Text(
-                            text = "Tempolimit " + speedLimitPresentation.limitKmh + " km/h",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
+                    if (speedLimitPresentation.limitKmh != null) {
+                        SpeedLimitRoadSign(
+                            limitKmh = speedLimitPresentation.limitKmh,
+                            emphasized = speedLimitPresentation.overLimit,
                         )
+                        Spacer(Modifier.width(10.dp))
                     }
-                    if (speedLimitPresentation.overLimit) {
-                        Text(
-                            text = "Geschwindigkeit über dem Kartentempolimit",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                        )
+                    Column {
+                        speedLimitPresentation.speedKmh?.let { speed ->
+                            Text(
+                                text = "$speed km/h",
+                                fontWeight = FontWeight.Bold,
+                                color = if (speedLimitPresentation.overLimit) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                            )
+                        }
+                        when {
+                            speedLimitPresentation.overLimit -> {
+                                Text(
+                                    text = "Tempolimit überschritten",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
+                            speedLimitPresentation.limitKmh == null &&
+                                speedLimitPresentation.dataStatus ==
+                                    org.routingplatform.app.navigation.NavigationSpeedLimitDataStatus.Unavailable -> {
+                                Text(
+                                    text = "Tempolimit unbekannt",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1988,3 +2007,29 @@ private const val OBSERVED_POSITION_SOURCE_ID =
 
 private const val OBSERVED_POSITION_LAYER_ID =
     "routing-platform-observed-position-layer"
+@Composable
+private fun SpeedLimitRoadSign(
+    limitKmh: Int,
+    emphasized: Boolean,
+) {
+    Surface(
+        modifier = Modifier.size(width = 52.dp, height = 58.dp),
+        color = androidx.compose.ui.graphics.Color.White,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+        shadowElevation = if (emphasized) 3.dp else 1.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (emphasized) 5.dp else 4.dp,
+            color = androidx.compose.ui.graphics.Color(0xFFD62828),
+        ),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = limitKmh.toString(),
+                color = androidx.compose.ui.graphics.Color.Black,
+                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+            )
+        }
+    }
+}
