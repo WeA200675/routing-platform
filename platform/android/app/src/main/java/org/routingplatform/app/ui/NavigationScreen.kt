@@ -865,7 +865,7 @@ internal fun NavigationScreen(
                     text =
                         snapshot
                             .currentManeuver
-                            ?.instruction
+                            ?.guidanceInstruction
                             ?: "Route bereit",
 
                     style =
