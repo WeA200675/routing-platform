@@ -41,6 +41,15 @@ internal object NavigationMapPresentation {
 
                     ProfileMapStyle.Night ->
                         "https://tiles.openfreemap.org/styles/dark"
+
+                    ProfileMapStyle.Terrain ->
+                        "https://tiles.openfreemap.org/styles/fiord"
+
+                    ProfileMapStyle.RoadOnly ->
+                        "https://tiles.openfreemap.org/styles/positron"
+
+                    ProfileMapStyle.ThreeDimensional ->
+                        "https://tiles.openfreemap.org/styles/liberty"
                 }
         )
 
