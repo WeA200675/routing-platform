@@ -63,13 +63,13 @@ class NavigationSpeedLimitMonitorTest {
         assertFalse(first.presentation.overLimit)
 
         val firstAboveThreshold = monitor.update(
-            snapshot, 56.0 / 3.6, 0.5, 2_000_000_000L, true, 2_100_000_000L, 5,
+            snapshot, 58.0 / 3.6, 0.5, 2_000_000_000L, true, 2_100_000_000L, 5,
         )
         assertFalse(firstAboveThreshold.presentation.overLimit)
         assertNull(firstAboveThreshold.warning)
 
         val second = monitor.update(
-            snapshot, 56.0 / 3.6, 0.5, 3_000_000_000L, true, 3_100_000_000L, 5,
+            snapshot, 58.0 / 3.6, 0.5, 3_000_000_000L, true, 3_100_000_000L, 5,
         )
         assertTrue(second.presentation.overLimit)
         assertNotNull(second.warning)
@@ -98,21 +98,37 @@ class NavigationSpeedLimitMonitorTest {
         val monitor = NavigationSpeedLimitMonitor()
         val snapshot = snapshot()
         val atLimit = monitor.update(
-            snapshot, 50.0 / 3.6, 0.5, 1_000_000_000L, true, 1_100_000_000L, 0,
+            snapshot, 50.0 / 3.6, 0.0, 1_000_000_000L, true, 1_100_000_000L, 0,
         )
         assertFalse(atLimit.presentation.overLimit)
 
         val firstAboveLimit = monitor.update(
-            snapshot, 50.6 / 3.6, 0.5, 2_000_000_000L, true, 2_100_000_000L, 0,
+            snapshot, 50.6 / 3.6, 0.0, 2_000_000_000L, true, 2_100_000_000L, 0,
         )
         assertFalse(firstAboveLimit.presentation.overLimit)
         assertNull(firstAboveLimit.warning)
 
         val aboveLimit = monitor.update(
-            snapshot, 50.6 / 3.6, 0.5, 3_000_000_000L, true, 3_100_000_000L, 0,
+            snapshot, 50.6 / 3.6, 0.0, 3_000_000_000L, true, 3_100_000_000L, 0,
         )
         assertTrue(aboveLimit.presentation.overLimit)
         assertNotNull(aboveLimit.warning)
+    }
+
+    @Test
+    fun speedUncertaintyMustAlsoRemainAboveThreshold() {
+        val monitor = NavigationSpeedLimitMonitor()
+        val snapshot = snapshot()
+        val first = monitor.update(
+            snapshot, 60.0 / 3.6, 3.0, 1_000_000_000L, true, 1_100_000_000L, 5,
+        )
+        val second = monitor.update(
+            snapshot, 60.0 / 3.6, 3.0, 2_000_000_000L, true, 2_100_000_000L, 5,
+        )
+        assertFalse(first.presentation.overLimit)
+        assertFalse(second.presentation.overLimit)
+        assertNull(first.warning)
+        assertNull(second.warning)
     }
 
     private fun snapshot() = NavigationUiSnapshot(
