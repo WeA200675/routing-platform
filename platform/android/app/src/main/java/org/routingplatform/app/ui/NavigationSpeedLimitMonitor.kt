@@ -110,6 +110,20 @@ internal class NavigationSpeedLimitMonitor {
                 null
             }
 
+        val speedLowerBoundKmh =
+            if (currentSpeedKmh == null || speedMps == null) {
+                null
+            } else if (speedAccuracyMps == null) {
+                speedMps * METERS_PER_SECOND_TO_KMH
+            } else if (speedAccuracyMps.isFinite() && speedAccuracyMps >= 0.0) {
+                (
+                    speedMps -
+                        SPEED_ACCURACY_CONFIDENCE_MULTIPLIER * speedAccuracyMps
+                    ).coerceAtLeast(0.0) * METERS_PER_SECOND_TO_KMH
+            } else {
+                null
+            }
+
         val upcoming = sortedSegments
             .asSequence()
             .filter { it.beginShapeIndex.toDouble() > shapePosition + SHAPE_INDEX_EPSILON }
@@ -134,7 +148,8 @@ internal class NavigationSpeedLimitMonitor {
             currentSegment != null &&
             currentLimit != null &&
             !currentSegment.unlimited &&
-            currentSpeedKmh != null
+            currentSpeedKmh != null &&
+            speedLowerBoundKmh != null
         ) {
             if (overLimitSegmentStart != currentSegment.beginShapeIndex) {
                 overLimitSegmentStart = currentSegment.beginShapeIndex
@@ -149,7 +164,7 @@ internal class NavigationSpeedLimitMonitor {
                     (previousSampleTime == null || sampleTime > previousSampleTime) &&
                     (previousSampleTime == null ||
                         sampleTime - previousSampleTime <= MAX_CONSECUTIVE_SAMPLE_GAP_NANOS)
-            if (currentSpeedKmh > currentLimit + speedingThresholdKmh) {
+            if (speedLowerBoundKmh > currentLimit + speedingThresholdKmh) {
                 if (sampleIsDistinctAndOrdered) {
                     overLimitSampleCount += 1
                 } else if (sampleTime == previousSampleTime) {
@@ -276,4 +291,5 @@ private const val SHAPE_INDEX_EPSILON = 0.000_001
 private const val MAX_SPEED_SAMPLE_AGE_NANOS = 2_000_000_000L
 private const val REQUIRED_OVER_LIMIT_SAMPLES = 2
 private const val MAX_CONSECUTIVE_SAMPLE_GAP_NANOS = 5_000_000_000L
+private const val SPEED_ACCURACY_CONFIDENCE_MULTIPLIER = 2.0
 private const val OVER_LIMIT_REPEAT_COOLDOWN_NANOS = 30_000_000_000L
