@@ -484,6 +484,30 @@ internal fun NavigationScreen(
                 false
             )
         }
+    var mapStyleSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    var speedingThresholdSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    if (mapStyleSettingsOpen) {
+        MapStyleSettingsDialog(
+            currentStyle = displayPreferences.mapStyle,
+            onSelect = { style ->
+                onDisplayPreferencesChanged(displayPreferences.copy(mapStyle = style))
+                mapStyleSettingsOpen = false
+            },
+            onDismiss = { mapStyleSettingsOpen = false },
+        )
+    }
+
+    if (speedingThresholdSettingsOpen) {
+        SpeedingThresholdSettingsDialog(
+            selectedKmh = navigationPreferences.speedingThresholdKmh,
+            onSelect = { threshold ->
+                onNavigationPreferencesChanged(navigationPreferences.copy(speedingThresholdKmh = threshold))
+                speedingThresholdSettingsOpen = false
+            },
+            onDismiss = { speedingThresholdSettingsOpen = false },
+        )
+    }
+
     var accentColorSettingsOpen by
         remember {
             mutableStateOf(
