@@ -68,6 +68,7 @@ import org.routingplatform.app.profile.NavigationControlSide
 import org.routingplatform.app.profile.NavigationHapticIntensity
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
 import org.routingplatform.app.profile.ProfileMapOrientation
+import org.routingplatform.app.profile.ProfileMapStyle
 import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoicePreferences
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
