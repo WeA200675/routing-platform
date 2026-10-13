@@ -240,7 +240,7 @@ internal class NavigationVoicePlaybackRuntime(
             FallbackManeuverSignature(
                 type = maneuver.type,
                 instruction =
-                    maneuver.instruction.trim(),
+                    maneuver.guidanceInstruction.trim(),
             )
 
         val distanceMeters =
