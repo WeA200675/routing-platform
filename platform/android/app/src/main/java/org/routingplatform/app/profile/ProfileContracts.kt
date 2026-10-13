@@ -229,7 +229,17 @@ data class NavigationPreferences(
     val hapticIntensity:
         NavigationHapticIntensity =
         NavigationHapticIntensity.Standard,
-)
+
+    val speedingThresholdKmh:
+        Int =
+        5,
+) {
+    init {
+        require(speedingThresholdKmh in setOf(0, 5, 10, 20)) {
+            "Speeding threshold must be one of 0, 5, 10, or 20 km/h."
+        }
+    }
+}
 
 data class DisplayPreferences(
     val appearance:
