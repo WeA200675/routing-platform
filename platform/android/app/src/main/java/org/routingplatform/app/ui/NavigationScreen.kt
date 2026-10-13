@@ -1297,6 +1297,12 @@ internal fun NavigationScreen(
                                         onClick = { driveStatisticsOpen = true },
                                     ),
                                     NavigationSettingTile(
+                                        testTag = "speeding_threshold_settings",
+                                        title = "Tempolimit-Warnung",
+                                        value = "+${navigationPreferences.speedingThresholdKmh} km/h",
+                                        onClick = { speedingThresholdSettingsOpen = true },
+                                    ),
+                                    NavigationSettingTile(
                                         testTag = "driving_preferences_open",
                                         title = "Fahrpräferenzen",
                                         value = drivingPreferenceSummary(drivingPreferences),
@@ -1388,6 +1394,20 @@ internal fun NavigationScreen(
                                         },
                                     ),
 
+                                    NavigationSettingTile(
+                                        testTag = "map_style_settings",
+                                        title = "Kartenprofil",
+                                        value = when (displayPreferences.mapStyle) {
+                                            ProfileMapStyle.Standard -> "Standard"
+                                            ProfileMapStyle.Minimal -> "Straßen"
+                                            ProfileMapStyle.HighContrast -> "Kontrast"
+                                            ProfileMapStyle.Night -> "Nacht"
+                                            ProfileMapStyle.Terrain -> "Terra / Outdoor"
+                                            ProfileMapStyle.RoadOnly -> "Straßen pur"
+                                            ProfileMapStyle.ThreeDimensional -> "3D-Gebäude"
+                                        },
+                                        onClick = { mapStyleSettingsOpen = true },
+                                    ),
                                     NavigationSettingTile(
                                         testTag =
                                             NavigationUiTestTags
