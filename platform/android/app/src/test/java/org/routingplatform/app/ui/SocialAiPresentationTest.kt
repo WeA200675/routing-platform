@@ -36,6 +36,30 @@ class SocialAiPresentationTest {
     }
 
     @Test
+    fun selectedThemeContributesItsPersonalityToTheAiPlan() {
+        val preferences = AiPreferences(
+            humorLevel = 0,
+            playfulnessLevel = 0,
+        )
+
+        val classic =
+            SocialAiPresentation.plan(
+                preferences,
+                ExperiencePackCatalog.require(ExperiencePackCatalog.CLASSIC_PACK_ID),
+                SocialAiResponseContext.Conversation,
+            )
+        val galactic =
+            SocialAiPresentation.plan(
+                preferences,
+                ExperiencePackCatalog.require(ExperiencePackCatalog.GALACTIC_PACK_ID),
+                SocialAiResponseContext.Conversation,
+            )
+
+        assertTrue(galactic.humorLevel > classic.humorLevel)
+        assertTrue(galactic.playfulnessLevel > classic.playfulnessLevel)
+    }
+
+    @Test
     fun criticalGuidanceSuppressesSocialEmbellishment() {
         val plan =
             SocialAiPresentation.plan(
