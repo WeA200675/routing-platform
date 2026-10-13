@@ -138,7 +138,7 @@ internal object NavigationVoicePresentation {
                 ?: return null
 
         val instruction =
-            maneuver.instruction
+            maneuver.guidanceInstruction
                 .trim()
 
         if (
