@@ -84,6 +84,14 @@ jobs:
             :app:assembleRelease \
             :app:assembleDebugAndroidTest
 
+      - name: Upload installable debug APK
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: weekly-surprise-test-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Test release artifact capture tooling
         shell: bash
         run: python3 ../../tools/g620/test_capture_candidate_artifact.py
