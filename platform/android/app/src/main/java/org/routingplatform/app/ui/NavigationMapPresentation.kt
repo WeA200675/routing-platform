@@ -10,8 +10,9 @@ import org.routingplatform.app.profile.ProfileMapStyle
  * are made here. The map only renders already-produced state.
  */
 internal data class NavigationMapStyleDescriptor(
-    val styleUri:
-        String,
+    val styleUri: String,
+    val roadsOnly: Boolean = false,
+    val showBuildingExtrusions: Boolean = false,
 )
 
 internal enum class NavigationMapLoadState {
@@ -29,28 +30,25 @@ internal object NavigationMapPresentation {
     ): NavigationMapStyleDescriptor =
         NavigationMapStyleDescriptor(
             styleUri =
-                when (mapStyle) {
-                    ProfileMapStyle.Standard ->
-                        "https://tiles.openfreemap.org/styles/liberty"
-
-                    ProfileMapStyle.Minimal ->
-                        "https://tiles.openfreemap.org/styles/positron"
-
-                    ProfileMapStyle.HighContrast ->
-                        "https://tiles.openfreemap.org/styles/bright"
-
-                    ProfileMapStyle.Night ->
-                        "https://tiles.openfreemap.org/styles/dark"
-
-                    ProfileMapStyle.Terrain ->
-                        "https://tiles.openfreemap.org/styles/fiord"
-
-                    ProfileMapStyle.RoadOnly ->
-                        "https://tiles.openfreemap.org/styles/positron"
-
-                    ProfileMapStyle.ThreeDimensional ->
-                        "https://tiles.openfreemap.org/styles/liberty"
-                }
+                styleUri =
+                    when (mapStyle) {
+                        ProfileMapStyle.Standard ->
+                            "https://tiles.openfreemap.org/styles/liberty"
+                        ProfileMapStyle.Minimal ->
+                            "https://tiles.openfreemap.org/styles/positron"
+                        ProfileMapStyle.HighContrast ->
+                            "https://tiles.openfreemap.org/styles/bright"
+                        ProfileMapStyle.Night ->
+                            "https://tiles.openfreemap.org/styles/dark"
+                        ProfileMapStyle.Terrain ->
+                            "https://tiles.openfreemap.org/styles/fiord"
+                        ProfileMapStyle.RoadOnly ->
+                            "https://tiles.openfreemap.org/styles/positron"
+                        ProfileMapStyle.ThreeDimensional ->
+                            "https://tiles.openfreemap.org/styles/liberty"
+                    },
+                roadsOnly = mapStyle == ProfileMapStyle.RoadOnly,
+                showBuildingExtrusions = mapStyle == ProfileMapStyle.ThreeDimensional
         )
 
     fun previewRouteLineWidth(
