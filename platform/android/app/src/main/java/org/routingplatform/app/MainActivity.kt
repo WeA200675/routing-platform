@@ -46,6 +46,7 @@ import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
 import org.routingplatform.app.navigation.AndroidOfflineRoutingDatasetStore
 import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.routeFamilyForDrivingPreferences
+import org.routingplatform.app.navigation.routeFamilyForActiveExperiencePack
 import org.routingplatform.app.navigation.AndroidDriveStatisticsStore
 import org.routingplatform.app.navigation.CompletedDrive
 import org.routingplatform.app.navigation.DriveStatistics
@@ -301,8 +302,15 @@ class MainActivity :
                 )
             }
             var socialAiRouteFeedbackAvailable by remember { mutableStateOf(false) }
-            var socialAiRouteFamily by remember(activeProfile.driving) {
-                mutableStateOf(routeFamilyForDrivingPreferences(activeProfile.driving))
+            var socialAiRouteFamily by remember(
+                activeProfile.driving,
+                activeProfile.personality,
+                ExperiencePackRuntimeResolver.currentWeekKey(),
+            ) {
+                mutableStateOf(
+                    routeFamilyForActiveExperiencePack(activeProfile.personality)
+                        ?: routeFamilyForDrivingPreferences(activeProfile.driving)
+                )
             }
             var socialAiFeedbackPending by remember { mutableStateOf(false) }
 
@@ -476,7 +484,8 @@ class MainActivity :
                 if (intent?.hasExtra(NavigationRouteIntentRequest.FAMILY) == true) {
                     initialRouteRequest.family
                 } else {
-                    routeFamilyForDrivingPreferences(activeProfile.driving)
+                    routeFamilyForActiveExperiencePack(activeProfile.personality)
+                        ?: routeFamilyForDrivingPreferences(activeProfile.driving)
                 }
 
             var tripPlan by rememberSaveable(initialRouteRequest, stateSaver = navigationTripPlanSaver(NavigationTripPlan.fromRequest(initialRouteRequest))) {
