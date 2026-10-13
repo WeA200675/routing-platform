@@ -54,7 +54,48 @@ data class NavigationManeuver(
     val engineType:
         Int? =
         null,
-)
+) {
+    /**
+     * Presentation-safe maneuver text. Valhalla's raw maneuver type distinguishes
+     * left/right ramps and exits; never speak the opposite side if provider text
+     * contradicts that authoritative type.
+     */
+    val guidanceInstruction: String
+        get() {
+            val expectedSide = when (engineType) {
+                9, 10, 11, 18, 20, 23, 37 -> "right"
+                14, 15, 16, 19, 21, 24, 38 -> "left"
+                else -> null
+            } ?: return instruction
+
+            val saysLeft = Regex("""\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\b""", RegexOption.IGNORE_CASE)
+                .containsMatchIn(instruction)
+            val saysRight = Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE)
+                .containsMatchIn(instruction)
+            val contradicts = if (expectedSide == "right") saysLeft && !saysRight else saysRight && !saysLeft
+            if (!contradicts) return instruction
+
+            val german = Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\b""", RegexOption.IGNORE_CASE)
+                .containsMatchIn(instruction)
+            return when {
+                german && (engineType == 20 || engineType == 21) ->
+                    if (expectedSide == "right") "Ausfahrt rechts nehmen. Bitte Beschilderung beachten."
+                    else "Ausfahrt links nehmen. Bitte Beschilderung beachten."
+                german && (engineType == 18 || engineType == 19 || engineType == 37 || engineType == 38) ->
+                    if (expectedSide == "right") "Rechts einfädeln. Bitte Beschilderung beachten."
+                    else "Links einfädeln. Bitte Beschilderung beachten."
+                german ->
+                    if (expectedSide == "right") "Rechts abbiegen. Bitte Beschilderung beachten."
+                    else "Links abbiegen. Bitte Beschilderung beachten."
+                engineType == 20 || engineType == 21 ->
+                    if (expectedSide == "right") "Take the exit on the right. Follow road signs."
+                    else "Take the exit on the left. Follow road signs."
+                else ->
+                    if (expectedSide == "right") "Turn right. Follow road signs."
+                    else "Turn left. Follow road signs."
+            }
+        }
+}
 
 enum class NavigationSpeedLimitDataStatus {
     Unavailable,

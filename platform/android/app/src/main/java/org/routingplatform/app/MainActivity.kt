@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import org.maplibre.android.MapLibre
 import org.routingplatform.app.ai.SocialAiProductRuntime
+import org.routingplatform.app.ai.SocialAiResponseContext
+import org.routingplatform.app.ai.SocialAiRuntimeInput
 import org.routingplatform.app.ai.AndroidSocialAiMemoryStore
 import org.routingplatform.app.ai.SocialAiLearningRepository
 import org.routingplatform.app.ai.SocialAiRoutePreferenceMemory
@@ -46,6 +48,7 @@ import org.routingplatform.app.navigation.NavigationDeviceCalibrationProfile
 import org.routingplatform.app.navigation.AndroidOfflineRoutingDatasetStore
 import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.routeFamilyForDrivingPreferences
+import org.routingplatform.app.navigation.routeFamilyForActiveExperiencePack
 import org.routingplatform.app.navigation.AndroidDriveStatisticsStore
 import org.routingplatform.app.navigation.CompletedDrive
 import org.routingplatform.app.navigation.DriveStatistics
@@ -94,8 +97,10 @@ import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AndroidUserProfileStore
 import org.routingplatform.app.profile.InstructionLeadTimePreference
+import org.routingplatform.app.profile.ExperiencePackCatalog
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.ExperiencePackSelectionSource
+import org.routingplatform.app.ui.SocialAiPresentation
 import org.routingplatform.app.ui.NavigationAssistOverlay
 import org.routingplatform.app.security.SecurityDiagnosticsActivity
 import org.routingplatform.app.ui.NavigationObservedPositionPresentation
@@ -301,8 +306,15 @@ class MainActivity :
                 )
             }
             var socialAiRouteFeedbackAvailable by remember { mutableStateOf(false) }
-            var socialAiRouteFamily by remember(activeProfile.driving) {
-                mutableStateOf(routeFamilyForDrivingPreferences(activeProfile.driving))
+            var socialAiRouteFamily by remember(
+                activeProfile.driving,
+                activeProfile.personality,
+                ExperiencePackRuntimeResolver.currentWeekKey(),
+            ) {
+                mutableStateOf(
+                    routeFamilyForActiveExperiencePack(activeProfile.personality)
+                        ?: routeFamilyForDrivingPreferences(activeProfile.driving)
+                )
             }
             var socialAiFeedbackPending by remember { mutableStateOf(false) }
 
@@ -476,7 +488,8 @@ class MainActivity :
                 if (intent?.hasExtra(NavigationRouteIntentRequest.FAMILY) == true) {
                     initialRouteRequest.family
                 } else {
-                    routeFamilyForDrivingPreferences(activeProfile.driving)
+                    routeFamilyForActiveExperiencePack(activeProfile.personality)
+                        ?: routeFamilyForDrivingPreferences(activeProfile.driving)
                 }
 
             var tripPlan by rememberSaveable(initialRouteRequest, stateSaver = navigationTripPlanSaver(NavigationTripPlan.fromRequest(initialRouteRequest))) {
@@ -2164,6 +2177,46 @@ class MainActivity :
                             activeProfile
                                 .ai,
 
+                        onGenerateSocialAiConversation = { userText, complete ->
+                            val profileSnapshot = activeProfile
+                            val activePack =
+                                ExperiencePackRuntimeResolver.resolvePackOverride(
+                                    personality = profileSnapshot.personality,
+                                ) ?: ExperiencePackCatalog.require(
+                                    profileSnapshot.personality.selectedPackId,
+                                )
+                            val remembered =
+                                if (profileSnapshot.ai.learningEnabled) {
+                                    socialAiLearningRepository.recall(
+                                        storeId = routePreferenceStoreId,
+                                        maximumEntries = 24,
+                                    )
+                                } else {
+                                    emptyList()
+                                }
+                            Thread {
+                                val response =
+                                    runCatching {
+                                        socialAiProductRuntime.generateConversationResponse(
+                                            input = SocialAiRuntimeInput(
+                                                settings = SocialAiPresentation.explicitSettings(
+                                                    preferences = profileSnapshot.ai,
+                                                    experiencePack = activePack,
+                                                ),
+                                                warmthLevel = activePack.warmthLevel,
+                                                directnessLevel = activePack.directnessLevel,
+                                                context = SocialAiResponseContext.Conversation,
+                                            ),
+                                            userText = userText,
+                                            rememberedContext = remembered,
+                                        )
+                                    }.getOrNull()
+                                runOnUiThread {
+                                    complete(response)
+                                }
+                            }.start()
+                        },
+
                         onAiPreferencesChanged = {
                                 updatedAi ->
 
@@ -2182,6 +2235,7 @@ class MainActivity :
                                     routePreferenceStoreId,
                                 )
                                 rememberedRouteFamily = null
+                                learnedPoiCategoryFeedback = emptyMap()
                             }
 
                             check(
@@ -3144,6 +3198,7 @@ class MainActivity :
                                         category = category,
                                         helpful = helpful,
                                         nowEpochMillis = System.currentTimeMillis(),
+                                        learningEnabled = activeProfile.ai.learningEnabled,
                                     )
                                     learnedPoiCategoryFeedback =
                                         learnedPoiCategoryFeedback + (category to updated)

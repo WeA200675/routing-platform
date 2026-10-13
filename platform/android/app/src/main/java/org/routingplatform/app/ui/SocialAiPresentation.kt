@@ -12,16 +12,17 @@ object SocialAiPresentation {
 
     fun explicitSettings(
         preferences: AiPreferences,
+        experiencePack: ExperiencePackDefinition? = null,
     ): SocialAiPersonalitySettings =
         SocialAiPersonalitySettings(
             socialAdaptationEnabled =
                 preferences.socialAdaptationEnabled,
             humorLevel =
-                preferences.humorLevel,
+                maxOf(preferences.humorLevel, experiencePack?.humorLevel ?: 0),
             charmLevel =
                 preferences.charmLevel,
             playfulnessLevel =
-                preferences.playfulnessLevel,
+                maxOf(preferences.playfulnessLevel, experiencePack?.humorLevel ?: 0),
             proactivityLevel =
                 preferences.proactivityLevel,
             flirtLevel =
@@ -40,7 +41,10 @@ object SocialAiPresentation {
         SocialAiRuntime.plan(
             SocialAiRuntimeInput(
                 settings =
-                    explicitSettings(preferences),
+                    explicitSettings(
+                        preferences = preferences,
+                        experiencePack = experiencePack,
+                    ),
                 warmthLevel =
                     experiencePack.warmthLevel,
                 directnessLevel =

@@ -192,7 +192,7 @@ internal class NavigationHapticPlaybackRuntime(
 
                 instruction =
                     maneuver
-                        .instruction
+                        .guidanceInstruction
                         .trim(),
             )
 
