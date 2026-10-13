@@ -42,6 +42,13 @@ class SocialAiRoutePreferenceMemoryTest {
                 nowEpochMillis = 250L,
             )
         )
+        SocialAiPoiPreferenceMemory.recordFeedback(
+            repository = repository,
+            storeId = storeId,
+            category = "food",
+            helpful = true,
+            nowEpochMillis = 260L,
+        )
         repository.rememberExplicitly(
             storeId = storeId,
             id = "social-style",
@@ -56,7 +63,11 @@ class SocialAiRoutePreferenceMemoryTest {
         assertTrue(
             repository
                 .recall(storeId, maximumEntries = 64)
-                .none { it.key.startsWith("post_drive.") || it.key == "routing.family" }
+                .none {
+                    it.key.startsWith("post_drive.") ||
+                        it.key == "routing.family" ||
+                        it.key.startsWith("poi.category.")
+                }
         )
         assertTrue(
             repository
