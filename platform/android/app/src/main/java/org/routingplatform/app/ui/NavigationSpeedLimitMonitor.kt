@@ -54,6 +54,7 @@ internal class NavigationSpeedLimitMonitor {
     private var overLimitSampleCount = 0
     private var overLimitActive = false
     private var lastOverLimitAlertNanos: Long? = null
+    private var lastOverLimitSampleNanos: Long? = null
 
     fun update(
         snapshot: NavigationUiSnapshot,
@@ -71,6 +72,7 @@ internal class NavigationSpeedLimitMonitor {
             overLimitSampleCount = 0
             overLimitActive = false
             lastOverLimitAlertNanos = null
+            lastOverLimitSampleNanos = null
         }
 
         val shapePosition =
@@ -139,11 +141,30 @@ internal class NavigationSpeedLimitMonitor {
                 overLimitSampleCount = 0
                 overLimitActive = false
             }
+            val sampleTime = speedSampleElapsedRealtimeNanos
+            val previousSampleTime = lastOverLimitSampleNanos
+            val sampleIsDistinctAndOrdered =
+                sampleTime != null &&
+                    sampleTime > 0L &&
+                    (previousSampleTime == null || sampleTime > previousSampleTime) &&
+                    (previousSampleTime == null ||
+                        sampleTime - previousSampleTime <= MAX_CONSECUTIVE_SAMPLE_GAP_NANOS)
             if (currentSpeedKmh > currentLimit + speedingThresholdKmh) {
-                overLimitSampleCount += 1
+                if (sampleIsDistinctAndOrdered) {
+                    overLimitSampleCount += 1
+                } else if (sampleTime == previousSampleTime) {
+                    // Recomposition with the same fix cannot confirm speeding twice.
+                } else {
+                    overLimitSampleCount = 1
+                    overLimitActive = false
+                }
+                if (sampleTime != null && sampleTime > 0L) {
+                    lastOverLimitSampleNanos = sampleTime
+                }
             } else {
                 overLimitSampleCount = 0
                 overLimitActive = false
+                lastOverLimitSampleNanos = sampleTime
             }
             overLimit = overLimitSampleCount >= REQUIRED_OVER_LIMIT_SAMPLES
             if (overLimit && !overLimitActive) {
@@ -166,6 +187,7 @@ internal class NavigationSpeedLimitMonitor {
             overLimitSegmentStart = currentSegment?.beginShapeIndex
             overLimitSampleCount = 0
             overLimitActive = false
+            lastOverLimitSampleNanos = speedSampleElapsedRealtimeNanos
         }
 
 
@@ -253,4 +275,5 @@ private const val METERS_PER_SECOND_TO_KMH = 3.6
 private const val SHAPE_INDEX_EPSILON = 0.000_001
 private const val MAX_SPEED_SAMPLE_AGE_NANOS = 2_000_000_000L
 private const val REQUIRED_OVER_LIMIT_SAMPLES = 2
+private const val MAX_CONSECUTIVE_SAMPLE_GAP_NANOS = 5_000_000_000L
 private const val OVER_LIMIT_REPEAT_COOLDOWN_NANOS = 30_000_000_000L
