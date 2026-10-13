@@ -81,6 +81,7 @@ jobs:
             --stacktrace \
             :app:testDebugUnitTest \
             :app:lintDebug \
+            :app:assembleDebug \
             :app:assembleRelease \
             :app:assembleDebugAndroidTest
 
