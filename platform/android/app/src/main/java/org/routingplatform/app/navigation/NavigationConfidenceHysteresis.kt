@@ -279,6 +279,14 @@ class NavigationConfidenceHysteresis(
         }
 
         if (
+            gnssQuality == NavigationGnssQuality.Strong &&
+            observation.motionAgreement ==
+                NavigationMotionAgreement.Consistent
+        ) {
+            return EvidenceTier.Strong
+        }
+
+        if (
             gnssQuality == null
         ) {
             return if (
