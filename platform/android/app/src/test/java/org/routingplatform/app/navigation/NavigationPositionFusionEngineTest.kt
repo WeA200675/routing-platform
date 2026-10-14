@@ -79,7 +79,7 @@ class NavigationPositionFusionEngineTest {
     }
 
     @Test
-    fun rawMeasurementsWithoutCodeLockDoNotCountAsSignalEvidence() {
+    fun rawMeasurementsWithoutCodeLockOrResolvedTimeDoNotCountAsSignalEvidence() {
         val measurement =
             rawMeasurement(
                 key =
@@ -90,6 +90,30 @@ class NavigationPositionFusionEngineTest {
                 frequencyHz = 1_575_420_000.0,
                 timestamp = 1_000L,
             ).copy(state = 0)
+
+        val snapshot =
+            NavigationRawGnssSnapshot(
+                clock = NavigationRawGnssClockEvidence(null, null),
+                measurements = listOf(measurement),
+                elapsedRealtimeNanos = 1_000L,
+            )
+
+        assertEquals(0, snapshot.usableSatelliteCount)
+        assertEquals(NavigationRawGnssQuality.Weak, snapshot.quality)
+    }
+
+    @Test
+    fun codeLockWithoutResolvedTimeIsNotValidRawGnssEvidence() {
+        val measurement =
+            rawMeasurement(
+                key =
+                    NavigationSatelliteKey(
+                        constellation = NavigationGnssConstellation.Gps,
+                        svid = 5,
+                    ),
+                frequencyHz = 1_575_420_000.0,
+                timestamp = 1_000L,
+            ).copy(state = 1)
 
         val snapshot =
             NavigationRawGnssSnapshot(
@@ -1157,7 +1181,7 @@ class NavigationPositionFusionEngineTest {
                 frequencyHz,
 
             state =
-                1,
+                16_385,
 
             elapsedRealtimeNanos =
                 timestamp,
