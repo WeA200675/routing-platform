@@ -72,7 +72,7 @@ fun NavigationAssistOverlay(
     lastLocationElapsedRealtimeNanos:
         Long? =
         null,
- ) {
+) {
     val renderClockNanos = remember { mutableStateOf(0L) }
     LaunchedEffect(showRuntimeStatus) {
         while (showRuntimeStatus) {
