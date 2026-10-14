@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationPositionConfidence
+import org.routingplatform.app.navigation.NavigationPositionSource
 import org.routingplatform.app.navigation.NavigationRawGnssQuality
 import org.routingplatform.app.navigation.NavigationRouteEventAhead
 import org.routingplatform.app.navigation.NavigationRuntimePipelineStatus
@@ -53,6 +54,18 @@ fun NavigationAssistOverlay(
 
     rawGnssQuality:
         NavigationRawGnssQuality? =
+        null,
+
+    positionSource:
+        NavigationPositionSource =
+        NavigationPositionSource.Unknown,
+
+    verifiedRadioAnchorCount:
+        Int =
+        0,
+
+    lastFixAgeMillis:
+        Long? =
         null,
 ) {
     if (
@@ -202,6 +215,46 @@ fun NavigationAssistOverlay(
                             .bodySmall,
                 )
 
+                Text(
+                    text =
+                        "Quelle: " +
+                            positionSourceText(positionSource) +
+                            fixAgeText(lastFixAgeMillis),
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall,
+                )
+
+
+                if (verifiedRadioAnchorCount > 0) {
+                    Text(
+                        text = "WLAN-RTT-Anker: $verifiedRadioAnchorCount verifiziert",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                Text(
+                    text =
+                        gnssReceptionLabel(rawGnssQuality),
+
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall,
+                )
+
+                lastLocationAccuracyM
+                    ?.takeIf { it.isFinite() && it >= 0.0 }
+                    ?.let { accuracy ->
+                        Text(
+                            text = "Gemeldete Genauigkeit: ca. " +
+                                accuracy.roundToInt() + " m",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+
                 if (
                     runtimeStatus ==
                         NavigationRuntimePipelineStatus.SafetyHold
@@ -212,21 +265,6 @@ fun NavigationAssistOverlay(
                                 safetyHoldReasonText(
                                     safetyStatus
                                 ),
-
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall,
-
-                        fontWeight =
-                            FontWeight.SemiBold,
-                    )
-
-                    Text(
-                        text =
-                            gnssReceptionLabel(
-                                rawGnssQuality
-                            ),
 
                         style =
                             MaterialTheme
@@ -251,24 +289,6 @@ fun NavigationAssistOverlay(
                         )
                     }
 
-                    lastLocationAccuracyM
-                        ?.takeIf {
-                            it.isFinite() &&
-                                it >= 0.0
-                        }
-                        ?.let {
-                            Text(
-                                text =
-                                    "Letzter GPS-Fix: ca. " +
-                                        it.roundToInt() +
-                                        " m; Freigabe prüft zusätzlich die Positionsfolge.",
-
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .bodySmall,
-                            )
-                        }
                 }
             }
 
@@ -332,6 +352,9 @@ private fun safetyHoldReasonText(
 
         NavigationRouteProgressSafetyStatus.HeldForwardJump ->
             "Positionssprung voraus wird geprüft"
+
+        NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress ->
+            "Vorwärtsschritt wartet auf einen zweiten passenden Fix"
 
         NavigationRouteProgressSafetyStatus.HeldNoEstimate,
         null ->
@@ -535,3 +558,20 @@ internal fun gnssReceptionAdvice(
         null ->
             "Ortungsfreigabe und freie Sicht zum Himmel prüfen."
     }
+
+
+private fun positionSourceText(source: NavigationPositionSource): String =
+    when (source) {
+        NavigationPositionSource.AndroidFused -> "Android-Fusion"
+        NavigationPositionSource.Gnss -> "GNSS"
+        NavigationPositionSource.Network -> "Netzwerk"
+        NavigationPositionSource.VerifiedWifiRtt -> "geprüftes WLAN-RTT"
+        NavigationPositionSource.DeadReckoning -> "Koppelnavigation"
+        NavigationPositionSource.Unknown -> "unbekannt"
+    }
+
+private fun fixAgeText(ageMillis: Long?): String =
+    ageMillis
+        ?.takeIf { it >= 0L }
+        ?.let { " · Fix vor ${(it / 100) / 10.0} s" }
+        .orEmpty()
