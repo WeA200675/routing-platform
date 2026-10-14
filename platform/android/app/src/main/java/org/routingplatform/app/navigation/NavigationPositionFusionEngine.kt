@@ -115,7 +115,7 @@ class NavigationPositionFusionEngine(
                     gpsElapsedRealtimeNanos = sample.elapsedRealtimeNanos,
                 )
             } else {
-                wifiRttAnchorVerifier.verifiedAnchors()
+                wifiRttAnchorVerifier.verifiedAnchors(sample.elapsedRealtimeNanos)
             }
 
         val radioPosition =
