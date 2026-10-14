@@ -266,13 +266,7 @@ class NavigationPositionFusionEngine(
             )
 
         val confidence =
-            applyRawGnssSafetyCap(
-                confidence =
-                    hysteresisConfidence,
-
-                rawGnss =
-                    rawGnss,
-            )
+            hysteresisConfidence
 
         val fusedEstimate =
             rawEstimate.copy(
@@ -560,31 +554,6 @@ private fun buildImuEvidence(
             bearing
                 ?.bearingDegrees,
     )
-}
-
-private fun applyRawGnssSafetyCap(
-    confidence:
-        NavigationPositionConfidence,
-
-    rawGnss:
-        NavigationRawGnssSnapshot?,
-): NavigationPositionConfidence {
-
-    if (
-        confidence !=
-            NavigationPositionConfidence.High
-    ) {
-        return confidence
-    }
-
-    return if (
-        rawGnss?.quality ==
-            NavigationRawGnssQuality.Strong
-    ) {
-        NavigationPositionConfidence.High
-    } else {
-        NavigationPositionConfidence.Medium
-    }
 }
 
 private const val RADIANS_TO_DEGREES =
