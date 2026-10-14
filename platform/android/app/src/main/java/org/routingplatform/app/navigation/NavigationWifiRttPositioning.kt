@@ -3,6 +3,7 @@ package org.routingplatform.app.navigation
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.PI
 import kotlin.math.sqrt
 
 data class VerifiedNavigationWifiRttAnchor(
@@ -418,4 +419,4 @@ private const val MINIMUM_RANGE_SIGMA_M = 0.5
 private const val MINIMUM_RANGE_VARIANCE_M2 = 0.25
 private const val MINIMUM_NORMAL_DETERMINANT = 1.0e-9
 private const val EARTH_RADIUS_M = 6_371_008.8
-private const val DEGREES_TO_RADIANS = Math.PI / 180.0
+private const val DEGREES_TO_RADIANS = PI / 180.0
