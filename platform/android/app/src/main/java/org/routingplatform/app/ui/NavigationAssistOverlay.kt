@@ -9,9 +9,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.os.SystemClock
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationPositionConfidence
@@ -64,10 +69,18 @@ fun NavigationAssistOverlay(
         Int =
         0,
 
-    lastFixAgeMillis:
+    lastLocationElapsedRealtimeNanos:
         Long? =
         null,
-) {
+ ) {
+    val renderClockNanos = remember { mutableStateOf(0L) }
+    LaunchedEffect(showRuntimeStatus) {
+        while (showRuntimeStatus) {
+            renderClockNanos.value = SystemClock.elapsedRealtimeNanos()
+            delay(1_000L)
+        }
+    }
+
     if (
         criticalEventAhead ==
             null &&
@@ -219,7 +232,7 @@ fun NavigationAssistOverlay(
                     text =
                         "Quelle: " +
                             positionSourceText(positionSource) +
-                            fixAgeText(lastFixAgeMillis),
+                            fixAgeText(lastLocationElapsedRealtimeNanos, renderClockNanos.value),
 
                     style =
                         MaterialTheme
@@ -570,8 +583,15 @@ private fun positionSourceText(source: NavigationPositionSource): String =
         NavigationPositionSource.Unknown -> "unbekannt"
     }
 
-private fun fixAgeText(ageMillis: Long?): String =
-    ageMillis
-        ?.takeIf { it >= 0L }
-        ?.let { " · Fix vor ${(it / 100) / 10.0} s" }
-        .orEmpty()
+private fun fixAgeText(
+    fixElapsedRealtimeNanos: Long?,
+    nowElapsedRealtimeNanos: Long,
+): String =
+    fixElapsedRealtimeNanos
+        ?.let {
+            " · Fix vor " +
+                ((nowElapsedRealtimeNanos - it).coerceAtLeast(0L) / 1_000_000_000.0)
+                    .roundToInt() +
+                " s"
+        }
+        ?: " · Fixzeit unbekannt"
