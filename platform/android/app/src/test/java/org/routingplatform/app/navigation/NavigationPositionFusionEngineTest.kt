@@ -426,6 +426,46 @@ class NavigationPositionFusionEngineTest {
     }
 
     @Test
+    fun accuratePositionWithUsableSatelliteEvidenceCanReachHigh() {
+        val engine = NavigationPositionFusionEngine()
+        var update: NavigationPositionFusionUpdate? = null
+
+        repeat(12) { index ->
+            val timestamp = (index.toLong() + 1L) * 1_000_000_000L
+            val environment =
+                strongEnvironment(timestamp).copy(
+                    observedSatellites =
+                        strongEnvironment(timestamp)
+                            .observedSatellites
+                            .mapIndexed { satelliteIndex, satellite ->
+                                satellite.copy(usedInFix = satelliteIndex < 5)
+                            },
+                )
+
+            update = engine.ingest(
+                sample = locationSample(index, timestamp),
+                sensors = sensorSnapshot(timestamp, 90.0),
+                environment = environment,
+                rawGnss = null,
+            )
+        }
+
+        assertEquals(
+            NavigationGnssQuality.Usable,
+            NavigationGnssEvidence(
+                visibleSatelliteCount = 12,
+                usedInFixSatelliteCount = 5,
+                meanCn0DbHz = 31.0,
+                maxCn0DbHz = 31.0,
+            ).quality,
+        )
+        assertEquals(
+            NavigationPositionConfidence.High,
+            checkNotNull(update).stabilizedConfidence,
+        )
+    }
+
+    @Test
     fun repeatedPreciseFixesWithWeakRawGnssCanStillReachHigh() {
         val engine = NavigationPositionFusionEngine()
         var update: NavigationPositionFusionUpdate? = null
