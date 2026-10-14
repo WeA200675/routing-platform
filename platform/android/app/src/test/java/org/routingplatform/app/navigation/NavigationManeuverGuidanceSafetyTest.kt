@@ -45,6 +45,17 @@ class NavigationManeuverGuidanceSafetyTest {
         assertEquals("Ausfahrt links nehmen.", maneuver.guidanceInstruction)
     }
 
+    @Test
+    fun contradictorySideSpecificUTurnInstructionIsCorrected() {
+        val maneuver = maneuver(
+            type = ManeuverType.UTurn,
+            engineType = 13,
+            instruction = "Rechts wenden.",
+        )
+
+        assertEquals("Links wenden. Bitte Beschilderung beachten.", maneuver.guidanceInstruction)
+    }
+
     private fun maneuver(
         type: ManeuverType,
         engineType: Int?,
