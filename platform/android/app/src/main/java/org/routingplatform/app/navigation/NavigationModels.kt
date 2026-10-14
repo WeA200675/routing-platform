@@ -74,14 +74,14 @@ data class NavigationManeuver(
                 }
 
             val saysLeft =
-                Regex("""\\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\\b""", RegexOption.IGNORE_CASE)
+                Regex("""\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\b""", RegexOption.IGNORE_CASE)
                     .containsMatchIn(instruction)
             val saysRight =
-                Regex("""\\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\\b""", RegexOption.IGNORE_CASE)
+                Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE)
                     .containsMatchIn(instruction)
             val isExit = type == ManeuverType.Exit || engineType == 20 || engineType == 21
             val german =
-                Regex("""\\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\\b""", RegexOption.IGNORE_CASE)
+                Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\b""", RegexOption.IGNORE_CASE)
                     .containsMatchIn(instruction)
 
             // An exit has no safe left/right fallback when the routing engine
