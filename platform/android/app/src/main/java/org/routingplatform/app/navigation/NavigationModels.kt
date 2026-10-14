@@ -97,7 +97,7 @@ data class NavigationManeuver(
 
             val contradicts =
                 expectedSide != null &&
-                    if (expectedSide == "right") saysLeft && !saysRight else saysRight && !saysLeft
+                    if (expectedSide == "right") saysLeft else saysRight
             if (!contradicts) return instruction
 
             return when {
