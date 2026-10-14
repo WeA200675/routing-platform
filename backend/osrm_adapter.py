@@ -32,6 +32,36 @@ def point(value):
     return lat, lon
 
 
+LANE_ARROW = {
+    "sharp left": "⇐", "left": "←", "slight left": "↖",
+    "straight": "↑", "slight right": "↗", "right": "→",
+    "sharp right": "⇒", "uturn": "↶",
+}
+
+
+def maneuver_lane_indications(step):
+    """Return lane glyphs only when OSRM identifies one unambiguous junction."""
+    intersections = [
+        intersection for intersection in step.get("intersections", [])
+        if intersection.get("lanes")
+    ]
+    if len(intersections) != 1:
+        return []
+    lanes = intersections[0]["lanes"]
+    if len(lanes) > 12:
+        return []
+    result = []
+    for lane in lanes:
+        indications = lane.get("indications") or []
+        if not indications:
+            return []
+        glyphs = [LANE_ARROW.get(str(value).lower()) for value in indications]
+        if any(glyph is None for glyph in glyphs):
+            return []
+        result.append("".join(glyphs) + (" ✓" if lane.get("valid") is True else ""))
+    return result
+
+
 def route(request):
     family = request.get("family")
     if family not in FAMILIES:
@@ -73,6 +103,11 @@ def route(request):
                 raise RuntimeError(
                     "OSRM maneuver location is not present in route geometry"
                 ) from exc
+            destinations = step.get("destinations") or step.get("ref")
+            # OSRM does not supply a trustworthy lane-to-route assignment.
+            # Preserve only the provider's actual lane indications; consumers
+            # must not infer a recommended lane from them.
+            lane_indications = maneuver_lane_indications(step)
             maneuvers.append({
                 "type": kind,
                 "instruction": step.get("name") or m.get("type", "continue"),
@@ -84,6 +119,8 @@ def route(request):
                 "bearingBeforeDeg": m.get("bearing_before"),
                 "bearingAfterDeg": m.get("bearing_after"),
                 "engineType": None,
+                "destinationSign": str(destinations)[:160] if destinations else None,
+                "laneIndications": lane_indications,
             })
     # Contract requires route-ordered maneuver indices. Fail closed if
     # upstream steps contradict the geometry ordering instead of clamping them.

@@ -39,6 +39,7 @@ import org.routingplatform.app.ai.SocialAiRoutingIntent
 import org.routingplatform.app.ai.RouteFeedbackQuestionPolicy
 import org.routingplatform.app.ai.RouteFeedbackQuestion
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
+import org.routingplatform.app.navigation.NavigationPlanningLocationHandle
 import org.routingplatform.app.navigation.AndroidNavigationCalibrationDisclosureStore
 import org.routingplatform.app.navigation.AndroidNavigationCalibrationStore
 import org.routingplatform.app.navigation.AndroidNavigationDeviceCapabilities
@@ -92,6 +93,8 @@ import org.routingplatform.app.navigation.hasPreciseNavigationLocationPermission
 import org.routingplatform.app.navigation.navigationRuntimePermissionsToRequest
 import org.routingplatform.app.places.AndroidFavoriteDestinationStore
 import org.routingplatform.app.places.AndroidGeocoderDestinationSearchSource
+import org.routingplatform.app.places.AndroidOpenStreetMapRestAreaSearchSource
+import org.routingplatform.app.places.parseRoadsideStopQuery
 import org.routingplatform.app.places.DestinationSearchHandle
 import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestinationCollection
@@ -216,6 +219,10 @@ class MainActivity :
                     )
                 }
 
+            val roadsideStopSearchSource = remember {
+                AndroidOpenStreetMapRestAreaSearchSource()
+            }
+
             var destinationSearchHandle by
                 remember {
                     mutableStateOf<
@@ -224,6 +231,10 @@ class MainActivity :
                         null
                     )
                 }
+
+            var roadsideStopLocationHandle by remember {
+                mutableStateOf<NavigationPlanningLocationHandle?>(null)
+            }
 
             var destinationSearchResults by
                 remember {
@@ -355,12 +366,16 @@ class MainActivity :
 
             DisposableEffect(
                 destinationSearchSource,
+                roadsideStopSearchSource,
                 planningLocationController,
                 socialAiProductRuntime,
             ) {
                 onDispose {
                     destinationSearchSource
                         .close()
+
+                    roadsideStopSearchSource.close()
+                    roadsideStopLocationHandle?.cancel()
 
                     planningLocationController
                         .close()
@@ -881,6 +896,9 @@ class MainActivity :
                     destinationSearchHandle
                         ?.cancel()
 
+                    roadsideStopLocationHandle?.cancel()
+                    roadsideStopLocationHandle = null
+
                     destinationSearchHandle =
                         null
 
@@ -898,6 +916,50 @@ class MainActivity :
 
                     destinationPlannerMessage =
                         "Zielsuche läuft …"
+
+                    if (parseRoadsideStopQuery(query) != null) {
+                        destinationPlannerMessage =
+                            "Für die OpenStreetMap-Rastplatzsuche wird deine aktuelle Position übermittelt …"
+                        roadsideStopLocationHandle = planningLocationController.request { locationResult ->
+                            roadsideStopLocationHandle = null
+                            locationResult.fold(
+                                onSuccess = { location ->
+                                    destinationPlannerMessage = "Rastplätze in der Nähe werden gesucht …"
+                                    destinationSearchHandle = roadsideStopSearchSource.searchNear(
+                                        query = query,
+                                        center = location.position,
+                                    ) { result ->
+                                        destinationSearchHandle = null
+                                        destinationPlannerBusy = false
+                                        result.fold(
+                                            onSuccess = { results ->
+                                                destinationSearchResults = results
+                                                if (snapshot.state == NavigationSessionState.Navigating) {
+                                                    evaluateActiveRouteCandidates(results)
+                                                }
+                                                destinationPlannerMessage = if (results.isEmpty()) {
+                                                    "Keine Rastplätze mit diesem WC-Status gefunden. Unbekannte Angaben werden nicht als vorhanden oder nicht vorhanden gewertet."
+                                                } else {
+                                                    "${results.size} Rastplätze aus OpenStreetMap. WC-Status je Treffer beachten; Zufahrt vor Ort prüfen."
+                                                }
+                                            },
+                                            onFailure = { error ->
+                                                destinationSearchResults = emptyList()
+                                                destinationPlannerMessage =
+                                                    "Rastplatzsuche nicht erreichbar: ${error.message ?: "Netzwerkfehler"}. Normale Zielsuche bleibt verfügbar; deren WC-Angaben sind unbekannt."
+                                            },
+                                        )
+                                    }
+                                },
+                                onFailure = { error ->
+                                    destinationPlannerBusy = false
+                                    destinationPlannerMessage =
+                                        "Für die Rastplatzsuche ist keine ausreichend genaue aktuelle Position verfügbar: ${error.message ?: "Positionsfehler"}."
+                                },
+                            )
+                        }
+                        return@search
+                    }
 
                     destinationSearchHandle =
                         runCatching {

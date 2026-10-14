@@ -55,6 +55,9 @@ class NavigationRouteContractTest {
             maneuver.engineType
         )
 
+        assertEquals("B 12", maneuver.destinationSign)
+        assertEquals(listOf("↑", "↗"), maneuver.laneIndications)
+
         assertTrue(
             payload.size >
                 100
@@ -248,6 +251,12 @@ class NavigationRouteContractTest {
 
                         engineType =
                             7,
+
+                        destinationSign =
+                            "B 12",
+
+                        laneIndications =
+                            listOf("↑", "↗"),
                     ),
                 ),
 

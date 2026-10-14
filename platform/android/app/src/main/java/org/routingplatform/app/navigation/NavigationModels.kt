@@ -54,6 +54,11 @@ data class NavigationManeuver(
     val engineType:
         Int? =
         null,
+
+    val destinationSign: String? = null,
+
+    /** Provider supplied lane indications; absent data stays absent. */
+    val laneIndications: List<String> = emptyList(),
 ) {
     /**
      * Presentation-safe maneuver text. Valhalla's raw maneuver type distinguishes

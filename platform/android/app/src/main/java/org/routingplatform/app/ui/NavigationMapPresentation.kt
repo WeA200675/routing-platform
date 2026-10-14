@@ -13,6 +13,7 @@ internal data class NavigationMapStyleDescriptor(
     val styleUri: String,
     val roadsOnly: Boolean = false,
     val showBuildingExtrusions: Boolean = false,
+    val showTerrainRelief: Boolean = false,
 )
 
 internal enum class NavigationMapLoadState {
@@ -47,7 +48,8 @@ internal object NavigationMapPresentation {
                             "https://tiles.openfreemap.org/styles/liberty"
                     },
                 roadsOnly = mapStyle == ProfileMapStyle.RoadOnly,
-                showBuildingExtrusions = mapStyle == ProfileMapStyle.ThreeDimensional
+                showBuildingExtrusions = mapStyle == ProfileMapStyle.ThreeDimensional,
+                showTerrainRelief = mapStyle == ProfileMapStyle.Terrain,
         )
 
     fun previewRouteLineWidth(

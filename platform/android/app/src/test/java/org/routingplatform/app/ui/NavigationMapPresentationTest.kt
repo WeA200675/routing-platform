@@ -17,6 +17,7 @@ class NavigationMapPresentationTest {
         assertTrue(descriptors.values.all { it.styleUri.startsWith("https://") })
         assertTrue(descriptors.getValue(ProfileMapStyle.RoadOnly).roadsOnly)
         assertTrue(descriptors.getValue(ProfileMapStyle.ThreeDimensional).showBuildingExtrusions)
+        assertTrue(descriptors.getValue(ProfileMapStyle.Terrain).showTerrainRelief)
         assertTrue(descriptors.values
             .filter { it != descriptors.getValue(ProfileMapStyle.RoadOnly) &&
                 it != descriptors.getValue(ProfileMapStyle.ThreeDimensional) }

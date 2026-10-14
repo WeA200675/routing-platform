@@ -129,3 +129,43 @@ answer `/ready` with HTTP 200, and receive
 `adb reverse tcp:8787 tcp:8788`. The `backend/osrm` Compose adapter is not a
 substitute because it does not implement this `/ready` endpoint or the debug
 development-header contract.
+
+## Route-sign, map and roadside-stop acceptance addendum
+
+The current branch now carries destination-sign text and lane indications
+through the JSON route contract into the top maneuver panel. The OSRM adapter
+only emits lane arrows when the response contains one unambiguous intersection
+with lane data. A marked lane is identified as route-valid by the provider; it
+is not inferred from route geometry. Missing or ambiguous values must leave the
+lane diagram absent, with the spoken/displayed maneuver and road signs remaining
+the fallback.
+
+Before any supervised drive, exercise both an exit-right fixture and an
+exit-left fixture. Compare the engine maneuver side against the instruction,
+sign text and lane arrows. Any side disagreement, lane ordering mismatch, or
+arrow shown without provider evidence is a no-go. A field drive must include a
+passenger recording observations; never provoke an unsafe maneuver to test the
+app.
+
+The Terra profile overlays topographic raster tiles over the existing vector
+street style. If the relief service is unavailable, the street layer below it
+must remain visible. The app identifies the map data source on screen. Verify
+both connected use and airplane-mode fallback while parked before testing a
+route.
+
+Rastplatz search is explicit (`Raststätte mit WC`, `Raststätte ohne WC`, or
+`Raststätte`). It queries OpenStreetMap near a fresh planning position and
+labels the WC state as present, absent, or unknown from the source tags. The
+user-facing message discloses that the location is sent to the search provider.
+Unknown tags must not satisfy either WC filter. Route selection uses the
+existing route acquisition and route comparison gates; OSM area centroids do
+not certify an entrance, so the result asks the driver to check the signed
+access locally. If the provider is unavailable, normal address search remains
+available and does not claim WC information.
+
+The speed-enforcement alert policy remains fail-closed: no alert may be
+presented without an explicit current rule for the active country. The policy
+utility is not a country-law catalog or a data feed; no camera-alert release is
+accepted until a reviewed country catalog, lawful data source, UI setting,
+cross-border behavior and corresponding tests are supplied. Germany remains
+prohibited during vehicle operation under the current StVO rule.

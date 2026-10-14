@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
@@ -867,6 +868,64 @@ internal fun NavigationScreen(
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                     )
+                                    snapshot.currentManeuver?.destinationSign
+                                        ?.takeIf(String::isNotBlank)
+                                        ?.let { sign ->
+                                            Text(
+                                                text = "Schild: $sign",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                            )
+                                        }
+                                    snapshot.currentManeuver?.laneIndications
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.let { lanes ->
+                                            Column {
+                                                Text(
+                                                    text = "Spurhinweise",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                )
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    lanes.forEachIndexed { laneIndex, indication ->
+                                                        val routeValid = indication.contains("✓")
+                                                        Surface(
+                                                            color = if (routeValid) {
+                                                                MaterialTheme.colorScheme.primaryContainer
+                                                            } else {
+                                                                MaterialTheme.colorScheme.surfaceVariant
+                                                            },
+                                                            shape = MaterialTheme.shapes.small,
+                                                            border = if (routeValid) {
+                                                                androidx.compose.foundation.BorderStroke(
+                                                                    1.dp,
+                                                                    MaterialTheme.colorScheme.primary,
+                                                                )
+                                                            } else {
+                                                                null
+                                                            },
+                                                        ) {
+                                                            Text(
+                                                                text = indication.replace("✓", "").trim(),
+                                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                                    .semantics {
+                                                                        contentDescription = if (routeValid) {
+                                                                            "Spur ${laneIndex + 1}, laut Routing für das Manöver geeignet"
+                                                                        } else {
+                                                                            "Spur ${laneIndex + 1}"
+                                                                        }
+                                                                    },
+                                                                style = MaterialTheme.typography.titleMedium,
+                                                                fontWeight = if (routeValid) FontWeight.Bold else FontWeight.Normal,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     Text(
                                         text = "In " + NavigationFormatter.distance(snapshot.distanceToCurrentManeuverEndM),
                                         style = MaterialTheme.typography.bodySmall,
@@ -2508,6 +2567,11 @@ private fun DestinationPlannerDialog(
                             "Adresse, Ort oder POI"
                         )
                     },
+                )
+
+                Text(
+                    text = "Rastplatzfilter: „Raststätte mit WC“ oder „Raststätte ohne WC“. Unbekannte WC-Angaben bleiben separat gekennzeichnet.",
+                    style = MaterialTheme.typography.bodySmall,
                 )
 
                 Spacer(

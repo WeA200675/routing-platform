@@ -138,6 +138,23 @@ object AndroidNavigationRouteContractJson {
                                 source.optionalInt(
                                     "engineType"
                                 ),
+
+                            destinationSign =
+                                source.optString("destinationSign")
+                                    .takeIf { it.isNotBlank() && it != "null" }
+                                    ?.take(160),
+
+                            laneIndications =
+                                source.optJSONArray("laneIndications")?.let { lanes ->
+                                    buildList {
+                                        for (laneIndex in 0 until minOf(lanes.length(), 12)) {
+                                            lanes.optString(laneIndex)
+                                                .takeIf(String::isNotBlank)
+                                                ?.take(48)
+                                                ?.let(::add)
+                                        }
+                                    }
+                                } ?: emptyList(),
                         )
                     )
                 }

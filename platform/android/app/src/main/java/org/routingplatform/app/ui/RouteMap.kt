@@ -50,7 +50,9 @@ import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.RasterLayer
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.android.style.sources.RasterSource
 import org.routingplatform.app.navigation.NavigationRecoveryDecision
 import org.routingplatform.app.navigation.NavigationRecoveryPolicy
 import org.routingplatform.app.navigation.NavigationReliabilityClassifier
@@ -284,6 +286,10 @@ internal fun RouteMap(
                 NavigationMapLoadState.Loading
             )
         }
+
+    var terrainReliefOverlayInstalled by remember(styleDescriptor.styleUri) {
+        mutableStateOf(false)
+    }
 
     var mapLoadRetryCount by
         remember(
@@ -750,6 +756,13 @@ internal fun RouteMap(
                             darkMode = automaticNightMode,
                         )
                     }
+
+                    terrainReliefOverlayInstalled =
+                        if (styleDescriptor.showTerrainRelief) {
+                            installTerrainReliefOverlay(style)
+                        } else {
+                            false
+                        }
 
                     if (styleDescriptor.roadsOnly) {
                         installRoadOnlyMapLayers(style)
@@ -1390,8 +1403,55 @@ internal fun RouteMap(
                         .labelSmall,
             )
         }
+
+        if (effectiveMapStyle == ProfileMapStyle.Terrain) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp),
+                tonalElevation = 4.dp,
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(
+                    text = if (terrainReliefOverlayInstalled) {
+                        "Relief-Overlay · © OpenTopoMap · © OpenStreetMap"
+                    } else {
+                        "Relief nicht geladen · Outdoor-Karte aktiv"
+                    },
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
     }
 }
+
+/** Adds an optional topographic raster; the vector street style stays underneath as fallback. */
+private fun installTerrainReliefOverlay(style: Style): Boolean =
+    try {
+        if (style.getSource("routing-platform-terrain-relief") == null) {
+            style.addSource(
+                RasterSource(
+                    "routing-platform-terrain-relief",
+                    "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+                    256,
+                ),
+            )
+        }
+        if (style.getLayer("routing-platform-terrain-relief-layer") == null) {
+            style.addLayer(
+                RasterLayer(
+                    "routing-platform-terrain-relief-layer",
+                    "routing-platform-terrain-relief",
+                ).withProperties(
+                    PropertyFactory.rasterOpacity(0.62f),
+                ),
+            )
+        }
+        true
+    } catch (_: RuntimeException) {
+        false
+    }
 
 @Composable
 private fun NavigationCompass(
