@@ -3278,8 +3278,8 @@ class MainActivity :
                         verifiedRadioAnchorCount =
                             telemetry.verifiedRadioAnchorCount,
 
-                        lastFixAgeMillis =
-                            telemetry.lastFixAgeMillis,
+                        lastLocationElapsedRealtimeNanos =
+                            telemetry.lastLocationElapsedRealtimeNanos,
 
                         modifier =
                             Modifier.align(
