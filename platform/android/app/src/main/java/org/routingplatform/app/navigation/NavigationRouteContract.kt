@@ -48,6 +48,7 @@ data class NavigationRouteContractManeuver(
     val engineType: Int?,
     val destinationSign: String? = null,
     val laneIndications: List<String> = emptyList(),
+    val maneuverSide: NavigationManeuverSide? = null,
 ) {
     init {
         require(
@@ -120,6 +121,9 @@ data class NavigationRouteContractManeuver(
 
             laneIndications =
                 laneIndications,
+
+            maneuverSide =
+                maneuverSide,
         )
 }
 

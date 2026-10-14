@@ -155,6 +155,15 @@ object AndroidNavigationRouteContractJson {
                                         }
                                     }
                                 } ?: emptyList(),
+
+                            maneuverSide =
+                                when (source.optString("maneuverSide").lowercase()) {
+                                    "left" -> NavigationManeuverSide.Left
+                                    "right" -> NavigationManeuverSide.Right
+                                    "straight" -> NavigationManeuverSide.Straight
+                                    "uturn", "u_turn" -> NavigationManeuverSide.UTurn
+                                    else -> null
+                                },
                         )
                     )
                 }

@@ -14,6 +14,7 @@ class NavigationRouteContractGuidanceMetadataTest {
                     "streetNames":[],"distanceM":100,"durationS":10,
                     "beginShapeIndex":0,"endShapeIndex":1,"engineType":20,
                     "destinationSign":"A 92 · München",
+                    "maneuverSide":"right",
                     "laneIndications":["↑","↗ ✓"]}],
                 "engineName":"fixture","engineVersion":"1",
                 "segmentDataStatus":"unavailable","diagnostics":[]
@@ -23,6 +24,7 @@ class NavigationRouteContractGuidanceMetadataTest {
         val maneuver = route.maneuvers.single().toNavigationManeuver()
         assertEquals("A 92 · München", maneuver.destinationSign)
         assertEquals(listOf("↑", "↗ ✓"), maneuver.laneIndications)
+        assertEquals(NavigationManeuverSide.Right, maneuver.maneuverSide)
     }
 
     @Test

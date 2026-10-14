@@ -25,6 +25,37 @@ TYPE_MAP = {
 }
 
 
+def maneuver_side(modifier):
+    normalized = str(modifier or "").lower().replace(" ", "_")
+    if normalized in {"left", "slight_left", "sharp_left"}:
+        return "left"
+    if normalized in {"right", "slight_right", "sharp_right"}:
+        return "right"
+    if normalized in {"uturn", "u_turn"}:
+        return "uturn"
+    if normalized == "straight":
+        return "straight"
+    return None
+
+
+def maneuver_instruction(maneuver, name):
+    kind = maneuver.get("type", "")
+    modifier = maneuver_side(maneuver.get("modifier"))
+    if kind == "off ramp":
+        side = "rechts" if modifier == "right" else "links" if modifier == "left" else None
+        return f"Ausfahrt {side} nehmen. Bitte Beschilderung beachten." if side else \
+            "Ausfahrt nehmen. Bitte Beschilderung beachten."
+    if kind == "on ramp":
+        side = "rechts" if modifier == "right" else "links" if modifier == "left" else None
+        return f"{side.capitalize()} einfädeln. Bitte Beschilderung beachten." if side else \
+            "Einfädeln. Bitte Beschilderung beachten."
+    if kind in {"turn", "end of road", "fork"}:
+        if modifier == "left": return "Links abbiegen."
+        if modifier == "right": return "Rechts abbiegen."
+        if modifier == "uturn": return "Wenden. Bitte Beschilderung beachten."
+    return name or kind or "Weiterfahren"
+
+
 def point(value):
     lat, lon = float(value["latitude"]), float(value["longitude"])
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
@@ -86,11 +117,15 @@ def route(request):
         for step in leg.get("steps", []):
             m = step.get("maneuver", {})
             modifier = m.get("modifier", "")
-            kind = TYPE_MAP.get(m.get("type", ""), "unknown")
-            if m.get("type") == "turn":
-                if modifier == "left": kind = "turn_left"
-                elif modifier == "right": kind = "turn_right"
-                elif modifier == "uturn": kind = "u_turn"
+            source_type = m.get("type", "")
+            kind = TYPE_MAP.get(source_type, "unknown")
+            if source_type == "off ramp": kind = "exit"
+            elif source_type == "on ramp": kind = "merge"
+            if source_type in {"turn", "end of road", "fork"}:
+                side = maneuver_side(modifier)
+                if side == "left": kind = "turn_left"
+                elif side == "right": kind = "turn_right"
+                elif side == "uturn": kind = "u_turn"
             loc = m.get("location")
             if not loc:
                 raise RuntimeError("OSRM maneuver is missing its engine location")
@@ -110,7 +145,7 @@ def route(request):
             lane_indications = maneuver_lane_indications(step)
             maneuvers.append({
                 "type": kind,
-                "instruction": step.get("name") or m.get("type", "continue"),
+                "instruction": maneuver_instruction(m, step.get("name")),
                 "streetNames": [step["name"]] if step.get("name") else [],
                 "distanceM": float(step["distance"]),
                 "durationS": float(step["duration"]),
@@ -119,6 +154,7 @@ def route(request):
                 "bearingBeforeDeg": m.get("bearing_before"),
                 "bearingAfterDeg": m.get("bearing_after"),
                 "engineType": None,
+                "maneuverSide": maneuver_side(modifier),
                 "destinationSign": str(destinations)[:160] if destinations else None,
                 "laneIndications": lane_indications,
             })

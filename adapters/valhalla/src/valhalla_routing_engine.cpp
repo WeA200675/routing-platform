@@ -7,6 +7,7 @@
 #include "routing/adapters/valhalla/valhalla_street_segment_mapper.hpp"
 #include "routing/core/route_enrichment.hpp"
 
+#include <cstdint>
 #include <iomanip>
 #include <memory>
 #include <mutex>
@@ -26,6 +27,81 @@ namespace routing::adapters::valhalla {
 namespace {
 
 #ifdef ROUTING_PLATFORM_WITH_VALHALLA
+
+std::string collect_sign_elements(
+    const boost::property_tree::ptree& sign) {
+  std::string result;
+
+  for (const char* key : {
+           "exit_number_elements",
+           "exit_branch_elements",
+           "exit_toward_elements",
+           "exit_name_elements"}) {
+    if (const auto elements = sign.get_child_optional(key)) {
+      for (const auto& element : *elements) {
+        const auto text = element.second.get<std::string>("text", "");
+        if (text.empty()) {
+          continue;
+        }
+        if (!result.empty()) {
+          result += " · ";
+        }
+        result += text;
+        if (result.size() >= 160U) {
+          break;
+        }
+      }
+    }
+    if (result.size() >= 160U) {
+      break;
+    }
+  }
+
+  return result.substr(0, 160U);
+}
+
+std::string lane_label(const std::uint32_t directions) {
+  // Valhalla lane direction bit masks from its turn-by-turn response schema.
+  static constexpr std::pair<std::uint32_t, const char*> symbols[] = {
+      {4U, "⇐"}, {8U, "←"}, {16U, "↖"}, {2U, "↑"},
+      {32U, "↗"}, {64U, "→"}, {128U, "⇒"}, {256U, "↶"},
+      {512U, "↙"}, {1024U, "↘"}};
+  std::string label;
+  for (const auto& [mask, symbol] : symbols) {
+    if ((directions & mask) != 0U) {
+      label += symbol;
+    }
+  }
+  return label;
+}
+
+std::vector<std::string> parse_lane_indications(
+    const boost::property_tree::ptree& source) {
+  std::vector<std::string> lanes;
+  const auto lane_array = source.get_child_optional("lanes");
+  if (!lane_array) {
+    return lanes;
+  }
+
+  for (const auto& lane_entry : *lane_array) {
+    if (lanes.size() >= 12U) {
+      break;
+    }
+    const auto& lane = lane_entry.second;
+    const auto directions = lane.get<std::uint32_t>("directions", 0U);
+    const auto label = lane_label(directions);
+    if (label.empty()) {
+      // Suppress the entire diagram if provider data cannot be represented
+      // reliably; a partial lane diagram could suggest the wrong lane.
+      return {};
+    }
+    const auto valid = lane.get<std::uint32_t>("valid", 0U);
+    const auto active = lane.get<std::uint32_t>("active", 0U);
+    const bool route_valid = ((valid | active) & directions) != 0U;
+    lanes.push_back(label + (route_valid ? " ✓" : ""));
+  }
+  return lanes;
+}
 
 routing::core::RoutePath parse_trip(
     const boost::property_tree::ptree& trip,
@@ -162,6 +238,16 @@ routing::core::RoutePath parse_trip(
                     .get_value<std::string>());
           }
         }
+
+        if (const auto sign = source.get_child_optional("sign")) {
+          const auto text = collect_sign_elements(*sign);
+          if (!text.empty()) {
+            maneuver.destination_sign = text;
+          }
+        }
+
+        maneuver.lane_indications =
+            parse_lane_indications(source);
 
         path.maneuvers.push_back(
             std::move(maneuver));

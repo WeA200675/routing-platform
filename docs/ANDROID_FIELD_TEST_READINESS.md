@@ -140,6 +140,18 @@ is not inferred from route geometry. Missing or ambiguous values must leave the
 lane diagram absent, with the spoken/displayed maneuver and road signs remaining
 the fallback.
 
+The Valhalla request asks for lane data and its response parser carries sign
+elements plus provider `valid`/`active` lane masks into the same contract.
+Unsupported lane-mask values suppress the whole diagram instead of drawing a
+partial or guessed lane order.
+
+The OSRM adapter maps `off ramp` to an exit maneuver and preserves the
+provider's normalized left/right side separately from free-text instructions.
+The guidance boundary corrects contradictory text using that field. If the
+provider omits the exit side, the app says only to take the exit and follow the
+road signs. This remains provider guidance and must be checked against the
+actual signs during the supervised left/right exit fixtures below.
+
 Before any supervised drive, exercise both an exit-right fixture and an
 exit-left fixture. Compare the engine maneuver side against the instruction,
 sign text and lane arrows. Any side disagreement, lane ordering mismatch, or

@@ -20,6 +20,13 @@ enum class ManeuverType {
     Arrive,
 }
 
+enum class NavigationManeuverSide {
+    Left,
+    Right,
+    Straight,
+    UTurn,
+}
+
 data class RoutePoint(
     val latitude: Double,
     val longitude: Double,
@@ -59,6 +66,9 @@ data class NavigationManeuver(
 
     /** Provider supplied lane indications; absent data stays absent. */
     val laneIndications: List<String> = emptyList(),
+
+    /** Side supplied by the routing engine, normalized across providers. */
+    val maneuverSide: NavigationManeuverSide? = null,
 ) {
     /**
      * Presentation-safe maneuver text. Valhalla's raw maneuver type distinguishes
@@ -68,7 +78,12 @@ data class NavigationManeuver(
     val guidanceInstruction: String
         get() {
             val expectedSide =
-                when (engineType) {
+                when (maneuverSide) {
+                    NavigationManeuverSide.Left -> "left"
+                    NavigationManeuverSide.Right -> "right"
+                    NavigationManeuverSide.UTurn -> "uturn"
+                    NavigationManeuverSide.Straight, null -> null
+                } ?: when (engineType) {
                     9, 10, 11, 12, 18, 20, 23, 37 -> "right"
                     13, 14, 15, 16, 19, 21, 24, 38 -> "left"
                     else -> null
@@ -84,8 +99,13 @@ data class NavigationManeuver(
             val saysRight =
                 Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE)
                     .containsMatchIn(instruction)
+            val saysUTurn =
+                Regex("""\b(umkehren|wenden|u-turn|uturn)\b""", RegexOption.IGNORE_CASE)
+                    .containsMatchIn(instruction)
             val isExit = type == ManeuverType.Exit || engineType == 20 || engineType == 21
             val isUTurn = type == ManeuverType.UTurn || engineType == 12 || engineType == 13
+            val isMerge = type == ManeuverType.Merge || engineType == 18 || engineType == 19 ||
+                engineType == 37 || engineType == 38
             val german =
                 Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\b""", RegexOption.IGNORE_CASE)
                     .containsMatchIn(instruction)
@@ -103,19 +123,25 @@ data class NavigationManeuver(
                 }
             }
 
-            val contradicts =
-                expectedSide != null &&
-                    if (expectedSide == "right") saysLeft else saysRight
+            val contradicts = when (expectedSide) {
+                "right" -> saysLeft || saysUTurn
+                "left" -> saysRight || saysUTurn
+                "uturn" -> saysLeft || saysRight
+                else -> false
+            }
             if (!contradicts) return instruction
 
             return when {
+                expectedSide == "uturn" && isUTurn ->
+                    if (german) "Wenden. Bitte Beschilderung beachten."
+                    else "Make a U-turn. Follow road signs."
                 german && isUTurn ->
                     if (expectedSide == "right") "Rechts wenden. Bitte Beschilderung beachten."
                     else "Links wenden. Bitte Beschilderung beachten."
                 german && isExit ->
                     if (expectedSide == "right") "Ausfahrt rechts nehmen. Bitte Beschilderung beachten."
                     else "Ausfahrt links nehmen. Bitte Beschilderung beachten."
-                german && (engineType == 18 || engineType == 19 || engineType == 37 || engineType == 38) ->
+                german && isMerge ->
                     if (expectedSide == "right") "Rechts einfädeln. Bitte Beschilderung beachten."
                     else "Links einfädeln. Bitte Beschilderung beachten."
                 german ->

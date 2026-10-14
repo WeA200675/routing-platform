@@ -70,6 +70,22 @@ class OsrmAdapterTest(unittest.TestCase):
         self.assertIsNone(result["maneuvers"][0]["destinationSign"])
         self.assertEqual([], result["maneuvers"][0]["laneIndications"])
 
+    def test_off_ramp_side_is_preserved_as_provider_guidance(self):
+        payload = self.osrm()
+        payload["routes"][0]["legs"][0]["steps"][0]["maneuver"] = {
+            "type": "off ramp", "modifier": "right", "location": [12.1, 48.5],
+            "bearing_before": 90, "bearing_after": 0,
+        }
+        response = Response()
+        with mock.patch.object(adapter.urllib.request, "urlopen", return_value=response), \
+             mock.patch.object(adapter.json, "load", return_value=payload):
+            result = adapter.route(self.request())
+        maneuver = result["maneuvers"][0]
+        self.assertEqual("exit", maneuver["type"])
+        self.assertEqual("right", maneuver["maneuverSide"])
+        self.assertEqual("Ausfahrt rechts nehmen. Bitte Beschilderung beachten.",
+                         maneuver["instruction"])
+
     def test_via_order_is_sent_to_engine_exactly(self):
         response = Response()
         with mock.patch.object(adapter.urllib.request, "urlopen", return_value=response) as call, \

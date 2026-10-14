@@ -46,6 +46,22 @@ class NavigationManeuverGuidanceSafetyTest {
     }
 
     @Test
+    fun normalizedProviderExitSideCorrectsContradictoryText() {
+        val maneuver = NavigationManeuver(
+            type = ManeuverType.Exit,
+            instruction = "Auf die Ausfahrt links halten.",
+            distanceM = 120.0,
+            durationS = 12.0,
+            maneuverSide = NavigationManeuverSide.Right,
+        )
+
+        assertEquals(
+            "Ausfahrt rechts nehmen. Bitte Beschilderung beachten.",
+            maneuver.guidanceInstruction,
+        )
+    }
+
+    @Test
     fun contradictorySideSpecificUTurnInstructionIsCorrected() {
         val maneuver = maneuver(
             type = ManeuverType.UTurn,
