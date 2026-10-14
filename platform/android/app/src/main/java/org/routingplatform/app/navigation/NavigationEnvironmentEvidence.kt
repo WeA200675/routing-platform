@@ -48,6 +48,18 @@ data class NavigationRadioObservation(
 
     val elapsedRealtimeNanos:
         Long,
+
+    /*
+     * Wi-Fi RTT LCI is unverified data broadcast by the AP.
+     * Keep it as a candidate and validate it against repeated good fixes.
+     */
+    val anchorPosition:
+        RoutePoint? =
+        null,
+
+    val anchorPositionUncertaintyM:
+        Double? =
+        null,
 ) {
     init {
         require(
@@ -79,6 +91,19 @@ data class NavigationRadioObservation(
 
         require(
             elapsedRealtimeNanos >= 0L
+        )
+
+        require(
+            (anchorPosition == null) ==
+                (anchorPositionUncertaintyM == null)
+        )
+
+        require(
+            anchorPositionUncertaintyM == null ||
+                (
+                    anchorPositionUncertaintyM.isFinite() &&
+                        anchorPositionUncertaintyM > 0.0
+                )
         )
     }
 }
