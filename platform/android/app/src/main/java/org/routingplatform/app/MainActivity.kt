@@ -3272,6 +3272,15 @@ class MainActivity :
                         rawGnssQuality =
                             telemetry.rawGnssQuality,
 
+                        positionSource =
+                            telemetry.positionSource,
+
+                        verifiedRadioAnchorCount =
+                            telemetry.verifiedRadioAnchorCount,
+
+                        lastFixAgeMillis =
+                            telemetry.lastFixAgeMillis,
+
                         modifier =
                             Modifier.align(
                                 Alignment.TopEnd
