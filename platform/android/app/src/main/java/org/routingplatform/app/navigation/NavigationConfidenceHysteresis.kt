@@ -269,15 +269,11 @@ class NavigationConfidenceHysteresis(
             estimate.confidence ==
                 NavigationPositionConfidence.High
 
-        val goodGnss =
-            gnssQuality ==
-                NavigationGnssQuality.Strong
-
         if (
             preciseFix &&
             observation.motionAgreement ==
                 NavigationMotionAgreement.Consistent &&
-            (goodGnss || gnssQuality == null)
+            gnssQuality != NavigationGnssQuality.Weak
         ) {
             return EvidenceTier.Strong
         }
