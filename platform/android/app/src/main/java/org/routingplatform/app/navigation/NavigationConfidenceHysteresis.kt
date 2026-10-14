@@ -264,7 +264,38 @@ class NavigationConfidenceHysteresis(
             observation
                 .gnssEvidence
                 ?.quality
-                ?: return EvidenceTier.Weak
+
+        val preciseFix =
+            estimate.confidence ==
+                NavigationPositionConfidence.High
+
+        val goodGnss =
+            gnssQuality ==
+                NavigationGnssQuality.Strong
+
+        if (
+            preciseFix &&
+            observation.motionAgreement ==
+                NavigationMotionAgreement.Consistent &&
+            (goodGnss || gnssQuality == null)
+        ) {
+            return EvidenceTier.Strong
+        }
+
+        if (
+            gnssQuality == null
+        ) {
+            return if (
+                estimate.confidence ==
+                    NavigationPositionConfidence.Medium &&
+                observation.motionAgreement !=
+                    NavigationMotionAgreement.Conflicting
+            ) {
+                EvidenceTier.Usable
+            } else {
+                EvidenceTier.Weak
+            }
+        }
 
         if (
             (
@@ -275,10 +306,10 @@ class NavigationConfidenceHysteresis(
             ) &&
             gnssQuality ==
                 NavigationGnssQuality.Strong &&
-            observation.motionAgreement ==
-                NavigationMotionAgreement.Consistent
+            observation.motionAgreement !=
+                NavigationMotionAgreement.Conflicting
         ) {
-            return EvidenceTier.Strong
+            return EvidenceTier.Usable
         }
 
         if (
