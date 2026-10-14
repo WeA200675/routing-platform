@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -853,7 +854,7 @@ internal fun NavigationScreen(
                                             style = MaterialTheme.typography.headlineMedium,
                                             fontWeight = FontWeight.ExtraBold,
                                         )
-                                        Spacer(Modifier.padding(horizontal = 4.dp))
+                                        Spacer(Modifier.width(8.dp))
                                     }
                                 Column {
                                     Text(
