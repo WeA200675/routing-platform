@@ -159,6 +159,13 @@ arrow shown without provider evidence is a no-go. A field drive must include a
 passenger recording observations; never provoke an unsafe maneuver to test the
 app.
 
+An orange position dot is a raw observed position that the route-progress
+safety gate has not accepted yet; it is not an extra route point or a route
+correction. It can be consistent with an imprecise GNSS fix, but the color alone
+does not diagnose the cause. The status label now explains that progress is
+unconfirmed. Compare the dot with reported horizontal accuracy and the held
+reason while parked or with a passenger.
+
 The Terra profile overlays topographic raster tiles over the existing vector
 street style. If the relief service is unavailable, the street layer below it
 must remain visible. The app identifies the map data source on screen. Verify
