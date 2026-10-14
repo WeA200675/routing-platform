@@ -112,6 +112,18 @@ data class NavigationRuntimeTelemetry(
     val workQueueDiagnostics:
         NavigationWorkQueueDiagnostics? =
         null,
+
+    val positionSource:
+        NavigationPositionSource =
+        NavigationPositionSource.Unknown,
+
+    val verifiedRadioAnchorCount:
+        Int =
+        0,
+
+    val lastFixAgeMillis:
+        Long? =
+        null,
 ) {
     companion object {
         fun stopped(
@@ -677,8 +689,24 @@ class AndroidNavigationRuntimeController(
                             .currentNativeProgress(),
 
                     lastLocationAccuracyM =
-                        sample
-                            .horizontalAccuracyM,
+                        result
+                            .fusionUpdate
+                            .estimate
+                            ?.covariance
+                            ?.conservativeHorizontalSigmaM
+                            ?: sample.horizontalAccuracyM,
+
+                    positionSource =
+                        result.fusionUpdate.positionSource,
+
+                    verifiedRadioAnchorCount =
+                        result.fusionUpdate.verifiedRadioAnchorCount,
+
+                    lastFixAgeMillis =
+                        (
+                            SystemClock.elapsedRealtimeNanos() -
+                                sample.elapsedRealtimeNanos
+                        ).coerceAtLeast(0L) / 1_000_000L,
 
                     trustedTravelBearingDegrees =
                         result
@@ -714,8 +742,11 @@ class AndroidNavigationRuntimeController(
                             },
 
                     lastObservedPosition =
-                        sample
-                            .position,
+                        result
+                            .fusionUpdate
+                            .estimate
+                            ?.position
+                            ?: sample.position,
 
                     lastLocationElapsedRealtimeNanos =
                         sample
