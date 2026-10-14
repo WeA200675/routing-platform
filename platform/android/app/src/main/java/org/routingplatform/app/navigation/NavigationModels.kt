@@ -64,8 +64,8 @@ data class NavigationManeuver(
         get() {
             val expectedSide =
                 when (engineType) {
-                    9, 10, 11, 18, 20, 23, 37 -> "right"
-                    14, 15, 16, 19, 21, 24, 38 -> "left"
+                    9, 10, 11, 12, 18, 20, 23, 37 -> "right"
+                    13, 14, 15, 16, 19, 21, 24, 38 -> "left"
                     else -> null
                 } ?: when (type) {
                     ManeuverType.TurnLeft -> "left"
@@ -80,6 +80,7 @@ data class NavigationManeuver(
                 Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE)
                     .containsMatchIn(instruction)
             val isExit = type == ManeuverType.Exit || engineType == 20 || engineType == 21
+            val isUTurn = type == ManeuverType.UTurn || engineType == 12 || engineType == 13
             val german =
                 Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\b""", RegexOption.IGNORE_CASE)
                     .containsMatchIn(instruction)
@@ -87,11 +88,13 @@ data class NavigationManeuver(
             // An exit has no safe left/right fallback when the routing engine
             // omitted its side-specific maneuver type. Remove any conflicting
             // side from its instruction instead of guessing from the text.
-            if (isExit && expectedSide == null && (saysLeft || saysRight)) {
-                return if (german) {
-                    "Ausfahrt nehmen. Bitte Beschilderung beachten."
+            if ((isExit || isUTurn) && expectedSide == null && (saysLeft || saysRight)) {
+                return if (isExit) {
+                    if (german) "Ausfahrt nehmen. Bitte Beschilderung beachten."
+                    else "Take the exit. Follow road signs."
                 } else {
-                    "Take the exit. Follow road signs."
+                    if (german) "Wenden. Bitte Beschilderung beachten."
+                    else "Make a U-turn. Follow road signs."
                 }
             }
 
@@ -101,6 +104,9 @@ data class NavigationManeuver(
             if (!contradicts) return instruction
 
             return when {
+                german && isUTurn ->
+                    if (expectedSide == "right") "Rechts wenden. Bitte Beschilderung beachten."
+                    else "Links wenden. Bitte Beschilderung beachten."
                 german && isExit ->
                     if (expectedSide == "right") "Ausfahrt rechts nehmen. Bitte Beschilderung beachten."
                     else "Ausfahrt links nehmen. Bitte Beschilderung beachten."
@@ -113,6 +119,9 @@ data class NavigationManeuver(
                 isExit ->
                     if (expectedSide == "right") "Take the exit on the right. Follow road signs."
                     else "Take the exit on the left. Follow road signs."
+                isUTurn ->
+                    if (expectedSide == "right") "Make a U-turn to the right. Follow road signs."
+                    else "Make a U-turn to the left. Follow road signs."
                 else ->
                     if (expectedSide == "right") "Turn right. Follow road signs."
                     else "Turn left. Follow road signs."
