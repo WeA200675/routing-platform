@@ -170,6 +170,9 @@ data class NavigationObservedPositionPresentation(
                     NavigationRouteProgressSafetyStatus.HeldForwardJump ->
                         "Safety: Hold (Vorwärtssprung)"
 
+                    NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress ->
+                        "Safety: Hold (zweiter Fix ausstehend)"
+
                     NavigationRouteProgressSafetyStatus.HeldNoEstimate ->
                         "Safety: Hold (keine Positionsschätzung)"
                 }
