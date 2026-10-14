@@ -148,8 +148,18 @@ class NavigationWifiRttAnchorVerifier(
         return verifiedAnchors()
     }
 
-    fun verifiedAnchors(): List<VerifiedNavigationWifiRttAnchor> =
-        candidates.mapNotNull { (sourceId, candidate) ->
+    fun verifiedAnchors(
+        nowElapsedRealtimeNanos: Long? = null,
+    ): List<VerifiedNavigationWifiRttAnchor> {
+        if (nowElapsedRealtimeNanos != null) {
+            candidates.entries.removeAll { (_, candidate) ->
+                candidate.lastConfirmationNanos?.let {
+                    nowElapsedRealtimeNanos - it > maximumHistoryAgeNanos
+                } ?: false
+            }
+        }
+
+        return candidates.mapNotNull { (sourceId, candidate) ->
             if (candidate.confirmations < REQUIRED_WIFI_RTT_ANCHOR_CONFIRMATIONS) {
                 null
             } else {
@@ -161,6 +171,7 @@ class NavigationWifiRttAnchorVerifier(
                 )
             }
         }
+    }
 
     fun reset() {
         candidates.clear()
