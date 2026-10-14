@@ -121,9 +121,6 @@ data class NavigationRuntimeTelemetry(
         Int =
         0,
 
-    val lastFixAgeMillis:
-        Long? =
-        null,
 ) {
     companion object {
         fun stopped(
@@ -702,11 +699,6 @@ class AndroidNavigationRuntimeController(
                     verifiedRadioAnchorCount =
                         result.fusionUpdate.verifiedRadioAnchorCount,
 
-                    lastFixAgeMillis =
-                        (
-                            SystemClock.elapsedRealtimeNanos() -
-                                sample.elapsedRealtimeNanos
-                        ).coerceAtLeast(0L) / 1_000_000L,
 
                     trustedTravelBearingDegrees =
                         result
