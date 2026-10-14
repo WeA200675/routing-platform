@@ -212,6 +212,90 @@ class NavigationRouteProgressSafetyGateTest {
     }
 
     @Test
+    fun forwardProgressRequiresASecondDistinctCoherentFix() {
+        val gate = NavigationRouteProgressSafetyGate()
+        val routeStart = gate.evaluate(
+            route,
+            fusion(estimate(47.0010, timestamp = 1_000_000_000L)),
+        )
+        assertEquals(NavigationRouteProgressSafetyStatus.Accepted, routeStart.status)
+
+        val firstCandidate = gate.evaluate(
+            route,
+            fusion(estimate(
+                47.0013,
+                speed = 15.0,
+                timestamp = 2_000_000_000L,
+            )),
+        )
+        assertEquals(
+            NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress,
+            firstCandidate.status,
+        )
+        assertEquals(routeStart.acceptedProgress, firstCandidate.acceptedProgress)
+        assertFalse(firstCandidate.mayUpdateNativeRuntime)
+
+        val confirmation = gate.evaluate(
+            route,
+            fusion(estimate(
+                47.0013,
+                speed = 15.0,
+                timestamp = 3_000_000_000L,
+            )),
+        )
+        assertEquals(NavigationRouteProgressSafetyStatus.Accepted, confirmation.status)
+        assertTrue(confirmation.mayUpdateNativeRuntime)
+    }
+
+    @Test
+    fun inconsistentSecondFixRestartsConfirmationInsteadOfFlippingProgress() {
+        val gate = NavigationRouteProgressSafetyGate()
+        val routeStart = gate.evaluate(
+            route,
+            fusion(estimate(47.0010, timestamp = 1_000_000_000L)),
+        )
+        val firstCandidate = gate.evaluate(
+            route,
+            fusion(estimate(47.0012, speed = 15.0, timestamp = 2_000_000_000L)),
+        )
+        assertEquals(
+            NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress,
+            firstCandidate.status,
+        )
+
+        val inconsistent = gate.evaluate(
+            route,
+            fusion(estimate(47.0018, speed = 15.0, timestamp = 3_000_000_000L)),
+        )
+        assertEquals(
+            NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress,
+            inconsistent.status,
+        )
+        assertEquals(routeStart.acceptedProgress, inconsistent.acceptedProgress)
+
+        val coherentFollowup = gate.evaluate(
+            route,
+            fusion(estimate(47.0018, speed = 15.0, timestamp = 4_000_000_000L)),
+        )
+        assertEquals(NavigationRouteProgressSafetyStatus.Accepted, coherentFollowup.status)
+    }
+
+    @Test
+    fun conflictingMotionEvidenceAlwaysHoldsRouteProgress() {
+        val gate = NavigationRouteProgressSafetyGate()
+        gate.evaluate(route, fusion(estimate(47.0010, timestamp = 1_000_000_000L)))
+        val decision = gate.evaluate(
+            route,
+            fusion(
+                estimate(47.0012, timestamp = 2_000_000_000L),
+                agreement = NavigationMotionAgreement.Conflicting,
+            ),
+        )
+        assertEquals(NavigationRouteProgressSafetyStatus.HeldAmbiguous, decision.status)
+        assertFalse(decision.mayUpdateNativeRuntime)
+    }
+
+    @Test
     fun seedDefinesMonotonicProgressFloor() {
         val gate =
             NavigationRouteProgressSafetyGate()
@@ -289,6 +373,7 @@ class NavigationRouteProgressSafetyGateTest {
 
     private fun fusion(
         estimate: NavigationPositionEstimate?,
+        agreement: NavigationMotionAgreement = NavigationMotionAgreement.Unknown,
     ) =
         NavigationPositionFusionUpdate(
             estimate = estimate,
@@ -301,7 +386,7 @@ class NavigationRouteProgressSafetyGateTest {
             stabilizedConfidence =
                 estimate?.confidence
                     ?: NavigationPositionConfidence.Lost,
-            motionAgreement = NavigationMotionAgreement.Unknown,
+            motionAgreement = agreement,
             integrityIssues = emptySet(),
             rawGnssQuality = null,
             radioObservationCount = 0,
