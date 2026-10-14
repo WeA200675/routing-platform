@@ -105,6 +105,7 @@ data class NavigationRawGnssSnapshot(
         get() =
             measurements.filter {
                 it.state and CODE_LOCK_STATE != 0 &&
+                    (it.state and (TOW_KNOWN_STATE or TOW_DECODED_STATE)) != 0 &&
                     it.elapsedRealtimeNanos <= elapsedRealtimeNanos &&
                     elapsedRealtimeNanos - it.elapsedRealtimeNanos <=
                         MAX_MEASUREMENT_AGE_NANOS
@@ -230,6 +231,12 @@ private const val USABLE_MIN_MEAN_CN0_DB_HZ =
 /* GnssMeasurement.STATE_CODE_LOCK is Android's bit 0. */
 private const val CODE_LOCK_STATE =
     1
+
+private const val TOW_DECODED_STATE =
+    8
+
+private const val TOW_KNOWN_STATE =
+    16_384
 
 private const val MAX_MEASUREMENT_AGE_NANOS =
     2_000_000_000L
