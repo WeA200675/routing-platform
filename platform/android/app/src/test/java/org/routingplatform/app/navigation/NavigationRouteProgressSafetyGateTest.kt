@@ -281,6 +281,44 @@ class NavigationRouteProgressSafetyGateTest {
     }
 
     @Test
+    fun lowConfidenceObservationBreaksTheTwoFixConfirmationSequence() {
+        val gate = NavigationRouteProgressSafetyGate()
+        gate.evaluate(route, fusion(estimate(47.0010, timestamp = 1_000_000_000L)))
+        val pending = gate.evaluate(
+            route,
+            fusion(estimate(47.0013, speed = 15.0, timestamp = 2_000_000_000L)),
+        )
+        assertEquals(
+            NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress,
+            pending.status,
+        )
+
+        val lowConfidence = gate.evaluate(
+            route,
+            fusion(
+                estimate(
+                    47.0013,
+                    confidence = NavigationPositionConfidence.Low,
+                    timestamp = 2_500_000_000L,
+                ),
+            ),
+        )
+        assertEquals(
+            NavigationRouteProgressSafetyStatus.HeldLowConfidence,
+            lowConfidence.status,
+        )
+
+        val nextGoodFix = gate.evaluate(
+            route,
+            fusion(estimate(47.0013, speed = 15.0, timestamp = 3_000_000_000L)),
+        )
+        assertEquals(
+            NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress,
+            nextGoodFix.status,
+        )
+    }
+
+    @Test
     fun conflictingMotionEvidenceAlwaysHoldsRouteProgress() {
         val gate = NavigationRouteProgressSafetyGate()
         gate.evaluate(route, fusion(estimate(47.0010, timestamp = 1_000_000_000L)))
