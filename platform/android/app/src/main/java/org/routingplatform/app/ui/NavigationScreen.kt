@@ -3305,17 +3305,17 @@ private fun drivingPreferenceSummary(preferences: DrivingPreferences): String =
 
 private fun maneuverDirectionGlyph(maneuver: org.routingplatform.app.navigation.NavigationManeuver): String? =
     when (maneuver.engineType) {
-        9, 10, 11, 18, 20, 23, 37 -> "↗"
-        14, 15, 16, 19, 21, 24, 38 -> "↖"
+        2, 9, 10, 11, 18, 20, 23, 37 -> "↗"
+        3, 14, 15, 16, 19, 21, 24, 38 -> "↖"
         7, 8, 17, 22 -> "↑"
-        12 -> "↶"
-        13 -> "↷"
+        12 -> "↷"
+        13 -> "↶"
         else -> when (maneuver.type) {
             org.routingplatform.app.navigation.ManeuverType.Start,
             org.routingplatform.app.navigation.ManeuverType.Continue -> "↑"
             org.routingplatform.app.navigation.ManeuverType.TurnLeft -> "←"
             org.routingplatform.app.navigation.ManeuverType.TurnRight -> "→"
-            org.routingplatform.app.navigation.ManeuverType.UTurn -> "↶"
+            org.routingplatform.app.navigation.ManeuverType.UTurn -> "↩"
             org.routingplatform.app.navigation.ManeuverType.Exit -> null
             org.routingplatform.app.navigation.ManeuverType.Merge,
             org.routingplatform.app.navigation.ManeuverType.RoundaboutEnter,
