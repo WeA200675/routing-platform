@@ -442,7 +442,7 @@ class NavigationVoicePresentationTest {
                 personality = preferences,
             )
 
-        assertEquals("In 120 Metern rechts abbiegen", criticalCue?.text)
+        assertEquals("Ausfahrt nehmen. Bitte Beschilderung beachten.", criticalCue?.text)
         assertEquals(1.0, criticalCue?.speechPitch ?: 0.0, 0.001)
     }
 
