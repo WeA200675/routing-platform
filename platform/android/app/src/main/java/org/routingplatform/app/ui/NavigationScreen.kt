@@ -827,6 +827,40 @@ internal fun NavigationScreen(
                         }
                 }
             }
+
+            if (snapshot.state == NavigationSessionState.Navigating) {
+                snapshot.currentManeuver
+                    ?.guidanceInstruction
+                    ?.takeIf(String::isNotBlank)
+                    ?.let { instruction ->
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(top = 68.dp, start = 54.dp, end = 54.dp),
+                            tonalElevation = 6.dp,
+                            shape = MaterialTheme.shapes.medium,
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            ) {
+                                Text(
+                                    text = "Nächste Aktion",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = instruction,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    text = "In " + NavigationFormatter.distance(snapshot.distanceToCurrentManeuverEndM),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                    }
             }
         }
 
