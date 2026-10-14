@@ -2116,6 +2116,7 @@ internal fun NavigationScreen(
         )
     }
 }
+}
 
 @Composable
 private fun DestinationPlannerDialog(
