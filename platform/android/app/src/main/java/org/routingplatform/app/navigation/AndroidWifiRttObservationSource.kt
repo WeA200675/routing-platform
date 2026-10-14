@@ -251,13 +251,13 @@ class AndroidWifiRttObservationSource(
 }
 
 /*
- * Android exposes the AP-supplied location starting at API 35.
+ * Android exposes the AP-supplied location starting at API 29.
  * This value is explicitly unverified, so it is only a candidate anchor.
  */
 private fun responderAnchor(
     result: RangingResult,
 ): Pair<RoutePoint, Double>? {
-    if (Build.VERSION.SDK_INT < 35) return null
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
 
     return runCatching {
         val responder =
