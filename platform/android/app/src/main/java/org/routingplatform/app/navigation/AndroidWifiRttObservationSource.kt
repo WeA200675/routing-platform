@@ -10,7 +10,11 @@ import android.net.wifi.rtt.RangingRequest
 import android.net.wifi.rtt.RangingResult
 import android.net.wifi.rtt.RangingResultCallback
 import android.net.wifi.rtt.WifiRttManager
+import android.net.wifi.rtt.ResponderLocation
 import android.os.Build
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sqrt
 
 @TargetApi(
     Build.VERSION_CODES.P
@@ -159,9 +163,10 @@ class AndroidWifiRttObservationSource(
                                             .toDouble() /
                                             1000.0
                                     }.getOrNull()
-                                        ?.coerceAtLeast(
-                                            0.0
-                                        )
+                                        ?.takeIf { it.isFinite() && it >= 0.0 }
+
+                                val anchor =
+                                    responderAnchor(result)
 
                                 NavigationRadioObservation(
                                     technology =
@@ -186,6 +191,12 @@ class AndroidWifiRttObservationSource(
                                         result
                                             .rangingTimestampMillis *
                                             1_000_000L,
+
+                                    anchorPosition =
+                                        anchor?.first,
+
+                                    anchorPositionUncertaintyM =
+                                        anchor?.second,
                                 )
                             }
 
@@ -238,3 +249,72 @@ class AndroidWifiRttObservationSource(
         return true
     }
 }
+
+/*
+ * Android exposes the AP-supplied location starting at API 35.
+ * This value is explicitly unverified, so it is only a candidate anchor.
+ */
+private fun responderAnchor(
+    result: RangingResult,
+): Pair<RoutePoint, Double>? {
+    if (Build.VERSION.SDK_INT < 35) return null
+
+    return runCatching {
+        val responder =
+            result.getUnverifiedResponderLocation()
+                ?: return null
+
+        if (
+            !responder.isLciSubelementValid() ||
+            responder.getDatum() != ResponderLocation.DATUM_WGS84
+        ) {
+            return null
+        }
+
+        if (
+            !responder.isZaxisSubelementValid() ||
+            responder.getExpectedToMove() != ResponderLocation.LOCATION_FIXED
+        ) {
+            return null
+        }
+
+        val latitude = responder.getLatitude()
+        val longitude = responder.getLongitude()
+        val latitudeUncertaintyDegrees = responder.getLatitudeUncertainty()
+        val longitudeUncertaintyDegrees = responder.getLongitudeUncertainty()
+
+        if (
+            !latitude.isFinite() ||
+            latitude !in -90.0..90.0 ||
+            !longitude.isFinite() ||
+            longitude !in -180.0..180.0 ||
+            !latitudeUncertaintyDegrees.isFinite() ||
+            latitudeUncertaintyDegrees <= 0.0 ||
+            !longitudeUncertaintyDegrees.isFinite() ||
+            longitudeUncertaintyDegrees <= 0.0
+        ) {
+            return null
+        }
+
+        val latitudeUncertaintyM =
+            latitudeUncertaintyDegrees * METERS_PER_DEGREE
+        val longitudeUncertaintyM =
+            longitudeUncertaintyDegrees *
+                METERS_PER_DEGREE *
+                cos(latitude * PI / 180.0)
+        val uncertaintyM =
+            sqrt(
+                latitudeUncertaintyM * latitudeUncertaintyM +
+                    longitudeUncertaintyM * longitudeUncertaintyM
+            )
+
+        if (!uncertaintyM.isFinite() || uncertaintyM !in 0.1..5.0) {
+            return null
+        }
+
+        RoutePoint(latitude, longitude) to uncertaintyM
+    }.getOrNull()
+}
+
+private const val METERS_PER_DEGREE =
+    111_320.0
