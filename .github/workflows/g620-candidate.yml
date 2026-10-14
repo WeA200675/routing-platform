@@ -37,6 +37,7 @@ on:
   pull_request:
     branches:
       - main
+      - "g6.*/*"
     paths:
       - .github/workflows/g620-candidate.yml
       - .github/workflows/android-ci.yml
