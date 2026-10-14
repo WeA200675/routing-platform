@@ -1,7 +1,7 @@
 package org.routingplatform.app.navigation
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class NavigationManeuverGuidanceSafetyTest {
@@ -31,9 +31,7 @@ class NavigationManeuverGuidanceSafetyTest {
             "Ausfahrt nehmen. Bitte Beschilderung beachten.",
             maneuver.guidanceInstruction,
         )
-        assertTrue(
-            maneuver.guidanceInstruction.none { it in "links".toCharArray() },
-        )
+        assertFalse(maneuver.guidanceInstruction.contains("links", ignoreCase = true))
     }
 
     @Test
