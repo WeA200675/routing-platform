@@ -102,8 +102,11 @@ class NavigationPositionFusionEngine(
             NavigationRawGnssSnapshot?,
     ): NavigationPositionFusionUpdate {
 
+        val providerName =
+            sample.provider?.lowercase()
+
         val providerCanVerifyRadioAnchor =
-            sample.provider?.lowercase() in setOf("gps", "fused") &&
+            (providerName == "gps" || providerName == "fused") &&
                 rawGnss?.quality != NavigationRawGnssQuality.Weak
 
         val verifiedRadioAnchors =
