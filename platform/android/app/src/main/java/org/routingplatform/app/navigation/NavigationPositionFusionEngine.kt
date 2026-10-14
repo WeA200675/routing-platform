@@ -3,6 +3,15 @@ package org.routingplatform.app.navigation
 import kotlin.math.PI
 import kotlin.math.sqrt
 
+enum class NavigationPositionSource {
+    AndroidFused,
+    Gnss,
+    Network,
+    VerifiedWifiRtt,
+    DeadReckoning,
+    Unknown,
+}
+
 enum class NavigationFusionMode {
     DirectObservation,
     DeadReckoning,
@@ -34,6 +43,14 @@ data class NavigationPositionFusionUpdate(
 
     val unknownSatelliteCount:
         Int,
+
+    val positionSource:
+        NavigationPositionSource =
+        NavigationPositionSource.Unknown,
+
+    val verifiedRadioAnchorCount:
+        Int =
+        0,
 )
 
 class NavigationPositionFusionEngine(
@@ -53,6 +70,12 @@ class NavigationPositionFusionEngine(
         NavigationDeadReckoningEngine =
         NavigationDeadReckoningEngine(),
 ) {
+    private val wifiRttAnchorVerifier =
+        NavigationWifiRttAnchorVerifier()
+
+    private val wifiRttPositionEstimator =
+        NavigationWifiRttPositionEstimator()
+
     private var previousAcceptedRawEstimate:
         NavigationPositionEstimate? =
         null
@@ -79,9 +102,55 @@ class NavigationPositionFusionEngine(
             NavigationRawGnssSnapshot?,
     ): NavigationPositionFusionUpdate {
 
+        val providerCanVerifyRadioAnchor =
+            sample.provider?.lowercase() in setOf("gps", "fused") &&
+                rawGnss?.quality != NavigationRawGnssQuality.Weak
+
+        val verifiedRadioAnchors =
+            if (providerCanVerifyRadioAnchor) {
+                wifiRttAnchorVerifier.observe(
+                    observations = environment?.radioObservations.orEmpty(),
+                    gpsPosition = sample.position,
+                    gpsAccuracyM = sample.horizontalAccuracyM,
+                    gpsElapsedRealtimeNanos = sample.elapsedRealtimeNanos,
+                )
+            } else {
+                wifiRttAnchorVerifier.verifiedAnchors()
+            }
+
+        val radioPosition =
+            wifiRttPositionEstimator.estimate(
+                observations = environment?.radioObservations.orEmpty(),
+                verifiedAnchors = verifiedRadioAnchors,
+                nowElapsedRealtimeNanos = sample.elapsedRealtimeNanos,
+            )
+
+        val useVerifiedRadioPosition =
+            radioPosition != null &&
+                (
+                    sample.horizontalAccuracyM == null ||
+                        radioPosition.horizontalAccuracyM <
+                            sample.horizontalAccuracyM * RTT_ACCURACY_IMPROVEMENT_RATIO
+                )
+
+        val positionedSample =
+            if (useVerifiedRadioPosition) {
+                sample.copy(
+                    position = checkNotNull(radioPosition).position,
+                    horizontalAccuracyM = checkNotNull(radioPosition).horizontalAccuracyM,
+                    provider = VERIFIED_WIFI_RTT_PROVIDER,
+                    speedMps = null,
+                    speedAccuracyMps = null,
+                    bearingDegrees = null,
+                    bearingAccuracyDegrees = null,
+                )
+            } else {
+                sample
+            }
+
         val integrity =
             integrityMonitor.inspect(
-                sample
+                positionedSample
             )
 
         if (
@@ -120,6 +189,12 @@ class NavigationPositionFusionEngine(
                     mode =
                         NavigationFusionMode.DeadReckoning,
 
+                    positionSource =
+                        NavigationPositionSource.DeadReckoning,
+
+                    verifiedRadioAnchorCount =
+                        verifiedRadioAnchors.size,
+
                     stabilizedConfidence =
                         NavigationPositionConfidence.Low,
 
@@ -152,6 +227,12 @@ class NavigationPositionFusionEngine(
 
                 mode =
                     NavigationFusionMode.Rejected,
+
+                positionSource =
+                    NavigationPositionSource.Unknown,
+
+                verifiedRadioAnchorCount =
+                    verifiedRadioAnchors.size,
 
                 stabilizedConfidence =
                     confidenceHysteresis.confidence,
@@ -290,6 +371,16 @@ class NavigationPositionFusionEngine(
             mode =
                 NavigationFusionMode.DirectObservation,
 
+            positionSource =
+                if (useVerifiedRadioPosition) {
+                    NavigationPositionSource.VerifiedWifiRtt
+                } else {
+                    navigationPositionSource(positionedSample.provider)
+                },
+
+            verifiedRadioAnchorCount =
+                verifiedRadioAnchors.size,
+
             stabilizedConfidence =
                 confidence,
 
@@ -355,6 +446,9 @@ class NavigationPositionFusionEngine(
             mode =
                 NavigationFusionMode.DeadReckoning,
 
+            positionSource =
+                NavigationPositionSource.DeadReckoning,
+
             stabilizedConfidence =
                 NavigationPositionConfidence.Low,
 
@@ -383,6 +477,7 @@ class NavigationPositionFusionEngine(
         integrityMonitor.reset()
         motionEngine.reset()
         confidenceHysteresis.reset()
+        wifiRttAnchorVerifier.reset()
 
         previousAcceptedRawEstimate =
             null
@@ -558,3 +653,17 @@ private fun buildImuEvidence(
 
 private const val RADIANS_TO_DEGREES =
     180.0 / PI
+
+private fun navigationPositionSource(provider: String?): NavigationPositionSource =
+    when (provider?.lowercase()) {
+        "fused" -> NavigationPositionSource.AndroidFused
+        "gps" -> NavigationPositionSource.Gnss
+        "network" -> NavigationPositionSource.Network
+        else -> NavigationPositionSource.Unknown
+    }
+
+private const val VERIFIED_WIFI_RTT_PROVIDER =
+    "verified-wifi-rtt"
+
+private const val RTT_ACCURACY_IMPROVEMENT_RATIO =
+    0.8
