@@ -96,36 +96,56 @@ data class NavigationRawGnssSnapshot(
         )
     }
 
+    /*
+     * Android can report multiple carrier measurements for one satellite.
+     * Count distinct, code-locked satellites in a recent snapshot so extra
+     * bands cannot inflate the evidence strength.
+     */
+    private val usableMeasurements: List<NavigationRawGnssMeasurement>
+        get() =
+            measurements.filter {
+                it.state and CODE_LOCK_STATE != 0 &&
+                    it.elapsedRealtimeNanos <= elapsedRealtimeNanos &&
+                    elapsedRealtimeNanos - it.elapsedRealtimeNanos <=
+                        MAX_MEASUREMENT_AGE_NANOS
+            }
+
+    val usableSatelliteCount: Int
+        get() =
+            usableMeasurements
+                .map { it.satellite }
+                .distinct()
+                .size
+
     val measurementCount: Int
         get() =
-            measurements.size
+            usableMeasurements.size
 
     val constellationCount: Int
         get() =
-            measurements
-                .map {
-                    it.satellite.constellation
-                }
+            usableMeasurements
+                .map { it.satellite.constellation }
+                .filter { it != NavigationGnssConstellation.Unknown }
                 .distinct()
                 .size
 
     val meanCn0DbHz: Double?
         get() =
-            measurements
-                .map {
-                    it.cn0DbHz
+            usableMeasurements
+                .groupBy { it.satellite }
+                .values
+                .map { satelliteMeasurements ->
+                    satelliteMeasurements.maxOf { it.cn0DbHz }
                 }
-                .takeIf {
-                    it.isNotEmpty()
-                }
+                .takeIf { it.isNotEmpty() }
                 ?.average()
 
     val dualFrequencySatelliteCount: Int
         get() =
             measurements
                 .filter {
-                    it.carrierFrequencyHz !=
-                        null
+                    it in usableMeasurements &&
+                        it.carrierFrequencyHz != null
                 }
                 .groupBy {
                     it.satellite
@@ -172,16 +192,16 @@ data class NavigationRawGnssSnapshot(
                     ?: return NavigationRawGnssQuality.Weak
 
             return when {
-                measurementCount >=
-                    STRONG_MIN_MEASUREMENTS &&
+                usableSatelliteCount >=
+                    STRONG_MIN_SATELLITES &&
                     meanCn0 >=
                         STRONG_MIN_MEAN_CN0_DB_HZ &&
                     constellationCount >=
                         STRONG_MIN_CONSTELLATIONS ->
                     NavigationRawGnssQuality.Strong
 
-                measurementCount >=
-                    USABLE_MIN_MEASUREMENTS &&
+                usableSatelliteCount >=
+                    USABLE_MIN_SATELLITES &&
                     meanCn0 >=
                         USABLE_MIN_MEAN_CN0_DB_HZ ->
                     NavigationRawGnssQuality.Usable
@@ -192,8 +212,8 @@ data class NavigationRawGnssSnapshot(
         }
 }
 
-private const val STRONG_MIN_MEASUREMENTS =
-    10
+private const val STRONG_MIN_SATELLITES =
+    8
 
 private const val STRONG_MIN_MEAN_CN0_DB_HZ =
     28.0
@@ -201,11 +221,18 @@ private const val STRONG_MIN_MEAN_CN0_DB_HZ =
 private const val STRONG_MIN_CONSTELLATIONS =
     2
 
-private const val USABLE_MIN_MEASUREMENTS =
-    5
+private const val USABLE_MIN_SATELLITES =
+    4
 
 private const val USABLE_MIN_MEAN_CN0_DB_HZ =
     18.0
+
+/* GnssMeasurement.STATE_CODE_LOCK is Android's bit 0. */
+private const val CODE_LOCK_STATE =
+    1
+
+private const val MAX_MEASUREMENT_AGE_NANOS =
+    2_000_000_000L
 
 private const val FREQUENCY_BUCKET_HZ =
     100_000.0
