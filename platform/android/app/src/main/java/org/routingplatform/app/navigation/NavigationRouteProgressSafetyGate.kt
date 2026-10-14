@@ -477,20 +477,18 @@ class NavigationRouteProgressSafetyGate(
         ambiguityMargin:
             Double? =
             null,
-    ) =
-        NavigationRouteProgressSafetyDecision(
-            status =
-                status,
+    ): NavigationRouteProgressSafetyDecision {
+        if (status != NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress) {
+            clearPendingForwardProgress()
+        }
 
-            acceptedProgress =
-                lastAccepted,
-
-            hypothesis =
-                hypothesis,
-
-            ambiguityMargin =
-                ambiguityMargin,
+        return NavigationRouteProgressSafetyDecision(
+            status = status,
+            acceptedProgress = lastAccepted,
+            hypothesis = hypothesis,
+            ambiguityMargin = ambiguityMargin,
         )
+    }
 }
 
 private const val NANOS_PER_SECOND =
