@@ -841,23 +841,36 @@ internal fun NavigationScreen(
                             tonalElevation = 6.dp,
                             shape = MaterialTheme.shapes.medium,
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(
-                                    text = "Nächste Aktion",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                Text(
-                                    text = instruction,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = "In " + NavigationFormatter.distance(snapshot.distanceToCurrentManeuverEndM),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
+                                snapshot.currentManeuver
+                                    ?.let(::maneuverDirectionGlyph)
+                                    ?.let { glyph ->
+                                        Text(
+                                            text = glyph,
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            fontWeight = FontWeight.ExtraBold,
+                                        )
+                                        Spacer(Modifier.padding(horizontal = 4.dp))
+                                    }
+                                Column {
+                                    Text(
+                                        text = "Nächste Aktion",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        text = instruction,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        text = "In " + NavigationFormatter.distance(snapshot.distanceToCurrentManeuverEndM),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
                             }
                         }
                     }
@@ -3288,3 +3301,25 @@ private fun drivingPreferenceSummary(preferences: DrivingPreferences): String =
             }
         },
     ).joinToString(" · ")
+
+private fun maneuverDirectionGlyph(maneuver: org.routingplatform.app.navigation.NavigationManeuver): String? =
+    when (maneuver.engineType) {
+        9, 10, 11, 18, 20, 23, 37 -> "↗"
+        14, 15, 16, 19, 21, 24, 38 -> "↖"
+        7, 8, 17, 22 -> "↑"
+        12 -> "↶"
+        13 -> "↷"
+        else -> when (maneuver.type) {
+            org.routingplatform.app.navigation.ManeuverType.Start,
+            org.routingplatform.app.navigation.ManeuverType.Continue -> "↑"
+            org.routingplatform.app.navigation.ManeuverType.TurnLeft -> "←"
+            org.routingplatform.app.navigation.ManeuverType.TurnRight -> "→"
+            org.routingplatform.app.navigation.ManeuverType.UTurn -> "↶"
+            org.routingplatform.app.navigation.ManeuverType.Exit -> null
+            org.routingplatform.app.navigation.ManeuverType.Merge,
+            org.routingplatform.app.navigation.ManeuverType.RoundaboutEnter,
+            org.routingplatform.app.navigation.ManeuverType.RoundaboutExit,
+            org.routingplatform.app.navigation.ManeuverType.Arrive,
+            org.routingplatform.app.navigation.ManeuverType.Unknown -> null
+        }
+    }
