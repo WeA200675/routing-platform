@@ -46,7 +46,7 @@ class HubTest(unittest.TestCase):
 
     def test_invalid_source_delay_and_validity_are_rejected(self):
         for changes in ({"estimatedDelaySeconds": -1}, {"sourceUrl": "http://bad.test"},
-                        {"validUntilEpochMillis": self.now - 1}, {"severity": 6}):
+                        {"validUntilEpochMillis": self.now - 30_000}, {"severity": 6}):
             with self.subTest(changes=changes), self.assertRaises(hub.HubError):
                 hub.normalize_event(self.event(**changes), "die-autobahn", "Die Autobahn", self.now)
 

@@ -17,7 +17,7 @@ TRAFFIC_PROVIDER_ALLOWLIST=die-autobahn,asfinag \
 python3 -m backend.traffic_intelligence_hub
 ```
 
-The default bind is loopback. To expose the service, set `HUB_BIND_HOST=0.0.0.0`, use an API token of at least 32 characters, and place it behind authenticated TLS. Never put that token in the APK. Provider allowlist and source attribution are explicit; an empty allowlist means no feed is trusted and traffic status remains unavailable.
+For automatic ingestion, provide a JSON array in `TRAFFIC_FEEDS_JSON` with `id`, allowlisted `provider`, HTTPS `url`, `attribution` and optional `intervalSeconds` (30–1800). For example: `[{"id":"autobahn-feed","provider":"die-autobahn","url":"https://YOUR-CONFIGURED-FEED/events.geojson","attribution":"Die Autobahn","intervalSeconds":120}]`. Optional `authorizationEnv` names a server environment variable; secret values never go in the JSON. The default bind is loopback. To expose the service, set `HUB_BIND_HOST=0.0.0.0`, use an API token of at least 32 characters, and place it behind authenticated TLS. Never put that token in the APK. Provider allowlist and source attribution are explicit; an empty allowlist means no feed is trusted and traffic status remains unavailable.
 
 ## API outline
 
@@ -27,7 +27,7 @@ The default bind is loopback. To expose the service, set `HUB_BIND_HOST=0.0.0.0`
 - `POST /v1/training/examples` and authenticated `GET /v1/training/dataset` — human-curated training records and dataset handoff.
 - `GET /v1/status` — whether a provider is configured, never a guess that traffic is clear.
 
-The first source adapter accepts GeoJSON FeatureCollections with canonical properties. Other DATEX II/provider schemas must be mapped by a source-specific adapter and reviewed before allowlisting. Provider API credentials stay server-side. Feed coverage, update cadence and license terms remain source-specific.
+The HTTPS poller accepts GeoJSON FeatureCollections with canonical properties. Other DATEX II/provider schemas must be mapped by a source-specific adapter and reviewed before allowlisting. Provider API credentials stay server-side. The poller supports up to 16 feeds and isolates failures so one provider cannot clear another provider's data. Feed coverage, update cadence and license terms remain source-specific.
 
 ## Training is staged, not self-reinforcing
 

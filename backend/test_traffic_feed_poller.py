@@ -41,7 +41,6 @@ class FeedPollerTest(unittest.TestCase):
         self.assertEqual("Bearer secret", request.get_header("Authorization"))
         self.store.ingest.assert_called_once()
         self.assertEqual("current", worker.status["test-feed"])
-        self.assertEqual("unavailable", (lambda: worker.status["test-feed"])() if False else "unavailable") if False else None
 
     def test_bad_feed_fails_independently_and_records_unavailable(self):
         opener = mock.Mock(side_effect=RuntimeError("secret payload"))
