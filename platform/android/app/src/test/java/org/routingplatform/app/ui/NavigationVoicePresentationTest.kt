@@ -5,6 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.routingplatform.app.navigation.ManeuverType
 import org.routingplatform.app.navigation.NavigationManeuver
+import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.RoutePoint
@@ -17,6 +18,38 @@ import org.routingplatform.app.profile.VoiceGuidanceVerbosity
 import org.routingplatform.app.profile.VoicePreferences
 
 class NavigationVoicePresentationTest {
+
+    @Test
+    fun routeStartExplainsStrategyAndClearlyMarksTrafficUnavailable() {
+        val cue = NavigationVoicePresentation.routeStartCue(
+            snapshot(distanceMeters = 500.0),
+            NavigationRouteFamily.Fastest,
+            voice(),
+        )
+
+        org.junit.Assert.assertEquals("route-start-summary:Fastest", cue?.key?.instruction)
+        org.junit.Assert.assertTrue(cue?.text.orEmpty().contains("schnellste Route"))
+        org.junit.Assert.assertTrue(cue?.text.orEmpty().contains("Live-Verkehrsdaten sind nicht verbunden"))
+        org.junit.Assert.assertFalse(cue?.text.orEmpty().contains("Stau vorhanden"))
+    }
+
+    @Test
+    fun routeStartSummaryRequiresEnabledVoiceAndActiveNavigation() {
+        assertNull(
+            NavigationVoicePresentation.routeStartCue(
+                snapshot(state = NavigationSessionState.Preview, distanceMeters = 500.0),
+                NavigationRouteFamily.Fastest,
+                voice(),
+            )
+        )
+        assertNull(
+            NavigationVoicePresentation.routeStartCue(
+                snapshot(distanceMeters = 500.0),
+                NavigationRouteFamily.Fastest,
+                voice(enabled = false),
+            )
+        )
+    }
 
     @Test
     fun disabledVoiceProducesNoCue() {

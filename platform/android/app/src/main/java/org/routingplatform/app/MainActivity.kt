@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -289,6 +291,17 @@ class MainActivity :
                         applicationContext
                     )
                 }
+
+            LaunchedEffect(socialAiProductRuntime, activeProfile.ai.learningEnabled) {
+                if (activeProfile.ai.learningEnabled) {
+                    // Prepare the verified local model after the UI settles so its first
+                    // explicit request does not pay the model-load cost.
+                    delay(5_000)
+                    runCatching {
+                        withContext(Dispatchers.IO) { socialAiProductRuntime.warmUp() }
+                    }
+                }
+            }
             val socialAiLearningRepository = remember {
                 SocialAiLearningRepository(AndroidSocialAiMemoryStore(applicationContext))
             }
@@ -3089,6 +3102,12 @@ class MainActivity :
                             snapshot =
                                 bridge
                                     .startNavigation()
+
+                            voiceRuntime.routeStartSummary(
+                                snapshot,
+                                socialAiRouteFamily,
+                                activeProfile.voice,
+                            )
 
                             navigationBootId
                                 ?.let { bootId ->

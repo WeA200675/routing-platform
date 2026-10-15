@@ -22,6 +22,12 @@ class SocialAiProductRuntime(
         return SocialAiProductionRouting(active)
     }
 
+    /** Loads the integrity-checked local model during route idle time. */
+    @Synchronized
+    fun warmUp() {
+        load()
+    }
+
     @Synchronized
     fun generateConversationResponse(
         input: SocialAiRuntimeInput,

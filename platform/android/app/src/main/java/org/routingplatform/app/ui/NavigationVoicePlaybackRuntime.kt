@@ -214,6 +214,10 @@ internal class NavigationVoicePlaybackRuntime(
         }
     }
 
+    fun presentRouteStart(cue: NavigationVoiceCue) {
+        if (cue.text.isNotBlank()) speaker.submit(cue)
+    }
+
     fun presentExperiencePackActivation(
         snapshot: NavigationUiSnapshot,
         voice: VoicePreferences,
