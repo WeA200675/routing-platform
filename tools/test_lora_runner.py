@@ -18,6 +18,16 @@ class LoraRunnerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "found 0"):
             lora_runner.select_examples(rows, "gps_confidence")
 
+    def test_compute_plan_reports_batch_steps_and_no_fabricated_eta(self):
+        plan = lora_runner.calculate_training_plan(41, {
+            "devices":[{"totalMemoryBytes":16,"freeMemoryBytes":8},
+                       {"totalMemoryBytes":16,"freeMemoryBytes":7}]}, 3, 8)
+        self.assertEqual(16, plan["effectiveBatchSize"])
+        self.assertEqual(9, plan["estimatedOptimizerSteps"])
+        self.assertEqual(15, plan["gpuMemoryFreeBytesAtPreflight"])
+        self.assertIsNone(plan["estimatedWallClockSeconds"])
+        self.assertIn("no measured baseline", plan["etaReason"])
+
     def test_builds_reproducible_alpaca_dataset_config_and_manifest(self):
         rows = [{"id": f"s-{i}", "task": "speech_clarity", "prompt": "Wie geht es?",
                  "expectedAnswer": "Gut.", "knowledgeIds": []} for i in range(20)]
@@ -31,7 +41,7 @@ class LoraRunnerTest(unittest.TestCase):
             work = pathlib.Path(temp) / "work"
             work.mkdir()
             result = lora_runner.build_training_files(work, rows, args, "1.2.3",
-                {"torch":"2.x", "cuda":"12.x", "devices":[]})
+                {"torch":"2.x", "cuda":"12.x", "devices":[{"name":"test GPU","totalMemoryBytes":100,"freeMemoryBytes":60}]})
             data = json.loads((work / "reviewed-sft.json").read_text(encoding="utf-8"))
             config = (work / "train.yaml").read_text(encoding="utf-8")
             manifest = json.loads((output / "training-manifest.json").read_text(encoding="utf-8"))
@@ -41,6 +51,8 @@ class LoraRunnerTest(unittest.TestCase):
             self.assertIn("model_revision:", config)
             self.assertEqual("1.2.3", manifest["trainerVersion"])
             self.assertEqual(64, len(manifest["datasetSha256"]))
+            self.assertIsNone(manifest["computePlan"]["estimatedWallClockSeconds"])
+            self.assertIn("val_size: 0.1", config)
             self.assertTrue(pathlib.Path(result["config"]).exists())
 
 

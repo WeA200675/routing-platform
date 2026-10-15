@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import importlib.metadata
 import json
+import math
 import os
 import pathlib
 import re
@@ -81,6 +82,31 @@ def check_environment(expected_trainer_version: str) -> tuple[str, dict]:
     return actual, {"torch": torch.__version__, "cuda": torch.version.cuda, "devices": devices}
 
 
+
+def calculate_training_plan(example_count: int, hardware: dict, epochs: float,
+                            gradient_accumulation: int) -> dict:
+    """Return exact configuration arithmetic and measured capacity, never a guessed ETA."""
+    devices = hardware.get("devices") or []
+    if not devices:
+        raise ValueError("training plan requires at least one measured CUDA device")
+    device_count = len(devices)
+    effective_batch = device_count * gradient_accumulation
+    steps_per_epoch = math.ceil(example_count / effective_batch)
+    total_steps = math.ceil(steps_per_epoch * epochs)
+    return {
+        "reviewedExamples": example_count,
+        "epochs": epochs,
+        "cudaDeviceCount": device_count,
+        "gradientAccumulation": gradient_accumulation,
+        "effectiveBatchSize": effective_batch,
+        "estimatedOptimizerSteps": total_steps,
+        "gpuMemoryTotalBytes": sum(d["totalMemoryBytes"] for d in devices),
+        "gpuMemoryFreeBytesAtPreflight": sum(d["freeMemoryBytes"] for d in devices),
+        "estimatedWallClockSeconds": None,
+        "etaReason": "no measured baseline run for this model, GPU, and dataset",
+    }
+
+
 def build_training_files(workdir: pathlib.Path, examples: list[dict], args, trainer_version: str,
                          hardware: dict) -> dict:
     data = []
@@ -134,6 +160,9 @@ def build_training_files(workdir: pathlib.Path, examples: list[dict], args, trai
         "weight_decay": 0.01,
         "seed": args.seed,
         "plot_loss": True,
+        "val_size": 0.1,
+        "eval_strategy": "epoch",
+        "per_device_eval_batch_size": 1,
     }
     config_path = workdir / "train.yaml"
     lines = []
@@ -147,6 +176,7 @@ def build_training_files(workdir: pathlib.Path, examples: list[dict], args, trai
         lines.append(f"{key}: {rendered}")
     config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     digest = hashlib.sha256(dataset_path.read_bytes()).hexdigest()
+    plan = calculate_training_plan(len(data), hardware, args.epochs, args.gradient_accumulation)
     manifest = {
         "createdAtEpochMillis": int(time.time() * 1000),
         "model": args.model,
@@ -159,6 +189,7 @@ def build_training_files(workdir: pathlib.Path, examples: list[dict], args, trai
         "datasetSha256": digest,
         "hardware": hardware,
         "trainingMode": "LoRA SFT",
+        "computePlan": plan,
     }
     (pathlib.Path(args.output_dir).resolve() / "training-manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
