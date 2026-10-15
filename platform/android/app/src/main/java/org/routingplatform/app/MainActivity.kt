@@ -2233,8 +2233,6 @@ class MainActivity :
 
                         navigationRuntimeRecoveryMessage = navigationRecoveryMessage,
 
-                        navigationRuntimeRecoveryMessage = navigationRecoveryMessage,
-
                         routeAcquisitionState =
                             routeAcquisitionTelemetry
                                 .state,
