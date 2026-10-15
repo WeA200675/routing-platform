@@ -55,6 +55,8 @@ class NavigationRouteLifecycleController(
         NavigationTrafficReplacementPolicy()
 
     private var activeRouteContract: NavigationRouteContract? = null
+    private var retryHandle: android.os.Handler? = null
+    private var retryToken = 0L
 
     private var latestTrustedRerouteOrigin: NavigationTrustedRefreshObservation? = null
 
@@ -75,6 +77,17 @@ class NavigationRouteLifecycleController(
             (
                 NavigationRouteAcquisitionTelemetry
             ) -> Unit,
+    ) {
+        scheduleTokenBump()
+        loadInitialAttempt(request, snapshotProvider, onSnapshot, onTelemetry, retryNumber = 0)
+    }
+
+    private fun loadInitialAttempt(
+        request: NavigationRouteRequest,
+        snapshotProvider: () -> NavigationUiSnapshot,
+        onSnapshot: (NavigationUiSnapshot) -> Unit,
+        onTelemetry: (NavigationRouteAcquisitionTelemetry) -> Unit,
+        retryNumber: Int,
     ) {
         cancelActiveRequest()
 
@@ -165,19 +178,31 @@ class NavigationRouteLifecycleController(
                                     error
                                 )
 
+                        val mayRetry = fault.disposition == NavigationFaultDisposition.RetryableInfrastructure &&
+                            retryNumber == 0 && snapshotProvider().state == NavigationSessionState.Preview
                         onTelemetry(
                             NavigationRouteAcquisitionTelemetry(
                                 state =
                                     NavigationRouteAcquisitionState.LiveFailed,
 
                                 message =
-                                    "Live-Route fehlgeschlagen – Fallback-Route aktiv: " +
-                                        fault.userMessage,
+                                    if (mayRetry) "Live-Route nicht erreichbar – erneuter Versuch läuft: ${fault.userMessage}"
+                                    else "Live-Route fehlgeschlagen – Fallback-Route aktiv: ${fault.userMessage}",
 
                                 fault =
                                     fault,
                             )
                         )
+                        if (mayRetry) {
+                            val token = retryToken
+                            val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                            retryHandle = handler
+                            handler.postDelayed({
+                                if (token == retryToken && snapshotProvider().state == NavigationSessionState.Preview) {
+                                    loadInitialAttempt(request, snapshotProvider, onSnapshot, onTelemetry, retryNumber = 1)
+                                }
+                            }, INITIAL_RETRY_DELAY_MS)
+                        }
                     },
                 )
             }
@@ -581,6 +606,7 @@ class NavigationRouteLifecycleController(
     }
 
     override fun close() {
+        cancelScheduledRetry()
         cancelActiveRequest()
 
         rerouteDecisionEngine.reset()
@@ -589,6 +615,7 @@ class NavigationRouteLifecycleController(
     }
 
     private fun cancelActiveRequest() {
+        cancelScheduledRetry()
         activeHandle
             ?.cancel()
 
@@ -614,5 +641,19 @@ class NavigationRouteLifecycleController(
             1L
 
         return requestGeneration
+    }
+
+    private fun scheduleTokenBump() {
+        retryToken += 1L
+        cancelScheduledRetry()
+    }
+
+    private fun cancelScheduledRetry() {
+        retryHandle?.removeCallbacksAndMessages(null)
+        retryHandle = null
+    }
+
+    private companion object {
+        const val INITIAL_RETRY_DELAY_MS = 1_500L
     }
 }

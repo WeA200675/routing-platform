@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -946,7 +947,14 @@ internal fun NavigationScreen(
                     Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(18.dp),
+                        .padding(if (snapshot.state == NavigationSessionState.Navigating) 8.dp else 18.dp)
+                        .let { base ->
+                            if (snapshot.state == NavigationSessionState.Navigating) {
+                                base.heightIn(max = 164.dp)
+                            } else {
+                                base
+                            }
+                        },
             ) {
                 if (snapshot.state == NavigationSessionState.Navigating && trafficDetourOffer != null) {
                     TrafficDetourOfferCard(
@@ -985,36 +993,23 @@ internal fun NavigationScreen(
 
                         fontWeight =
                             FontWeight.Medium,
+                        maxLines = if (snapshot.state == NavigationSessionState.Navigating) 1 else Int.MAX_VALUE,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
 
-                    Spacer(
-                        modifier =
-                            Modifier.height(
-                                8.dp
-                            )
-                    )
+                    if (snapshot.state != NavigationSessionState.Navigating) {
+                        Spacer(Modifier.height(8.dp))
+                    }
                 }
 
-                Text(
-                    text =
-                        snapshot
-                            .currentManeuver
-                            ?.guidanceInstruction
-                            ?: "Route bereit",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleLarge,
-
-                    fontWeight =
-                        FontWeight.SemiBold,
-                )
-
-                Spacer(
-                    modifier =
-                        Modifier.height(12.dp)
-                )
+                if (snapshot.state != NavigationSessionState.Navigating) {
+                    Text(
+                        text = snapshot.currentManeuver?.guidanceInstruction ?: "Route bereit",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
 
                 Row(
                     modifier =
@@ -1055,6 +1050,7 @@ internal fun NavigationScreen(
                     if (
                         informationDensityPresentation
                             .showProgress
+                        && snapshot.state != NavigationSessionState.Navigating
                     ) {
                         InfoValue(
                             label =
@@ -1174,6 +1170,7 @@ internal fun NavigationScreen(
                 }
 
                 if (
+                    snapshot.state != NavigationSessionState.Navigating &&
                     informationDensityPresentation
                         .showManeuverDistance
                 ) {
@@ -1205,17 +1202,7 @@ internal fun NavigationScreen(
                         }
                 }
 
-                if (snapshot.state == NavigationSessionState.Navigating) {
-                    Text(
-                        text = "Karte: " + if (nightPresentation.nightMode) "Nacht" else "System",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-
-                Spacer(
-                    modifier =
-                        Modifier.height(16.dp)
-                )
+                Spacer(Modifier.height(if (snapshot.state == NavigationSessionState.Navigating) 6.dp else 16.dp))
 
                 val navigationControl =
                     NavigationControlPresentation
@@ -3268,33 +3255,25 @@ private fun NavigationPrimaryControl(
         }
 
         if (presentation.destructive) {
-            OutlinedButton(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp)
+            Row(
+                modifier = Modifier.weight(1f).padding(start = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    modifier = Modifier.weight(1f).heightIn(min = 36.dp)
                         .testTag("navigation-via-point-add"),
+                    enabled = viaPointEnabled,
+                    onClick = onAddViaPoint,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                ) { Text("＋ Stopp", style = MaterialTheme.typography.labelSmall, maxLines = 1) }
 
-                enabled =
-                    viaPointEnabled,
-
-                onClick =
-                    onAddViaPoint,
-            ) {
-                Text("+ Zwischenziel")
-            }
-
-            OutlinedButton(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp)
+                OutlinedButton(
+                    modifier = Modifier.weight(1f).heightIn(min = 36.dp)
                         .testTag("navigation-restart"),
-
-                onClick =
-                    onRestartNavigation,
-            ) {
-                Text("Neu starten")
+                    onClick = onRestartNavigation,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                ) { Text("↻ Neustart", style = MaterialTheme.typography.labelSmall, maxLines = 1) }
             }
         }
     }

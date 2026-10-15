@@ -446,6 +446,51 @@ class NavigationVoicePresentationTest {
         assertEquals(1.0, criticalCue?.speechPitch ?: 0.0, 0.001)
     }
 
+    @Test
+    fun surpriseThemesAffectSpokenGuidanceWhileCriticalRepeatsStayNeutral() {
+        val cases = listOf(
+            ExperiencePackCatalog.ZEN_PACK_ID to "Ganz ruhig:",
+            "cozy" to "Gern für dich:",
+            "focus" to "Ich bin dabei:",
+            ExperiencePackCatalog.GALACTIC_PACK_ID to "Sprungfenster voraus:",
+        )
+        for ((packId, leadIn) in cases) {
+            val themed = NavigationVoicePresentation.cue(
+                snapshot = snapshot(distanceMeters = 180.0),
+                voice = voice(),
+                personality = NavigationPersonalityPreferences(
+                    selectedPackId = packId,
+                    selectionSource = ExperiencePackSelectionSource.Explicit,
+                ),
+            )
+            org.junit.Assert.assertTrue("$packId should affect spoken output", themed?.text?.startsWith(leadIn) == true)
+            org.junit.Assert.assertTrue(themed?.text?.endsWith("In 120 Metern rechts abbiegen") == true)
+        }
+    }
+
+    @Test
+    fun surpriseActivationProducesAnAudibleConfirmationOnlyWhenEnabledInPreview() {
+        val preferences = NavigationPersonalityPreferences(
+            selectedPackId = ExperiencePackCatalog.ZEN_PACK_ID,
+            selectionSource = ExperiencePackSelectionSource.WeeklyDiscovery,
+            weeklyDiscoveryEnabled = true,
+        )
+        val cue = NavigationVoicePresentation.experiencePackActivationCue(
+            snapshot = snapshot(state = NavigationSessionState.Preview, distanceMeters = 900.0),
+            voice = voice(),
+            personality = preferences,
+        )
+        org.junit.Assert.assertTrue(cue?.text?.contains("Überraschungsstil") == true)
+        org.junit.Assert.assertTrue(cue?.text?.contains("aktiv") == true)
+        assertNull(
+            NavigationVoicePresentation.experiencePackActivationCue(
+                snapshot = snapshot(distanceMeters = 900.0),
+                voice = voice(),
+                personality = preferences,
+            ),
+        )
+    }
+
     private fun voice(
         enabled:
             Boolean =

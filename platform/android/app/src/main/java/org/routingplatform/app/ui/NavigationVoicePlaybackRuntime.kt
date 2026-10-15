@@ -214,6 +214,15 @@ internal class NavigationVoicePlaybackRuntime(
         }
     }
 
+    fun presentExperiencePackActivation(
+        snapshot: NavigationUiSnapshot,
+        voice: VoicePreferences,
+        personality: NavigationPersonalityPreferences,
+    ) {
+        val cue = NavigationVoicePresentation.experiencePackActivationCue(snapshot, voice, personality) ?: return
+        speaker.submit(cue)
+    }
+
     private fun trackFallbackManeuver(
         snapshot: NavigationUiSnapshot,
     ): Long? {

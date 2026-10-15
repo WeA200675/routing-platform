@@ -10,6 +10,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import java.util.Locale
 import org.routingplatform.app.navigation.NavigationUiSnapshot
@@ -102,6 +104,14 @@ internal class AndroidNavigationVoiceRuntime(
         playback.presentSpeedLimitWarning(snapshot, warning, voice)
     }
 
+    fun presentExperiencePackActivation(
+        snapshot: NavigationUiSnapshot,
+        voice: VoicePreferences,
+        personality: NavigationPersonalityPreferences,
+    ) {
+        playback.presentExperiencePackActivation(snapshot, voice, personality)
+    }
+
     fun preview(
         voice:
             VoicePreferences,
@@ -177,13 +187,21 @@ internal fun rememberNavigationVoiceRuntime(
                     personality,
             )
 
+    val activePackId = ExperiencePackRuntimeResolver.resolvePackOverride(personality)?.packId
+    var previousPackId by remember(context) { mutableStateOf(activePackId) }
+    var previousWeeklyDiscovery by remember(context) { mutableStateOf(personality.weeklyDiscoveryEnabled) }
+
     LaunchedEffect(
         runtime,
         snapshot,
         effectiveVoice,
         navigationPreferences,
         personality,
+        activePackId,
     ) {
+        val surpriseChanged = previousWeeklyDiscovery != personality.weeklyDiscoveryEnabled || previousPackId != activePackId
+        previousWeeklyDiscovery = personality.weeklyDiscoveryEnabled
+        previousPackId = activePackId
         runtime.present(
             snapshot =
                 snapshot,
@@ -197,6 +215,9 @@ internal fun rememberNavigationVoiceRuntime(
             personality =
                 personality,
         )
+        if (surpriseChanged && personality.weeklyDiscoveryEnabled && snapshot.state == org.routingplatform.app.navigation.NavigationSessionState.Preview) {
+            runtime.presentExperiencePackActivation(snapshot, effectiveVoice, personality)
+        }
     }
 
     DisposableEffect(
