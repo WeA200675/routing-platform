@@ -8,6 +8,16 @@ import time
 import urllib.request
 
 
+def _validate_autobahn_url(url):
+    match = re.fullmatch(
+        r"https://verkehr\.autobahn\.de/o/autobahn/(A[0-9]{1,3}[A-Z]?)/services/(warning|roadworks|closure)",
+        url,
+    )
+    if not match:
+        raise ValueError("Autobahn feed URL must be a documented road/service endpoint")
+    return match.group(1), match.group(2)
+
+
 def load_config(raw, providers):
     if not raw:
         return []
@@ -23,6 +33,7 @@ def load_config(raw, providers):
         url = str(item.get("url", "")).strip()
         attribution = str(item.get("attribution", "")).strip()
         interval = item.get("intervalSeconds", 120)
+        feed_format = item.get("format", "geojson")
         if not re.fullmatch(r"[A-Za-z0-9._:-]{1,80}", feed_id) or feed_id in ids:
             raise ValueError("feed ID is invalid or duplicated")
         if provider not in providers:
@@ -33,14 +44,90 @@ def load_config(raw, providers):
             raise ValueError("feed attribution is missing or too long")
         if isinstance(interval, bool) or not isinstance(interval, int) or not 30 <= interval <= 1800:
             raise ValueError("feed interval must be between 30 and 1800 seconds")
+        if feed_format not in {"geojson", "autobahn"}:
+            raise ValueError("unsupported feed format")
+        feed = {"id": feed_id, "provider": provider, "url": url,
+                "attribution": attribution, "intervalSeconds": interval,
+                "format": feed_format}
         auth_env = item.get("authorizationEnv")
         if auth_env is not None and not re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", str(auth_env)):
             raise ValueError("authorizationEnv must be an environment variable name")
-        feeds.append({"id": feed_id, "provider": provider, "url": url,
-                      "attribution": attribution, "intervalSeconds": interval,
-                      "authorizationEnv": auth_env})
+        if feed_format == "autobahn":
+            if auth_env is not None:
+                raise ValueError("public Autobahn API does not use bearer credentials")
+            feed["roadId"], feed["service"] = _validate_autobahn_url(url)
+        elif feed_format == "geojson":
+            feed["authorizationEnv"] = auth_env
+        feeds.append(feed)
         ids.add(feed_id)
     return feeds
+
+
+def parse_autobahn_response(payload, feed, now_ms):
+    """Normalize one official Autobahn API service response into hub events."""
+    import hashlib
+    from backend.traffic_intelligence_hub import HubError
+
+    if not isinstance(payload, dict):
+        raise HubError("Autobahn response must be a JSON object")
+    service = feed["service"]
+    items = payload.get(service)
+    if not isinstance(items, list) or len(items) > 500:
+        raise HubError("Autobahn response has an invalid service list")
+    result = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        raw_id = item.get("identifier")
+        title = item.get("title")
+        if not isinstance(raw_id, str) or not raw_id.strip() or not isinstance(title, str) or not title.strip():
+            continue
+        point = item.get("point")
+        lat = lon = None
+        if isinstance(point, str):
+            parts = point.split(",")
+            if len(parts) == 2:
+                try:
+                    lon, lat = float(parts[0]), float(parts[1])
+                except ValueError:
+                    continue
+        elif isinstance(point, dict):
+            try:
+                lat, lon = float(point.get("lat")), float(point.get("long", point.get("lon")))
+            except (TypeError, ValueError):
+                continue
+        if lat is None or lon is None:
+            continue
+        description_value = item.get("description", [])
+        if isinstance(description_value, list):
+            description = " ".join(str(part).strip() for part in description_value if part)
+        elif isinstance(description_value, str):
+            description = description_value.strip()
+        else:
+            description = ""
+        text = (title + " " + description).lower()
+        if service == "closure":
+            kind, severity = "closure", 5
+        elif any(word in text for word in ("unfall", "accident", "geisterfahrer", "fahrzeugbrand")):
+            kind, severity = "accident", 5
+        elif service == "roadworks":
+            kind, severity = "roadworks", 3
+        elif any(word in text for word in ("stau", "störung", "stockender", "congestion", "jam")):
+            kind, severity = "congestion", 4
+        else:
+            kind, severity = "hazard", 3
+        event_id = "ab-" + hashlib.sha256(raw_id.encode("utf-8")).hexdigest()[:32]
+        result.append({
+            "id": event_id, "kind": kind, "severity": severity,
+            "latitude": lat, "longitude": lon,
+            "observedAtEpochMillis": now_ms,
+            "validUntilEpochMillis": now_ms + 5 * 60_000,
+            "estimatedDelaySeconds": None,
+            "roadLabel": feed["roadId"],
+            "description": (title.strip() + (": " + description if description else ""))[:500],
+            "sourceUrl": feed["url"], "confidence": 0.85,
+        })
+    return result
 
 
 class GeoJSONFeedPoller(threading.Thread):
@@ -77,8 +164,12 @@ class GeoJSONFeedPoller(threading.Thread):
                     raise ValueError("feed response too large")
                 collection = json.loads(raw)
                 from backend import traffic_intelligence_hub as hub
-                events = hub.parse_geojson(collection, feed["provider"], feed["attribution"], now_ms)
-                self.store.ingest(feed["provider"], feed["attribution"], events, now_ms)
+                if feed.get("format", "geojson") == "autobahn":
+                    events = parse_autobahn_response(collection, feed, now_ms)
+                else:
+                    events = hub.parse_geojson(collection, feed["provider"], feed["attribution"], now_ms)
+                if events:
+                    self.store.ingest(feed["provider"], feed["attribution"], events, now_ms)
                 self.status[feed["id"]] = "current"
             except Exception:
                 # Provider payloads and credentials are deliberately not logged.

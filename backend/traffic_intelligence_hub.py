@@ -12,6 +12,8 @@ import math
 import os
 import re
 import sqlite3
+import subprocess
+import sys
 import threading
 import time
 import urllib.request
@@ -407,6 +409,91 @@ def _start_training_run(store, run_id):
     threading.Thread(target=work, name="training-check-" + run_id, daemon=True).start()
 
 
+def _start_lora_run(store, run_id, server_port, api_token):
+    """Launch the real local LoRA worker and persist only truthful job state."""
+    with store.lock:
+        if getattr(store, "_active_training_run", False):
+            raise HubError("another training run is already active")
+        store._active_training_run = True
+    try:
+        enabled = os.environ.get("HUB_LORA_ENABLED", "").lower() == "true"
+        revision = os.environ.get("MODEL_REVISION", "")
+        trainer_version = os.environ.get("TRAINER_EXPECTED_VERSION", "")
+        if not enabled:
+            raise HubError("LoRA runner is disabled; set HUB_LORA_ENABLED=true")
+        if not re.fullmatch(r"[0-9a-fA-F]{40,64}", revision):
+            raise HubError("MODEL_REVISION must be a full immutable model commit hash")
+        if not trainer_version:
+            raise HubError("TRAINER_EXPECTED_VERSION must pin the installed trainer")
+        run = store.training_run(run_id)
+        if not run or run["status"] != "queued":
+            raise HubError("LoRA run is not queued")
+        root = Path(__file__).resolve().parent.parent
+        runner = root / "tools" / "lora_runner.py"
+        if not runner.is_file():
+            raise HubError("LoRA runner script is unavailable")
+        output_root = Path(os.environ.get("LORA_OUTPUT_DIR", str(root / "lora-output"))).expanduser().resolve()
+        output_dir = output_root / (run_id + "-" + str(int(time.time())))
+        output_dir.mkdir(parents=True, exist_ok=False)
+        log_path = output_dir / "trainer.log"
+        command = [
+            sys.executable, str(runner), "--hub", f"http://127.0.0.1:{server_port}",
+            "--trainer-version", trainer_version, "--revision", revision,
+            "--model", os.environ.get("LORA_MODEL_ID", "Qwen/Qwen3.5-4B-Base"),
+            "--template", os.environ.get("LORA_TEMPLATE", "qwen3_nothink"),
+            "--preset", run["preset"], "--output-dir", str(output_dir / "adapter"),
+        ]
+        child_env = dict(os.environ)
+        child_env["HUB_API_TOKEN"] = api_token
+        with log_path.open("w", encoding="utf-8") as log:
+            process = subprocess.Popen(command, cwd=root, env=child_env,
+                                       stdout=log, stderr=subprocess.STDOUT)
+        store.update_training_run(run_id, status="running", progress=0,
+            stage="LoRA-Prozess läuft; kein synthetischer Schrittfortschritt",
+            metrics={"mode":"lora", "pid":process.pid, "logPath":str(log_path),
+                     "outputDir":str(output_dir), "weightUpdate":False})
+    except Exception as error:
+        with store.lock:
+            store._active_training_run = False
+        try:
+            failed = store.training_run(run_id)
+            if failed and failed["status"] == "queued":
+                try:
+                    metrics = json.loads(failed.get("metrics") or "{}")
+                except (TypeError, json.JSONDecodeError):
+                    metrics = {}
+                store.update_training_run(run_id, status="failed", progress=0,
+                    stage="LoRA-Vorabprüfung fehlgeschlagen; Modellgewichte unverändert",
+                    error=str(error)[:240], metrics={**metrics, "mode":"lora", "weightUpdate":False})
+        except Exception:
+            pass
+        raise
+
+    def monitor():
+        try:
+            return_code = process.wait()
+            current = store.training_run(run_id)
+            metrics = {}
+            try:
+                metrics = json.loads(current["metrics"] or "{}")
+            except (TypeError, json.JSONDecodeError):
+                pass
+            if return_code == 0:
+                store.update_training_run(run_id, status="completed", progress=100,
+                    stage="LoRA-Training beendet; Adapter und Manifest liegen im Ausgabepfad",
+                    metrics={**metrics, "weightUpdate":True, "exitCode":0})
+            else:
+                store.update_training_run(run_id, status="failed", progress=0,
+                    stage="LoRA-Training fehlgeschlagen; Details stehen im lokalen Trainer-Log",
+                    error=f"Trainer exit code {return_code}",
+                    metrics={**metrics, "weightUpdate":False, "exitCode":return_code})
+        finally:
+            with store.lock:
+                store._active_training_run = False
+
+    threading.Thread(target=monitor, name="lora-monitor-" + run_id, daemon=True).start()
+
+
 class HubHandler(BaseHTTPRequestHandler):
     store = None
     api_token = ""
@@ -458,7 +545,7 @@ class HubHandler(BaseHTTPRequestHandler):
                              "approvedKnowledgeCount": knowledge_count,
                              "trainingExampleCount": len(self.store.training_dataset()),
                              "model": {"id": os.environ.get("LOCAL_MODEL_ID", "Qwen2.5-1.5B-Instruct-Q4_K_M"),
-                                       "runtime": "device-local", "weightsTraining": "not_connected"}})
+                                       "runtime": "device-local", "weightsTraining": "configured" if os.environ.get("HUB_LORA_ENABLED", "").lower() == "true" else "not_configured"}})
             return
         if parsed.path == "/v1/dashboard":
             if not self._authorized():
@@ -471,9 +558,13 @@ class HubHandler(BaseHTTPRequestHandler):
                                        "trafficEventCount": len(events),
                                        "approvedKnowledgeCount": knowledge_count,
                                        "trainingExampleCount": len(examples),
-                                       "trafficData": "configured" if self.store.providers else "unavailable"},
+                                       "trafficData": "configured" if self.store.providers else "unavailable",
+                                       "loraRunnerConfigured": (
+                                           os.environ.get("HUB_LORA_ENABLED", "").lower() == "true"
+                                           and bool(re.fullmatch(r"[0-9a-fA-F]{40,64}", os.environ.get("MODEL_REVISION", "")))
+                                           and bool(os.environ.get("TRAINER_EXPECTED_VERSION", "")))},
                              "model": {"id": os.environ.get("LOCAL_MODEL_ID", "Qwen2.5-1.5B-Instruct-Q4_K_M"),
-                                       "runtime": "device-local", "weightsTraining": "not_connected",
+                                       "runtime": "device-local", "weightsTraining": "configured" if os.environ.get("HUB_LORA_ENABLED", "").lower() == "true" else "not_configured",
                                        "quality": "not_measured"},
                              "inference": self.store.inference_summary(),
                              "runs": self.store.training_runs()})
@@ -522,10 +613,18 @@ class HubHandler(BaseHTTPRequestHandler):
                 result = self.store.record_inference_metric(body)
                 self._send(202, result)
             elif self.path == "/v1/training/runs":
+                mode = body.get("mode", "validate")
+                if mode not in {"validate", "lora"}:
+                    raise HubError("mode must be validate or lora")
                 run = self.store.create_training_run(body.get("name", "Sondertraining"),
                                                      body.get("preset"))
+                if mode == "lora":
+                    self.store.update_training_run(run["id"], metrics={"mode":"lora"})
                 if body.get("start") is True:
-                    _start_training_run(self.store, run["id"])
+                    if mode == "lora":
+                        _start_lora_run(self.store, run["id"], self.server.server_port, self.api_token)
+                    else:
+                        _start_training_run(self.store, run["id"])
                 self._send(202, self.store.training_run(run["id"]))
             elif self.path.startswith("/v1/training/runs/") and self.path.endswith("/start"):
                 run_id = self.path[len("/v1/training/runs/"):-len("/start")].strip("/")
@@ -534,7 +633,14 @@ class HubHandler(BaseHTTPRequestHandler):
                     self._send(404, {"error": "run_not_found"}); return
                 if run["status"] != "queued":
                     self._send(409, {"error": "run_not_queued"}); return
-                _start_training_run(self.store, run_id)
+                try:
+                    run_metrics = json.loads(run.get("metrics") or "{}")
+                except (TypeError, json.JSONDecodeError):
+                    run_metrics = {}
+                if run_metrics.get("mode") == "lora":
+                    _start_lora_run(self.store, run_id, self.server.server_port, self.api_token)
+                else:
+                    _start_training_run(self.store, run_id)
                 self._send(202, self.store.training_run(run_id))
             else:
                 self._send(404, {"error": "not_found"})
