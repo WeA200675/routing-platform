@@ -18,6 +18,7 @@ import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,6 +79,7 @@ import org.routingplatform.app.navigation.NavigationPositionConfidence
 import org.routingplatform.app.navigation.NavigationFusionMode
 import org.routingplatform.app.navigation.NavigationRouteSourceFactory
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
+import org.routingplatform.app.navigation.NavigationRuntimePipelineStatus
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
 import org.routingplatform.app.navigation.NavigationStartOrientationVisibilityController
@@ -638,6 +640,12 @@ class MainActivity :
                             .stopped()
                     )
                 }
+
+            var navigationRecoveryMessage by remember(snapshot.sessionId) {
+                mutableStateOf<String?>(null)
+            }
+            val latestNavigationSnapshot by rememberUpdatedState(snapshot)
+            val latestRuntimeTelemetry by rememberUpdatedState(telemetry)
 
             LaunchedEffect(
                 calibrationDisclosureAccepted,
@@ -1689,6 +1697,74 @@ class MainActivity :
             LaunchedEffect(
                 snapshot.sessionId,
                 snapshot.state,
+                locationPermissionGranted,
+                preciseLocationGranted,
+                runtimeController,
+            ) {
+                if (snapshot.state != NavigationSessionState.Navigating ||
+                    !locationPermissionGranted || !preciseLocationGranted
+                ) return@LaunchedEffect
+
+                val sessionId = snapshot.sessionId
+                var recoveryAttempts = 0
+                var lastFreshFixNanos = latestRuntimeTelemetry.lastLocationElapsedRealtimeNanos
+                var nextCheckMs = 5_000L
+                var lastPipelineActivityMs = SystemClock.elapsedRealtime()
+
+                while (latestNavigationSnapshot.state == NavigationSessionState.Navigating &&
+                    latestNavigationSnapshot.sessionId == sessionId
+                ) {
+                    delay(nextCheckMs)
+                    val current = latestNavigationSnapshot
+                    val currentTelemetry = latestRuntimeTelemetry
+                    val nowNanos = SystemClock.elapsedRealtimeNanos()
+                    val fixNanos = currentTelemetry.lastLocationElapsedRealtimeNanos
+                    if (fixNanos != null && fixNanos > (lastFreshFixNanos ?: 0L) &&
+                        nowNanos >= fixNanos && nowNanos - fixNanos <= LOCATION_WATCHDOG_STALE_NANOS
+                    ) {
+                        lastFreshFixNanos = fixNanos
+                        recoveryAttempts = 0
+                        navigationRecoveryMessage = null
+                        lastPipelineActivityMs = SystemClock.elapsedRealtime()
+                        nextCheckMs = 5_000L
+                        continue
+                    }
+
+                    val staleFix = fixNanos != null &&
+                        nowNanos >= fixNanos && nowNanos - fixNanos > LOCATION_WATCHDOG_STALE_NANOS
+                    val noFixAfterStart = fixNanos == null &&
+                        SystemClock.elapsedRealtime() - lastPipelineActivityMs > LOCATION_WATCHDOG_STALE_AFTER_START_MS
+                    val pipelineStopped = currentTelemetry.pipelineStatus == NavigationRuntimePipelineStatus.Stopped
+                    if (!pipelineStopped && !staleFix && !noFixAfterStart) continue
+
+                    if (!hasPreciseNavigationLocationPermission(applicationContext)) {
+                        navigationRecoveryMessage = "Standortfreigabe fehlt – letzter bestätigter Routenfortschritt bleibt gehalten."
+                        break
+                    }
+
+                    recoveryAttempts += 1
+                    navigationRecoveryMessage = "Positionssignal wird neu verbunden · Versuch $recoveryAttempts · Routenfortschritt gehalten"
+                    val progress = currentTelemetry.acceptedProgress ?: RouteProgressAnchor(
+                        shapeSegmentIndex = current.shapeSegmentIndex,
+                        segmentFraction = current.segmentFraction,
+                    )
+                    val restarted = runtimeController.start(
+                        route = current.geometry,
+                        initialProgress = progress,
+                        onSnapshot = { resumedSnapshot -> snapshot = resumedSnapshot },
+                        onTelemetry = { resumedTelemetry -> telemetry = resumedTelemetry },
+                    )
+                    if (!restarted) {
+                        navigationRecoveryMessage = "Ortung noch nicht verfügbar · erneuter Versuch in Kürze · letzter bestätigter Fortschritt bleibt gehalten"
+                    }
+                    lastPipelineActivityMs = SystemClock.elapsedRealtime()
+                    nextCheckMs = (5_000L * (1L shl (recoveryAttempts - 1).coerceIn(0, 3))).coerceAtMost(60_000L)
+                }
+            }
+
+            LaunchedEffect(
+                snapshot.sessionId,
+                snapshot.state,
                 routeLifecycleController,
             ) {
                 while (
@@ -2154,6 +2230,10 @@ class MainActivity :
                         routeAcquisitionMessage =
                             routeAcquisitionTelemetry
                                 .message,
+
+                        navigationRuntimeRecoveryMessage = navigationRecoveryMessage,
+
+                        navigationRuntimeRecoveryMessage = navigationRecoveryMessage,
 
                         routeAcquisitionState =
                             routeAcquisitionTelemetry
@@ -3359,6 +3439,8 @@ class MainActivity :
 }
 
 private const val NAVIGATION_RESUME_MAXIMUM_AGE_NANOS = 30L * 60L * 1_000_000_000L
+private const val LOCATION_WATCHDOG_STALE_NANOS = 15L * 1_000_000_000L
+private const val LOCATION_WATCHDOG_STALE_AFTER_START_MS = 15_000L
 private fun encodeNavigationTripPlan(plan: NavigationTripPlan): Bundle = Bundle().apply {
     fun stopBundle(stop: NavigationTripStop) = Bundle().apply {
         putDouble("lat", stop.point.latitude)

@@ -115,6 +115,8 @@ internal fun NavigationScreen(
         NavigationFaultCode? =
         null,
 
+    navigationRuntimeRecoveryMessage: String? = null,
+
     trafficDetourOffer: TrafficDetourOffer? = null,
     onAcceptTrafficDetour: (TrafficDetourOffer) -> Unit = {},
     onDismissTrafficDetour: () -> Unit = {},
@@ -1000,6 +1002,16 @@ internal fun NavigationScreen(
                     if (snapshot.state != NavigationSessionState.Navigating) {
                         Spacer(Modifier.height(8.dp))
                     }
+                }
+
+                if (snapshot.state == NavigationSessionState.Navigating && !navigationRuntimeRecoveryMessage.isNullOrBlank()) {
+                    Text(
+                        text = navigationRuntimeRecoveryMessage,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
 
                 if (snapshot.state != NavigationSessionState.Navigating) {
