@@ -1,6 +1,7 @@
 import json
 import pathlib
 import tempfile
+import time
 import unittest
 import urllib.request
 from threading import Thread
@@ -94,6 +95,65 @@ class HubTest(unittest.TestCase):
         with self.assertRaises(hub.HubError):
             self.store.add_training_example({"id":"ex-2","task":"traffic_summary","prompt":"Summarize",
                 "expectedAnswer":"Traffic is clear","knowledgeIds":[],"createdAtEpochMillis":self.now})
+
+    def test_dashboard_training_runs_are_persistent_and_report_data_checks_only(self):
+        run = self.store.create_training_run("GPS confidence", "gps_confidence")
+        self.assertEqual("queued", run["status"])
+        self.assertEqual(0, run["progress"])
+        self.store.update_training_run(run["id"], status="completed", progress=100,
+                                       stage="Datensatzprüfung abgeschlossen",
+                                       metrics={"examplesChecked": 0, "weightUpdate": False})
+        saved = self.store.training_runs()[0]
+        self.assertEqual(run["id"], saved["id"])
+        self.assertEqual("completed", saved["status"])
+        self.assertIn('"weightUpdate":false', saved["metrics"])
+
+    def test_gps_confidence_examples_can_be_curated(self):
+        example = self.store.add_training_example({
+            "id": "gps-ex-1", "task": "gps_confidence",
+            "prompt": "GNSS confidence low; retain last stable route match.",
+            "expectedAnswer": "Position unsicher; keep route progress stable.",
+            "knowledgeIds": [], "createdAtEpochMillis": self.now})
+        self.assertEqual("gps_confidence", example["task"])
+
+    def test_dashboard_api_is_authenticated_and_training_run_completes(self):
+        server = hub.create_server("127.0.0.1", 0, pathlib.Path(self.temp.name)/"dashboard.sqlite",
+                                   {"die-autobahn"}, "t"*32)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f"http://127.0.0.1:{server.server_port}"
+        headers = {"Authorization": "Bearer " + "t"*32, "Content-Type": "application/json"}
+        try:
+            unauth = urllib.request.Request(base + "/v1/dashboard")
+            with self.assertRaises(Exception):
+                urllib.request.urlopen(unauth)
+            request = urllib.request.Request(base + "/v1/dashboard", headers=headers)
+            with urllib.request.urlopen(request) as response:
+                dashboard = json.load(response)
+            self.assertEqual("not_measured", dashboard["model"]["quality"])
+            create = urllib.request.Request(base + "/v1/training/runs", data=json.dumps({
+                "name": "speech check", "preset": "speech_clarity", "start": True
+            }).encode(), headers=headers, method="POST")
+            with urllib.request.urlopen(create) as response:
+                run = json.load(response)
+            deadline = time.monotonic() + 3
+            while time.monotonic() < deadline:
+                request = urllib.request.Request(base + "/v1/training/runs", headers=headers)
+                with urllib.request.urlopen(request) as response:
+                    runs = json.load(response)["runs"]
+                saved = next(item for item in runs if item["id"] == run["id"])
+                if saved["status"] in {"completed", "failed"}:
+                    break
+                time.sleep(0.01)
+            self.assertEqual("completed", saved["status"])
+            metrics = json.loads(saved["metrics"])
+            self.assertFalse(metrics["weightUpdate"])
+            events = urllib.request.Request(base + "/v1/traffic/events", headers=headers)
+            with urllib.request.urlopen(events) as response:
+                self.assertEqual([], json.load(response)["events"])
+        finally:
+            server.shutdown()
+            server.server_close()
 
     def test_http_public_route_lookup_falls_back_to_no_current_events(self):
         server = hub.create_server("127.0.0.1", 0, pathlib.Path(self.temp.name)/"http.sqlite",

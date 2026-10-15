@@ -39,3 +39,16 @@ The trainer validates provenance, knowledge references, duplicate IDs, size limi
 python3 -m unittest backend/test_traffic_intelligence_hub.py
 python3 tools/ai_training_app.py --help
 ```
+
+
+## Dashboard and measured training checks
+
+Start the hub and open `http://127.0.0.1:8090/dashboard`. The dashboard requires the hub bearer token for reads and writes; it retains the token in browser session storage only. The dashboard is served by the same process, so keep the hub loopback-bound unless it is behind authenticated TLS.
+
+- `GET /v1/dashboard` — authenticated aggregate status, selected local model id, and the latest 50 persisted training runs.
+- `GET /v1/traffic/events` — authenticated stored traffic events for the dashboard charts.
+- `GET /v1/training/runs`, `POST /v1/training/runs`, `POST /v1/training/runs/{id}/start` — persistent run lifecycle. A run verifies the selected curated examples, source approvals and duplicate IDs, then records counts. It does not modify model weights; its quality score is intentionally null.
+- The page can curate examples and attributed/licensed knowledge items using the existing APIs. Traffic or route examples still require approved knowledge references.
+- The optional Bitcoin panel is a browser-only synthetic visualization. It performs no proof-of-work, wallet operation, CPU/GPU mining or network activity.
+
+The current Android runtime uses a pinned Qwen2.5 1.5B Instruct Q4_K_M model for compact local responses. It is not the training model. Qwen3.5-4B Base is a candidate to evaluate for separate LoRA training after choosing a pinned revision, validating dataset rights, and providing a compatible GPU trainer. Never present dataset validation progress as model training progress. A deployable adapter requires independent evaluation and Android compatibility checks.

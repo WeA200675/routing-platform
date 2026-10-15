@@ -15,6 +15,7 @@ import sqlite3
 import threading
 import time
 import urllib.request
+import uuid
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -24,6 +25,7 @@ MAX_EVENTS_PER_BATCH = 500
 MAX_ROUTE_POINTS = 5_000
 MAX_EVENT_AGE_MS = 5 * 60_000
 MAX_DESCRIPTION = 500
+TRAINING_PRESETS = {"speech_clarity", "route_explanation", "traffic_summary", "hazard_summary", "gps_confidence"}
 ALLOWED_KINDS = {"congestion", "accident", "roadworks", "closure", "hazard", "weather", "other"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9._:-]{1,120}$")
 
@@ -165,6 +167,11 @@ class HubStore:
                   id TEXT PRIMARY KEY, payload TEXT NOT NULL, approved INTEGER NOT NULL);
                 CREATE TABLE IF NOT EXISTS training_examples(
                   id TEXT PRIMARY KEY, payload TEXT NOT NULL, created_at INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS training_runs(
+                  id TEXT PRIMARY KEY, name TEXT NOT NULL, preset TEXT NOT NULL,
+                  status TEXT NOT NULL, progress INTEGER NOT NULL, stage TEXT NOT NULL,
+                  example_count INTEGER NOT NULL, metrics TEXT NOT NULL,
+                  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, error TEXT NOT NULL);
             """)
 
     def connect(self):
@@ -235,7 +242,7 @@ class HubStore:
         if not SAFE_ID.fullmatch(ex_id):
             raise HubError("training id contains unsupported characters")
         task = _text(example.get("task"), "task", 40)
-        if task not in {"speech_clarity", "route_explanation", "traffic_summary", "hazard_summary"}:
+        if task not in TRAINING_PRESETS:
             raise HubError("unsupported training task")
         prompt = _text(example.get("prompt"), "prompt", 2000)
         answer = _text(example.get("expectedAnswer"), "expectedAnswer", 2000)
@@ -262,9 +269,90 @@ class HubStore:
             return [json.loads(row["payload"]) for row in
                     db.execute("SELECT payload FROM training_examples ORDER BY created_at,id")]
 
+    def create_training_run(self, name, preset):
+        name = _text(name, "name", 80)
+        if preset not in TRAINING_PRESETS:
+            raise HubError("unsupported training preset")
+        run_id = uuid.uuid4().hex[:12]
+        now = _now_ms()
+        with self.lock, self.connect() as db:
+            db.execute("INSERT INTO training_runs VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                       (run_id, name, preset, "queued", 0, "Wartet auf Start", 0,
+                        "{}", now, now, ""))
+        return self.training_run(run_id)
+
+    def training_run(self, run_id):
+        with self.connect() as db:
+            row = db.execute("SELECT * FROM training_runs WHERE id=?", (run_id,)).fetchone()
+        return dict(row) if row else None
+
+    def training_runs(self):
+        with self.connect() as db:
+            return [dict(row) for row in db.execute(
+                "SELECT * FROM training_runs ORDER BY created_at DESC LIMIT 50")]
+
+    def update_training_run(self, run_id, **changes):
+        allowed = {"status", "progress", "stage", "example_count", "metrics", "error"}
+        if not changes or set(changes) - allowed:
+            raise HubError("invalid training run update")
+        values = dict(changes)
+        if "metrics" in values:
+            values["metrics"] = json.dumps(values["metrics"], separators=(",", ":"))
+        values["updated_at"] = _now_ms()
+        assignments = ", ".join(key + "=?" for key in values)
+        with self.lock, self.connect() as db:
+            db.execute("UPDATE training_runs SET " + assignments + " WHERE id=?",
+                       (*values.values(), run_id))
+        return self.training_run(run_id)
+
 
 def _now_ms():
     return int(time.time() * 1000)
+
+
+def _start_training_run(store, run_id):
+    with store.lock:
+        if getattr(store, "_active_training_run", False):
+            raise HubError("another training run is already active")
+        store._active_training_run = True
+
+    def work():
+        try:
+            run = store.training_run(run_id)
+            store.update_training_run(run_id, status="running", progress=10, stage="Datensatz wird geladen")
+            examples = store.training_dataset()
+            selected = [e for e in examples if e["task"] == run["preset"]]
+            store.update_training_run(run_id, progress=45, stage="Beispiele und Quellen werden geprüft",
+                                      example_count=len(selected))
+            ids = [e["id"] for e in selected]
+            duplicate_count = len(ids) - len(set(ids))
+            approved_refs = 0
+            with store.connect() as db:
+                for example in selected:
+                    for source_id in example.get("knowledgeIds", []):
+                        row = db.execute("SELECT approved FROM knowledge_items WHERE id=?", (source_id,)).fetchone()
+                        if row and row["approved"] == 1:
+                            approved_refs += 1
+                        else:
+                            raise HubError("training data contains an unapproved or missing source")
+            if duplicate_count:
+                raise HubError("training data contains duplicate example IDs")
+            store.update_training_run(run_id, progress=75, stage="Integrity check complete")
+            store.update_training_run(run_id, status="completed", progress=100,
+                                      stage="Datensatzprüfung abgeschlossen; Modellgewichte unverändert",
+                                      metrics={"examplesChecked": len(selected),
+                                               "approvedKnowledgeReferences": approved_refs,
+                                               "duplicateIds": duplicate_count,
+                                               "weightUpdate": False,
+                                               "evaluationScore": None})
+        except Exception as error:
+            store.update_training_run(run_id, status="failed", stage="Prüfung fehlgeschlagen",
+                                      error=str(error)[:240])
+        finally:
+            with store.lock:
+                store._active_training_run = False
+
+    threading.Thread(target=work, name="training-check-" + run_id, daemon=True).start()
 
 
 class HubHandler(BaseHTTPRequestHandler):
@@ -296,10 +384,51 @@ class HubHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/dashboard":
+            try:
+                page = (Path(__file__).parent / "static" / "intelligence_dashboard.html").read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(page)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(page)
+            except OSError:
+                self._send(503, {"error": "dashboard_unavailable"})
+            return
         if parsed.path == "/v1/status":
+            events = self.store.events()
+            with self.store.connect() as db:
+                knowledge_count = db.execute("SELECT COUNT(*) FROM knowledge_items WHERE approved=1").fetchone()[0]
             self._send(200, {"status": "ok", "trafficProviderCount": len(self.store.providers),
-                             "trafficEventCount": len(self.store.events()),
-                             "trafficData": "configured" if self.store.providers else "unavailable"})
+                             "trafficEventCount": len(events),
+                             "trafficData": "configured" if self.store.providers else "unavailable",
+                             "approvedKnowledgeCount": knowledge_count,
+                             "trainingExampleCount": len(self.store.training_dataset()),
+                             "model": {"id": os.environ.get("LOCAL_MODEL_ID", "Qwen2.5-1.5B-Instruct-Q4_K_M"),
+                                       "runtime": "device-local", "weightsTraining": "not_connected"}})
+            return
+        if parsed.path == "/v1/dashboard":
+            if not self._authorized():
+                self._send(401, {"error": "authentication_required"}); return
+            events = self.store.events()
+            examples = self.store.training_dataset()
+            with self.store.connect() as db:
+                knowledge_count = db.execute("SELECT COUNT(*) FROM knowledge_items WHERE approved=1").fetchone()[0]
+            self._send(200, {"status": {"trafficProviderCount": len(self.store.providers),
+                                       "trafficEventCount": len(events),
+                                       "approvedKnowledgeCount": knowledge_count,
+                                       "trainingExampleCount": len(examples),
+                                       "trafficData": "configured" if self.store.providers else "unavailable"},
+                             "model": {"id": os.environ.get("LOCAL_MODEL_ID", "Qwen2.5-1.5B-Instruct-Q4_K_M"),
+                                       "runtime": "device-local", "weightsTraining": "not_connected",
+                                       "quality": "not_measured"},
+                             "runs": self.store.training_runs()})
+            return
+        if parsed.path == "/v1/training/runs":
+            if not self._authorized():
+                self._send(401, {"error": "authentication_required"}); return
+            self._send(200, {"runs": self.store.training_runs()})
             return
         if parsed.path == "/v1/knowledge/search":
             query = parse_qs(parsed.query).get("q", [""])[0][:300]
@@ -309,6 +438,11 @@ class HubHandler(BaseHTTPRequestHandler):
             if not self._authorized():
                 self._send(401, {"error": "authentication_required"}); return
             self._send(200, {"examples": self.store.training_dataset()})
+            return
+        if parsed.path == "/v1/traffic/events":
+            if not self._authorized():
+                self._send(401, {"error": "authentication_required"}); return
+            self._send(200, {"events": self.store.events()})
             return
         self._send(404, {"error": "not_found"})
 
@@ -331,6 +465,21 @@ class HubHandler(BaseHTTPRequestHandler):
             elif self.path == "/v1/training/examples":
                 example = self.store.add_training_example(body)
                 self._send(201, example)
+            elif self.path == "/v1/training/runs":
+                run = self.store.create_training_run(body.get("name", "Sondertraining"),
+                                                     body.get("preset"))
+                if body.get("start") is True:
+                    _start_training_run(self.store, run["id"])
+                self._send(202, self.store.training_run(run["id"]))
+            elif self.path.startswith("/v1/training/runs/") and self.path.endswith("/start"):
+                run_id = self.path[len("/v1/training/runs/"):-len("/start")].strip("/")
+                run = self.store.training_run(run_id)
+                if not run:
+                    self._send(404, {"error": "run_not_found"}); return
+                if run["status"] != "queued":
+                    self._send(409, {"error": "run_not_queued"}); return
+                _start_training_run(self.store, run_id)
+                self._send(202, self.store.training_run(run_id))
             else:
                 self._send(404, {"error": "not_found"})
         except HubError as error:
