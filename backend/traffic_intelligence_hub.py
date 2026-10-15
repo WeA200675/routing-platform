@@ -362,4 +362,11 @@ def create_server(host=None, port=None, database=None, providers=None, api_token
 
 if __name__ == "__main__":
     server = create_server()
-    server.serve_forever()
+    from backend.traffic_feed_poller import start_configured_poller
+    poller = start_configured_poller(server.RequestHandlerClass.store)
+    try:
+        server.serve_forever()
+    finally:
+        if poller is not None:
+            poller.close()
+        server.server_close()
