@@ -52,3 +52,10 @@ Start the hub and open `http://127.0.0.1:8090/dashboard`. The dashboard requires
 - The optional Bitcoin panel is a browser-only synthetic visualization. It performs no proof-of-work, wallet operation, CPU/GPU mining or network activity.
 
 The current Android runtime uses a pinned Qwen2.5 1.5B Instruct Q4_K_M model for compact local responses. It is not the training model. Qwen3.5-4B Base is a candidate to evaluate for separate LoRA training after choosing a pinned revision, validating dataset rights, and providing a compatible GPU trainer. Never present dataset validation progress as model training progress. A deployable adapter requires independent evaluation and Android compatibility checks.
+
+
+## Privacy-preserving runtime metrics
+
+Authenticated clients may report `POST /v1/metrics/inference` with `modelId`, `task`, `outcome` (`success`, `fallback`, or `error`) and `elapsedMillis`. The hub deliberately ignores prompt, response, remembered preferences, and route coordinates. Metric IDs are idempotent, retention is capped at 90 days and 100,000 rows. The dashboard reports counts, success rate, p95 successful latency, and counts grouped by task over the last 30 days. Technical success is not a human quality score.
+
+The Android runtime already defines local inference timing metadata, but the production Android app does not yet authenticate to and upload this hub endpoint. Until that opt-in client transport exists, the dashboard correctly displays “no measurement data”; it does not fabricate metrics. Do not put the hub bearer token into the APK. A future device connection needs a pairing/device-token flow or a local-only export/import path.

@@ -96,6 +96,38 @@ class HubTest(unittest.TestCase):
             self.store.add_training_example({"id":"ex-2","task":"traffic_summary","prompt":"Summarize",
                 "expectedAnswer":"Traffic is clear","knowledgeIds":[],"createdAtEpochMillis":self.now})
 
+    def test_inference_metrics_aggregate_without_storing_prompt_or_answer(self):
+        self.store.record_inference_metric({
+            "id": "metric-success", "modelId": "Qwen2.5-1.5B-Instruct",
+            "task": "conversation", "outcome": "success", "elapsedMillis": 250,
+            "prompt": "must never be stored", "answer": "must never be stored"})
+        self.store.record_inference_metric({
+            "id": "metric-fallback", "modelId": "Qwen2.5-1.5B-Instruct",
+            "task": "conversation", "outcome": "fallback", "elapsedMillis": 50})
+        self.store.record_inference_metric({
+            "id": "metric-error", "modelId": "Qwen2.5-1.5B-Instruct",
+            "task": "gps_confidence", "outcome": "error", "elapsedMillis": 0})
+        summary = self.store.inference_summary()
+        self.assertEqual(3, summary["sampleCount30d"])
+        self.assertEqual(1, summary["successCount30d"])
+        self.assertEqual(1, summary["fallbackCount30d"])
+        self.assertEqual(1, summary["errorCount30d"])
+        self.assertEqual(250, summary["p95LatencyMillis30d"])
+        with self.store.connect() as db:
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(inference_metrics)")}
+            self.assertNotIn("prompt", columns)
+            self.assertNotIn("answer", columns)
+            self.assertEqual(3, db.execute("SELECT COUNT(*) FROM inference_metrics").fetchone()[0])
+
+    def test_invalid_inference_metrics_are_rejected(self):
+        for metric in (
+            {"modelId": "model", "task": "conversation", "outcome": "maybe", "elapsedMillis": 1},
+            {"modelId": "model", "task": "conversation", "outcome": "success", "elapsedMillis": 120001},
+            {"modelId": "model", "task": "unknown", "outcome": "success", "elapsedMillis": 1},
+        ):
+            with self.subTest(metric=metric), self.assertRaises(hub.HubError):
+                self.store.record_inference_metric(metric)
+
     def test_dashboard_training_runs_are_persistent_and_report_data_checks_only(self):
         run = self.store.create_training_run("GPS confidence", "gps_confidence")
         self.assertEqual("queued", run["status"])
@@ -131,6 +163,22 @@ class HubTest(unittest.TestCase):
             with urllib.request.urlopen(request) as response:
                 dashboard = json.load(response)
             self.assertEqual("not_measured", dashboard["model"]["quality"])
+            self.assertEqual(0, dashboard["inference"]["sampleCount30d"])
+            metric_request = urllib.request.Request(
+                base + "/v1/metrics/inference",
+                data=json.dumps({"modelId":"local-test","task":"conversation",
+                                 "outcome":"success","elapsedMillis":123,
+                                 "prompt":"must not be stored"}).encode(),
+                headers=headers, method="POST")
+            with urllib.request.urlopen(metric_request) as response:
+                self.assertEqual(202, response.status)
+            request = urllib.request.Request(base + "/v1/dashboard", headers=headers)
+            with urllib.request.urlopen(request) as response:
+                measured = json.load(response)["inference"]
+            self.assertEqual(1, measured["sampleCount30d"])
+            self.assertEqual(1.0, measured["successRate30d"])
+            page = urllib.request.urlopen(base + "/dashboard")
+            self.assertIn("KI-Laufzeit", page.read().decode("utf-8"))
             create = urllib.request.Request(base + "/v1/training/runs", data=json.dumps({
                 "name": "speech check", "preset": "speech_clarity", "start": True
             }).encode(), headers=headers, method="POST")

@@ -18,6 +18,7 @@ import urllib.request
 import uuid
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 MAX_BODY_BYTES = 1_000_000
@@ -172,6 +173,11 @@ class HubStore:
                   status TEXT NOT NULL, progress INTEGER NOT NULL, stage TEXT NOT NULL,
                   example_count INTEGER NOT NULL, metrics TEXT NOT NULL,
                   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, error TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS inference_metrics(
+                  id TEXT PRIMARY KEY, model_id TEXT NOT NULL, task TEXT NOT NULL,
+                  outcome TEXT NOT NULL, elapsed_ms INTEGER NOT NULL, created_at INTEGER NOT NULL);
+                CREATE INDEX IF NOT EXISTS inference_metrics_created
+                  ON inference_metrics(created_at);
             """)
 
     def connect(self):
@@ -305,6 +311,52 @@ class HubStore:
                        (*values.values(), run_id))
         return self.training_run(run_id)
 
+    def record_inference_metric(self, value):
+        if not isinstance(value, dict):
+            raise HubError("metric must be an object")
+        metric_id = value.get("id") or uuid.uuid4().hex
+        metric_id = _text(metric_id, "id", 120)
+        if not SAFE_ID.fullmatch(metric_id):
+            raise HubError("metric id contains unsupported characters")
+        model_id = _text(value.get("modelId"), "modelId", 120)
+        task = _text(value.get("task"), "task", 40)
+        if task not in TRAINING_PRESETS and task not in {"conversation", "navigation_status"}:
+            raise HubError("unsupported inference task")
+        outcome = _text(value.get("outcome"), "outcome", 16)
+        if outcome not in {"success", "fallback", "error"}:
+            raise HubError("outcome must be success, fallback, or error")
+        elapsed = _integer(value.get("elapsedMillis"), "elapsedMillis", 0, 120_000)
+        created = _now_ms()
+        with self.lock, self.connect() as db:
+            db.execute("INSERT OR IGNORE INTO inference_metrics VALUES(?,?,?,?,?,?)",
+                       (metric_id, model_id, task, outcome, elapsed, created))
+            # Bound storage even for a misconfigured high-frequency client.
+            db.execute("DELETE FROM inference_metrics WHERE created_at < ?", (created - 90 * 24 * 60 * 60_000,))
+            db.execute("""DELETE FROM inference_metrics WHERE id IN (
+                          SELECT id FROM inference_metrics ORDER BY created_at DESC LIMIT -1 OFFSET 100000)""")
+        return {"id": metric_id, "accepted": True, "recordedAtEpochMillis": created}
+
+    def inference_summary(self):
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT task,outcome,elapsed_ms,created_at FROM inference_metrics "
+                "WHERE created_at >= ? ORDER BY created_at",
+                (_now_ms() - 30 * 24 * 60 * 60_000,)).fetchall()
+        total = len(rows)
+        successful = sum(row["outcome"] == "success" for row in rows)
+        fallback = sum(row["outcome"] == "fallback" for row in rows)
+        errors = sum(row["outcome"] == "error" for row in rows)
+        latencies = sorted(row["elapsed_ms"] for row in rows if row["outcome"] == "success")
+        p95 = latencies[min(len(latencies) - 1, math.ceil(len(latencies) * .95) - 1)] if latencies else None
+        by_task = {}
+        for row in rows:
+            item = by_task.setdefault(row["task"], {"success": 0, "fallback": 0, "error": 0})
+            item[row["outcome"]] += 1
+        return {"sampleCount30d": total, "successCount30d": successful,
+                "fallbackCount30d": fallback, "errorCount30d": errors,
+                "successRate30d": round(successful / total, 4) if total else None,
+                "p95LatencyMillis30d": p95, "byTask": by_task}
+
 
 def _now_ms():
     return int(time.time() * 1000)
@@ -423,6 +475,7 @@ class HubHandler(BaseHTTPRequestHandler):
                              "model": {"id": os.environ.get("LOCAL_MODEL_ID", "Qwen2.5-1.5B-Instruct-Q4_K_M"),
                                        "runtime": "device-local", "weightsTraining": "not_connected",
                                        "quality": "not_measured"},
+                             "inference": self.store.inference_summary(),
                              "runs": self.store.training_runs()})
             return
         if parsed.path == "/v1/training/runs":
@@ -465,6 +518,9 @@ class HubHandler(BaseHTTPRequestHandler):
             elif self.path == "/v1/training/examples":
                 example = self.store.add_training_example(body)
                 self._send(201, example)
+            elif self.path == "/v1/metrics/inference":
+                result = self.store.record_inference_metric(body)
+                self._send(202, result)
             elif self.path == "/v1/training/runs":
                 run = self.store.create_training_run(body.get("name", "Sondertraining"),
                                                      body.get("preset"))
