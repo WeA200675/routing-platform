@@ -79,7 +79,8 @@ internal fun SocialAiSettingsSection(
     var conversationInput by remember { mutableStateOf("") }
     var conversationReply by remember { mutableStateOf<String?>(null) }
     var conversationBusy by remember { mutableStateOf(false) }
-    val hubClient = remember { AndroidAiHubClient(LocalContext.current.applicationContext) }
+    val appContext = LocalContext.current.applicationContext
+    val hubClient = remember(appContext) { AndroidAiHubClient(appContext) }
     val hubScope = rememberCoroutineScope()
     var hubUrl by remember { mutableStateOf(hubClient.savedUrl()) }
     var hubToken by remember { mutableStateOf("") }
@@ -344,7 +345,7 @@ internal fun SocialAiSettingsSection(
                 },
                 modifier = Modifier.testTag("rp.social_ai.hub_connect"),
             ) { Text(if (hubBusy) "Verbinde …" else "Sicher verbinden") }
-            OutlinedButton(enabled = !hubBusy && hubUrl.isNotBlank(), onClick = { refreshHub() }) { Text("Status prüfen") }
+            OutlinedButton(enabled = hubConnected && !hubBusy, onClick = { refreshHub() }) { Text("Status prüfen") }
         }
         if (hubConnected) {
             OutlinedTextField(
