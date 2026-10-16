@@ -138,6 +138,10 @@ class HubTest(unittest.TestCase):
             with self.assertRaisesRegex(hub.HubError, "not configured"):
                 hub._generate_ai_reply("hello")
 
+    def test_ai_endpoint_versioned_base_does_not_duplicate_v1(self):
+        with patch.dict(os.environ, {"AI_API_BASE_URL": "https://ai.example.test/v1"}):
+            self.assertEqual("https://ai.example.test/v1/chat/completions", hub._ai_endpoint())
+
     def test_ai_chat_uses_fixed_safety_prompt_and_does_not_log_message(self):
         expected = {"choices": [{"message": {"content": "Hallo!"}}]}
         captured = {}
