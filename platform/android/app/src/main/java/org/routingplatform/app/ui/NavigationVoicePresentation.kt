@@ -3,6 +3,7 @@ package org.routingplatform.app.ui
 import org.routingplatform.app.navigation.ManeuverType
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationUiSnapshot
+import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
 import org.routingplatform.app.profile.NavigationPersonalityTone
@@ -71,6 +72,79 @@ internal data class NavigationVoiceCue(
 )
 
 internal object NavigationVoicePresentation {
+    fun routeStartCue(
+        snapshot: NavigationUiSnapshot,
+        routeFamily: NavigationRouteFamily,
+        voice: VoicePreferences,
+    ): NavigationVoiceCue? {
+        if (!voice.enabled || snapshot.state != NavigationSessionState.Navigating) return null
+        val german = voice.languageTag.startsWith("de", ignoreCase = true)
+        val family = when (routeFamily) {
+            NavigationRouteFamily.Fastest -> if (german) "schnellste Route" else "fastest route"
+            NavigationRouteFamily.Shortest -> if (german) "kürzeste Route" else "shortest route"
+            NavigationRouteFamily.ProfileOptimal -> if (german) "deinem Fahrprofil entsprechend ausgewogene Route" else "balanced route for your driving profile"
+            NavigationRouteFamily.MajorRoads -> if (german) "Route über Hauptstraßen" else "route using major roads"
+            NavigationRouteFamily.Comfort -> if (german) "Komfortroute" else "comfort route"
+            NavigationRouteFamily.LowUrban -> if (german) "Route mit weniger Stadtverkehr laut Kartendaten" else "route with less urban driving according to map data"
+            NavigationRouteFamily.LowCurvature -> if (german) "Route mit weniger Kurven laut Routendaten" else "route with fewer curves according to route data"
+            NavigationRouteFamily.LowGradient -> if (german) "Route mit weniger Steigung laut Routendaten" else "route with fewer gradients according to route data"
+            NavigationRouteFamily.LowTraffic -> if (german) "Route mit geringerem Verkehr laut Routendaten" else "route with less traffic according to route data"
+            NavigationRouteFamily.Energy -> if (german) "energiesparende Route laut Routendaten" else "energy-efficient route according to route data"
+            NavigationRouteFamily.Scenic -> if (german) "landschaftlich schöne Route laut Routendaten" else "scenic route according to route data"
+            NavigationRouteFamily.Stable -> if (german) "stabile Route laut Routendaten" else "stable route according to route data"
+        }
+        val km = "%.1f".format(java.util.Locale.GERMANY, snapshot.routeDistanceM / 1000.0)
+        val minutes = (snapshot.routeDurationS / 60.0).toInt().coerceAtLeast(1)
+        val text = if (german) {
+            "Route gewählt: $family. $km Kilometer, ungefähr $minutes Minuten. " +
+                "Live-Verkehrsdaten sind nicht verbunden; Staus kann ich derzeit nicht verlässlich bestätigen."
+        } else {
+            "Route selected: $family. $km kilometers, about $minutes minutes. " +
+                "Live traffic data is not connected, so I cannot reliably confirm congestion."
+        }
+        return NavigationVoiceCue(
+            key = NavigationVoiceCueKey(
+                sessionId = snapshot.sessionId,
+                routeId = snapshot.routeId,
+                maneuverType = ManeuverType.Continue,
+                instruction = "route-start-summary:${routeFamily.name}",
+                beginShapeIndex = null,
+                endShapeIndex = null,
+                stage = NavigationVoiceCueStage.Early,
+            ),
+            text = text,
+            languageTag = voice.languageTag,
+            voiceId = voice.voiceId,
+            speechRate = voice.speechRate,
+        )
+    }
+
+    fun experiencePackActivationCue(
+        snapshot: NavigationUiSnapshot,
+        voice: VoicePreferences,
+        personality: NavigationPersonalityPreferences,
+    ): NavigationVoiceCue? {
+        if (!voice.enabled || snapshot.state != NavigationSessionState.Preview) return null
+        val pack = ExperiencePackRuntimeResolver.resolvePackOverride(personality) ?: return null
+        val german = voice.languageTag.startsWith("de", ignoreCase = true)
+        val text = if (german) "Überraschungsstil ${pack.displayName} ist aktiv." else "Surprise style ${pack.displayName} is active."
+        return NavigationVoiceCue(
+            key = NavigationVoiceCueKey(
+                sessionId = snapshot.sessionId,
+                routeId = snapshot.routeId,
+                maneuverType = ManeuverType.Continue,
+                instruction = "experience-pack-active:${pack.packId}",
+                beginShapeIndex = null,
+                endShapeIndex = null,
+                stage = NavigationVoiceCueStage.Early,
+            ),
+            text = text,
+            languageTag = voice.languageTag,
+            voiceId = voice.voiceId,
+            speechRate = voice.speechRate,
+        )
+    }
+
     fun speedLimitCue(
         snapshot: NavigationUiSnapshot,
         warning: NavigationSpeedLimitWarning,
@@ -184,18 +258,15 @@ internal object NavigationVoicePresentation {
             ExperiencePackRuntimeResolver
                 .resolvePackOverride(personality)
 
-        // Keep the maneuver intact; only ordinary Galactic cues get a short themed lead-in.
-        // Critical repeats remain word-for-word neutral.
-        val galactic =
-            stage != NavigationVoiceCueStage.CriticalRepeat &&
-                activePack?.tone == NavigationPersonalityTone.Futuristic
-        val speechPitch = if (galactic) 1.08 else 1.0
-        val speechText =
-            if (galactic) {
-                "${galacticLeadIn(stage, voice.languageTag)} $instruction"
-            } else {
-                instruction
-            }
+        // Surprise themes affect ordinary spoken cues. Maneuver truth remains
+        // intact and urgent/critical repeats are deliberately kept neutral.
+        val themeLeadIn = if (stage == NavigationVoiceCueStage.CriticalRepeat) {
+            null
+        } else {
+            activePack?.let { pack -> themeLeadIn(pack.tone, stage, voice.languageTag) }
+        }
+        val speechPitch = if (activePack?.tone == NavigationPersonalityTone.Futuristic && themeLeadIn != null) 1.08 else 1.0
+        val speechText = listOfNotNull(themeLeadIn, instruction).joinToString(" ")
 
         return NavigationVoiceCue(
             key =
@@ -239,16 +310,24 @@ internal object NavigationVoicePresentation {
         )
     }
 
-    private fun galacticLeadIn(
+    private fun themeLeadIn(
+        tone: NavigationPersonalityTone,
         stage: NavigationVoiceCueStage,
         languageTag: String,
-    ): String {
+    ): String? {
         val german = languageTag.startsWith("de", ignoreCase = true)
-        return when (stage) {
-            NavigationVoiceCueStage.Early -> if (german) "Sternenkarte voraus:" else "Star chart ahead:"
-            NavigationVoiceCueStage.Prepare -> if (german) "Sprungfenster voraus:" else "Jump window ahead:"
-            NavigationVoiceCueStage.Now -> if (german) "Jetzt, Pilot:" else "Now, pilot:"
-            NavigationVoiceCueStage.CriticalRepeat -> ""
+        return when (tone) {
+            NavigationPersonalityTone.Neutral -> null
+            NavigationPersonalityTone.Calm -> if (german) "Ganz ruhig:" else "Easy now:"
+            NavigationPersonalityTone.Warm -> if (german) "Gern für dich:" else "For you:"
+            NavigationPersonalityTone.DryHumor -> if (german) "Kleine Kurskorrektur:" else "A little course correction:"
+            NavigationPersonalityTone.Futuristic -> when (stage) {
+                NavigationVoiceCueStage.Early -> if (german) "Sternenkarte voraus:" else "Star chart ahead:"
+                NavigationVoiceCueStage.Prepare -> if (german) "Sprungfenster voraus:" else "Jump window ahead:"
+                NavigationVoiceCueStage.Now -> if (german) "Jetzt, Pilot:" else "Now, pilot:"
+                NavigationVoiceCueStage.CriticalRepeat -> null
+            }
+            NavigationPersonalityTone.CoPilot -> if (german) "Ich bin dabei:" else "I'm with you:"
         }
     }
 

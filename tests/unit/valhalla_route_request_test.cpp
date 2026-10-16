@@ -56,6 +56,10 @@ int main() {
 
   assert(contains(
       json,
+      "\"turn_lanes\":true"));
+
+  assert(contains(
+      json,
       "\"alternates\":2"));
 
   assert(contains(

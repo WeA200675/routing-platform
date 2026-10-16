@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,6 +42,7 @@ import org.routingplatform.app.ai.SocialAiRoutingIntent
 import org.routingplatform.app.ai.RouteFeedbackQuestionPolicy
 import org.routingplatform.app.ai.RouteFeedbackQuestion
 import org.routingplatform.app.navigation.AndroidNavigationPlanningLocationController
+import org.routingplatform.app.navigation.NavigationPlanningLocationHandle
 import org.routingplatform.app.navigation.AndroidNavigationCalibrationDisclosureStore
 import org.routingplatform.app.navigation.AndroidNavigationCalibrationStore
 import org.routingplatform.app.navigation.AndroidNavigationDeviceCapabilities
@@ -77,6 +81,7 @@ import org.routingplatform.app.navigation.NavigationPositionConfidence
 import org.routingplatform.app.navigation.NavigationFusionMode
 import org.routingplatform.app.navigation.NavigationRouteSourceFactory
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
+import org.routingplatform.app.navigation.NavigationRuntimePipelineStatus
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
 import org.routingplatform.app.navigation.NavigationStartOrientationVisibilityController
@@ -92,6 +97,8 @@ import org.routingplatform.app.navigation.hasPreciseNavigationLocationPermission
 import org.routingplatform.app.navigation.navigationRuntimePermissionsToRequest
 import org.routingplatform.app.places.AndroidFavoriteDestinationStore
 import org.routingplatform.app.places.AndroidGeocoderDestinationSearchSource
+import org.routingplatform.app.places.AndroidOpenStreetMapRestAreaSearchSource
+import org.routingplatform.app.places.parseRoadsideStopQuery
 import org.routingplatform.app.places.DestinationSearchHandle
 import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestinationCollection
@@ -216,6 +223,10 @@ class MainActivity :
                     )
                 }
 
+            val roadsideStopSearchSource = remember {
+                AndroidOpenStreetMapRestAreaSearchSource()
+            }
+
             var destinationSearchHandle by
                 remember {
                     mutableStateOf<
@@ -224,6 +235,10 @@ class MainActivity :
                         null
                     )
                 }
+
+            var roadsideStopLocationHandle by remember {
+                mutableStateOf<NavigationPlanningLocationHandle?>(null)
+            }
 
             var destinationSearchResults by
                 remember {
@@ -276,6 +291,17 @@ class MainActivity :
                         applicationContext
                     )
                 }
+
+            LaunchedEffect(socialAiProductRuntime, activeProfile.ai.learningEnabled) {
+                if (activeProfile.ai.learningEnabled) {
+                    // Prepare the verified local model after the UI settles so its first
+                    // explicit request does not pay the model-load cost.
+                    delay(5_000)
+                    runCatching {
+                        withContext(Dispatchers.IO) { socialAiProductRuntime.warmUp() }
+                    }
+                }
+            }
             val socialAiLearningRepository = remember {
                 SocialAiLearningRepository(AndroidSocialAiMemoryStore(applicationContext))
             }
@@ -355,12 +381,16 @@ class MainActivity :
 
             DisposableEffect(
                 destinationSearchSource,
+                roadsideStopSearchSource,
                 planningLocationController,
                 socialAiProductRuntime,
             ) {
                 onDispose {
                     destinationSearchSource
                         .close()
+
+                    roadsideStopSearchSource.close()
+                    roadsideStopLocationHandle?.cancel()
 
                     planningLocationController
                         .close()
@@ -624,6 +654,12 @@ class MainActivity :
                     )
                 }
 
+            var navigationRecoveryMessage by remember(snapshot.sessionId) {
+                mutableStateOf<String?>(null)
+            }
+            val latestNavigationSnapshot by rememberUpdatedState(snapshot)
+            val latestRuntimeTelemetry by rememberUpdatedState(telemetry)
+
             LaunchedEffect(
                 calibrationDisclosureAccepted,
                 snapshot.state,
@@ -881,6 +917,9 @@ class MainActivity :
                     destinationSearchHandle
                         ?.cancel()
 
+                    roadsideStopLocationHandle?.cancel()
+                    roadsideStopLocationHandle = null
+
                     destinationSearchHandle =
                         null
 
@@ -898,6 +937,50 @@ class MainActivity :
 
                     destinationPlannerMessage =
                         "Zielsuche läuft …"
+
+                    if (parseRoadsideStopQuery(query) != null) {
+                        destinationPlannerMessage =
+                            "Für die OpenStreetMap-Rastplatzsuche wird deine aktuelle Position übermittelt …"
+                        roadsideStopLocationHandle = planningLocationController.request { locationResult ->
+                            roadsideStopLocationHandle = null
+                            locationResult.fold(
+                                onSuccess = { location ->
+                                    destinationPlannerMessage = "Rastplätze in der Nähe werden gesucht …"
+                                    destinationSearchHandle = roadsideStopSearchSource.searchNear(
+                                        query = query,
+                                        center = location.position,
+                                    ) { result ->
+                                        destinationSearchHandle = null
+                                        destinationPlannerBusy = false
+                                        result.fold(
+                                            onSuccess = { results ->
+                                                destinationSearchResults = results
+                                                if (snapshot.state == NavigationSessionState.Navigating) {
+                                                    evaluateActiveRouteCandidates(results)
+                                                }
+                                                destinationPlannerMessage = if (results.isEmpty()) {
+                                                    "Keine Rastplätze mit diesem WC-Status gefunden. Unbekannte Angaben werden nicht als vorhanden oder nicht vorhanden gewertet."
+                                                } else {
+                                                    "${results.size} Rastplätze aus OpenStreetMap. WC-Status je Treffer beachten; Zufahrt vor Ort prüfen."
+                                                }
+                                            },
+                                            onFailure = { error ->
+                                                destinationSearchResults = emptyList()
+                                                destinationPlannerMessage =
+                                                    "Rastplatzsuche nicht erreichbar: ${error.message ?: "Netzwerkfehler"}. Normale Zielsuche bleibt verfügbar; deren WC-Angaben sind unbekannt."
+                                            },
+                                        )
+                                    }
+                                },
+                                onFailure = { error ->
+                                    destinationPlannerBusy = false
+                                    destinationPlannerMessage =
+                                        "Für die Rastplatzsuche ist keine ausreichend genaue aktuelle Position verfügbar: ${error.message ?: "Positionsfehler"}."
+                                },
+                            )
+                        }
+                        return@search
+                    }
 
                     destinationSearchHandle =
                         runCatching {
@@ -1627,6 +1710,74 @@ class MainActivity :
             LaunchedEffect(
                 snapshot.sessionId,
                 snapshot.state,
+                locationPermissionGranted,
+                preciseLocationGranted,
+                runtimeController,
+            ) {
+                if (snapshot.state != NavigationSessionState.Navigating ||
+                    !locationPermissionGranted || !preciseLocationGranted
+                ) return@LaunchedEffect
+
+                val sessionId = snapshot.sessionId
+                var recoveryAttempts = 0
+                var lastFreshFixNanos = latestRuntimeTelemetry.lastLocationElapsedRealtimeNanos
+                var nextCheckMs = 5_000L
+                var lastPipelineActivityMs = SystemClock.elapsedRealtime()
+
+                while (latestNavigationSnapshot.state == NavigationSessionState.Navigating &&
+                    latestNavigationSnapshot.sessionId == sessionId
+                ) {
+                    delay(nextCheckMs)
+                    val current = latestNavigationSnapshot
+                    val currentTelemetry = latestRuntimeTelemetry
+                    val nowNanos = SystemClock.elapsedRealtimeNanos()
+                    val fixNanos = currentTelemetry.lastLocationElapsedRealtimeNanos
+                    if (fixNanos != null && fixNanos > (lastFreshFixNanos ?: 0L) &&
+                        nowNanos >= fixNanos && nowNanos - fixNanos <= LOCATION_WATCHDOG_STALE_NANOS
+                    ) {
+                        lastFreshFixNanos = fixNanos
+                        recoveryAttempts = 0
+                        navigationRecoveryMessage = null
+                        lastPipelineActivityMs = SystemClock.elapsedRealtime()
+                        nextCheckMs = 5_000L
+                        continue
+                    }
+
+                    val staleFix = fixNanos != null &&
+                        nowNanos >= fixNanos && nowNanos - fixNanos > LOCATION_WATCHDOG_STALE_NANOS
+                    val noFixAfterStart = fixNanos == null &&
+                        SystemClock.elapsedRealtime() - lastPipelineActivityMs > LOCATION_WATCHDOG_STALE_AFTER_START_MS
+                    val pipelineStopped = currentTelemetry.pipelineStatus == NavigationRuntimePipelineStatus.Stopped
+                    if (!pipelineStopped && !staleFix && !noFixAfterStart) continue
+
+                    if (!hasPreciseNavigationLocationPermission(applicationContext)) {
+                        navigationRecoveryMessage = "Standortfreigabe fehlt – letzter bestätigter Routenfortschritt bleibt gehalten."
+                        break
+                    }
+
+                    recoveryAttempts += 1
+                    navigationRecoveryMessage = "Positionssignal wird neu verbunden · Versuch $recoveryAttempts · Routenfortschritt gehalten"
+                    val progress = currentTelemetry.acceptedProgress ?: RouteProgressAnchor(
+                        shapeSegmentIndex = current.shapeSegmentIndex,
+                        segmentFraction = current.segmentFraction,
+                    )
+                    val restarted = runtimeController.start(
+                        route = current.geometry,
+                        initialProgress = progress,
+                        onSnapshot = { resumedSnapshot -> snapshot = resumedSnapshot },
+                        onTelemetry = { resumedTelemetry -> telemetry = resumedTelemetry },
+                    )
+                    if (!restarted) {
+                        navigationRecoveryMessage = "Ortung noch nicht verfügbar · erneuter Versuch in Kürze · letzter bestätigter Fortschritt bleibt gehalten"
+                    }
+                    lastPipelineActivityMs = SystemClock.elapsedRealtime()
+                    nextCheckMs = (5_000L * (1L shl (recoveryAttempts - 1).coerceIn(0, 3))).coerceAtMost(60_000L)
+                }
+            }
+
+            LaunchedEffect(
+                snapshot.sessionId,
+                snapshot.state,
                 routeLifecycleController,
             ) {
                 while (
@@ -2092,6 +2243,8 @@ class MainActivity :
                         routeAcquisitionMessage =
                             routeAcquisitionTelemetry
                                 .message,
+
+                        navigationRuntimeRecoveryMessage = navigationRecoveryMessage,
 
                         routeAcquisitionState =
                             routeAcquisitionTelemetry
@@ -2947,6 +3100,12 @@ class MainActivity :
                                 bridge
                                     .startNavigation()
 
+                            voiceRuntime.routeStartSummary(
+                                snapshot,
+                                socialAiRouteFamily,
+                                activeProfile.voice,
+                            )
+
                             navigationBootId
                                 ?.let { bootId ->
                                     navigationStateStore.save(
@@ -3272,6 +3431,15 @@ class MainActivity :
                         rawGnssQuality =
                             telemetry.rawGnssQuality,
 
+                        positionSource =
+                            telemetry.positionSource,
+
+                        verifiedRadioAnchorCount =
+                            telemetry.verifiedRadioAnchorCount,
+
+                        lastLocationElapsedRealtimeNanos =
+                            telemetry.lastLocationElapsedRealtimeNanos,
+
                         modifier =
                             Modifier.align(
                                 Alignment.TopEnd
@@ -3285,6 +3453,8 @@ class MainActivity :
 }
 
 private const val NAVIGATION_RESUME_MAXIMUM_AGE_NANOS = 30L * 60L * 1_000_000_000L
+private const val LOCATION_WATCHDOG_STALE_NANOS = 15L * 1_000_000_000L
+private const val LOCATION_WATCHDOG_STALE_AFTER_START_MS = 15_000L
 private fun encodeNavigationTripPlan(plan: NavigationTripPlan): Bundle = Bundle().apply {
     fun stopBundle(stop: NavigationTripStop) = Bundle().apply {
         putDouble("lat", stop.point.latitude)

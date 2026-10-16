@@ -46,6 +46,9 @@ data class NavigationRouteContractManeuver(
     val bearingBeforeDeg: Int?,
     val bearingAfterDeg: Int?,
     val engineType: Int?,
+    val destinationSign: String? = null,
+    val laneIndications: List<String> = emptyList(),
+    val maneuverSide: NavigationManeuverSide? = null,
 ) {
     init {
         require(
@@ -74,6 +77,10 @@ data class NavigationRouteContractManeuver(
         bearingAfterDeg?.let {
             require(it in 0..359)
         }
+
+        require(destinationSign == null || destinationSign.length <= 160)
+        require(laneIndications.size <= 12)
+        laneIndications.forEach { require(it.isNotBlank() && it.length <= 48) }
     }
 
     fun toNavigationManeuver():
@@ -108,6 +115,15 @@ data class NavigationRouteContractManeuver(
 
             engineType =
                 engineType,
+
+            destinationSign =
+                destinationSign,
+
+            laneIndications =
+                laneIndications,
+
+            maneuverSide =
+                maneuverSide,
         )
 }
 

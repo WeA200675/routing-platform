@@ -9,37 +9,26 @@ import org.routingplatform.app.profile.ProfileMapStyle
 class NavigationMapPresentationTest {
 
     @Test
-    fun everyProfileMapStyleUsesDistinctHttpsStreetStyle() {
-        val descriptors =
-            ProfileMapStyle
-                .values()
-                .map {
-                    NavigationMapPresentation
-                        .styleDescriptor(
-                            it
-                        )
-                }
+    fun everyMapProfileUsesSecureStyleAndUniqueRenderBehavior() {
+        val descriptors = ProfileMapStyle.values().associateWith {
+            NavigationMapPresentation.styleDescriptor(it)
+        }
 
+        assertTrue(descriptors.values.all { it.styleUri.startsWith("https://") })
+        assertTrue(descriptors.getValue(ProfileMapStyle.RoadOnly).roadsOnly)
+        assertTrue(descriptors.getValue(ProfileMapStyle.ThreeDimensional).showBuildingExtrusions)
+        assertTrue(descriptors.getValue(ProfileMapStyle.Terrain).showTerrainRelief)
+        assertTrue(descriptors.values
+            .filter { it != descriptors.getValue(ProfileMapStyle.RoadOnly) &&
+                it != descriptors.getValue(ProfileMapStyle.ThreeDimensional) }
+            .all { !it.roadsOnly && !it.showBuildingExtrusions })
         assertEquals(
-            ProfileMapStyle
-                .values()
-                .size,
-
-            descriptors
-                .map {
-                    it.styleUri
-                }
-                .toSet()
-                .size,
+            descriptors.getValue(ProfileMapStyle.Standard).styleUri,
+            descriptors.getValue(ProfileMapStyle.ThreeDimensional).styleUri,
         )
-
-        assertTrue(
-            descriptors.all {
-                it.styleUri
-                    .startsWith(
-                        "https://"
-                    )
-            }
+        assertEquals(
+            descriptors.getValue(ProfileMapStyle.Minimal).styleUri,
+            descriptors.getValue(ProfileMapStyle.RoadOnly).styleUri,
         )
     }
 

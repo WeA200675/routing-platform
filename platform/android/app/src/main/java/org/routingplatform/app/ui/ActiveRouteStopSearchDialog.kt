@@ -132,7 +132,7 @@ internal fun ActiveRouteStopSearchDialog(
                     .orderedCategories(learnedPoiPreferences)
                     .map { category -> category to categoryLabels.getValue(category) }
                 Text(
-                    "Häufig hilfreich bewertet zuerst",
+                    "Lokal gelernt · hilfreiche Kategorien zuerst",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 categories.chunked(2).forEach { row ->
@@ -149,7 +149,7 @@ internal fun ActiveRouteStopSearchDialog(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text(
-                                    if (feedback?.hasFeedback == true && feedback.score > 0) "$label ★"
+                                    if (feedback?.hasFeedback == true && feedback.probabilityHelpful > 0.5) "$label ★"
                                     else label
                                 )
                             }
@@ -279,7 +279,7 @@ internal fun ActiveRouteStopSearchDialog(
                                     }
                                     if (result.id in feedbackGiven) {
                                         Text(
-                                            "Danke — ich merke mir nur die Kategorie, nicht den Ort.",
+                                            "Danke — deine Bewertung aktualisiert das lokale Präferenzmodell. Gespeichert wird nur die Kategorie, nicht der Ort.",
                                             style = MaterialTheme.typography.bodySmall,
                                         )
                                     }

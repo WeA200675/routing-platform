@@ -170,6 +170,9 @@ data class NavigationObservedPositionPresentation(
                     NavigationRouteProgressSafetyStatus.HeldForwardJump ->
                         "Safety: Hold (Vorwärtssprung)"
 
+                    NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress ->
+                        "Safety: Hold (zweiter Fix ausstehend)"
+
                     NavigationRouteProgressSafetyStatus.HeldNoEstimate ->
                         "Safety: Hold (keine Positionsschätzung)"
                 }
@@ -204,16 +207,25 @@ data class NavigationObservedPositionPresentation(
                         "$confidenceText · " +
                         "$accuracyText · " +
                         safetyText +
-                        if (
-                            confidence == NavigationPositionConfidence.Low ||
-                                confidence == NavigationPositionConfidence.Lost ||
-                                safetyStatus == NavigationRouteProgressSafetyStatus.HeldLowConfidence ||
-                                safetyStatus == NavigationRouteProgressSafetyStatus.HeldNoEstimate
-                        ) {
-                            " · Position unsicher – Handy höher mit freier Sicht zum Himmel platzieren"
-                        } else {
-                            ""
-                        },
+                        (
+                            if (markerColor == HELD_MARKER_COLOR) {
+                                " · Orange markiert die beobachtete Position; Routenfortschritt ist noch nicht bestätigt"
+                            } else {
+                                ""
+                            }
+                        ) +
+                        (
+                            if (
+                                confidence == NavigationPositionConfidence.Low ||
+                                    confidence == NavigationPositionConfidence.Lost ||
+                                    safetyStatus == NavigationRouteProgressSafetyStatus.HeldLowConfidence ||
+                                    safetyStatus == NavigationRouteProgressSafetyStatus.HeldNoEstimate
+                            ) {
+                                " · Position unsicher – Handy höher mit freier Sicht zum Himmel platzieren"
+                            } else {
+                                ""
+                            }
+                        ),
             )
         }
 

@@ -51,6 +51,12 @@ struct RouteManeuver {
 
   std::vector<std::string> street_names;
 
+  // Optional provider-supplied interchange and lane guidance. Lane entries
+  // are rendered labels in travel order; a check mark is included only when
+  // the routing provider marks that lane valid or active for this maneuver.
+  std::optional<std::string> destination_sign;
+  std::vector<std::string> lane_indications;
+
   double distance_m = 0.0;
   double duration_s = 0.0;
 

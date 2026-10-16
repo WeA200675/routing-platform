@@ -9,6 +9,7 @@ enum class NavigationRouteProgressSafetyStatus {
     HeldOffRoute,
     HeldBackward,
     HeldForwardJump,
+    HeldUnconfirmedProgress,
     HeldNoEstimate,
 }
 
@@ -57,6 +58,18 @@ data class NavigationRouteProgressSafetyPolicy(
     val uncertaintyAllowanceMultiplier:
         Double =
         2.0,
+
+    val forwardConfirmationDistanceM:
+        Double =
+        20.0,
+
+    val forwardConfirmationWindowNanos:
+        Long =
+        3_000_000_000L,
+
+    val maximumConfirmationDriftM:
+        Double =
+        18.0,
 ) {
     init {
         require(
@@ -82,6 +95,20 @@ data class NavigationRouteProgressSafetyPolicy(
         require(
             uncertaintyAllowanceMultiplier >= 0.0
         )
+
+        require(
+            forwardConfirmationDistanceM > 0.0 &&
+                forwardConfirmationDistanceM.isFinite()
+        )
+
+        require(
+            forwardConfirmationWindowNanos > 0L
+        )
+
+        require(
+            maximumConfirmationDriftM > 0.0 &&
+                maximumConfirmationDriftM.isFinite()
+        )
     }
 }
 
@@ -99,6 +126,14 @@ class NavigationRouteProgressSafetyGate(
         null
 
     private var lastAcceptedElapsedRealtimeNanos:
+        Long? =
+        null
+
+    private var pendingForwardAlongRouteM:
+        Double? =
+        null
+
+    private var pendingForwardElapsedRealtimeNanos:
         Long? =
         null
 
@@ -272,6 +307,94 @@ class NavigationRouteProgressSafetyGate(
             }
         }
 
+        if (
+            fusion.motionAgreement ==
+                NavigationMotionAgreement.Conflicting
+        ) {
+            clearPendingForwardProgress()
+            return held(
+                status =
+                    NavigationRouteProgressSafetyStatus.HeldAmbiguous,
+
+                hypothesis =
+                    best,
+
+                ambiguityMargin =
+                    ambiguityMargin,
+            )
+        }
+
+        var forwardProgressConfirmed =
+            false
+
+        if (previous != null) {
+            val progressFromAcceptedM =
+                best.alongRouteDistanceM -
+                    alongRouteDistanceMeters(
+                        route = route,
+                        anchor = previous,
+                    )
+
+            if (progressFromAcceptedM > policy.forwardConfirmationDistanceM) {
+                val pendingAlongM = pendingForwardAlongRouteM
+                val pendingTimestampNanos = pendingForwardElapsedRealtimeNanos
+                val currentTimestampNanos = estimate.elapsedRealtimeNanos
+
+                val withinWindow =
+                    pendingTimestampNanos != null &&
+                        currentTimestampNanos > pendingTimestampNanos &&
+                        currentTimestampNanos - pendingTimestampNanos <=
+                            policy.forwardConfirmationWindowNanos
+
+                if (pendingAlongM != null && withinWindow) {
+                    val elapsedSeconds =
+                        (currentTimestampNanos - checkNotNull(pendingTimestampNanos))
+                            .toDouble() / NANOS_PER_SECOND
+                    val expectedMovementM =
+                        (estimate.horizontalVelocityMps ?: 0.0) *
+                            elapsedSeconds *
+                            policy.forwardSpeedMultiplier +
+                            estimate.covariance.conservativeHorizontalSigmaM *
+                                policy.uncertaintyAllowanceMultiplier
+                    val allowedDriftM =
+                        max(
+                            policy.maximumConfirmationDriftM,
+                            expectedMovementM,
+                        )
+                    val candidateSeparationM =
+                        best.alongRouteDistanceM - pendingAlongM
+
+                    if (
+                        candidateSeparationM >= -policy.backwardToleranceM &&
+                        candidateSeparationM <= allowedDriftM
+                    ) {
+                        forwardProgressConfirmed = true
+                        clearPendingForwardProgress()
+                    } else {
+                        pendingForwardAlongRouteM = best.alongRouteDistanceM
+                        pendingForwardElapsedRealtimeNanos = currentTimestampNanos
+                        return held(
+                            status =
+                                NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress,
+                            hypothesis = best,
+                            ambiguityMargin = ambiguityMargin,
+                        )
+                    }
+                } else {
+                    pendingForwardAlongRouteM = best.alongRouteDistanceM
+                    pendingForwardElapsedRealtimeNanos = currentTimestampNanos
+                    return held(
+                        status =
+                            NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress,
+                        hypothesis = best,
+                        ambiguityMargin = ambiguityMargin,
+                    )
+                }
+            } else {
+                clearPendingForwardProgress()
+            }
+        }
+
         val acceptedAnchor =
             if (
                 previous != null &&
@@ -291,6 +414,10 @@ class NavigationRouteProgressSafetyGate(
 
         lastAccepted =
             acceptedAnchor
+
+        if (forwardProgressConfirmed) {
+            clearPendingForwardProgress()
+        }
 
         lastAcceptedElapsedRealtimeNanos =
             estimate.elapsedRealtimeNanos
@@ -318,6 +445,7 @@ class NavigationRouteProgressSafetyGate(
 
         lastAcceptedElapsedRealtimeNanos =
             null
+        clearPendingForwardProgress()
     }
 
     fun currentAcceptedProgress():
@@ -330,6 +458,12 @@ class NavigationRouteProgressSafetyGate(
 
         lastAcceptedElapsedRealtimeNanos =
             null
+        clearPendingForwardProgress()
+    }
+
+    private fun clearPendingForwardProgress() {
+        pendingForwardAlongRouteM = null
+        pendingForwardElapsedRealtimeNanos = null
     }
 
     private fun held(
@@ -343,20 +477,18 @@ class NavigationRouteProgressSafetyGate(
         ambiguityMargin:
             Double? =
             null,
-    ) =
-        NavigationRouteProgressSafetyDecision(
-            status =
-                status,
+    ): NavigationRouteProgressSafetyDecision {
+        if (status != NavigationRouteProgressSafetyStatus.HeldUnconfirmedProgress) {
+            clearPendingForwardProgress()
+        }
 
-            acceptedProgress =
-                lastAccepted,
-
-            hypothesis =
-                hypothesis,
-
-            ambiguityMargin =
-                ambiguityMargin,
+        return NavigationRouteProgressSafetyDecision(
+            status = status,
+            acceptedProgress = lastAccepted,
+            hypothesis = hypothesis,
+            ambiguityMargin = ambiguityMargin,
         )
+    }
 }
 
 private const val NANOS_PER_SECOND =

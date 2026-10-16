@@ -147,6 +147,12 @@ class NavigationObservedPositionPresentationTest {
                 )
         )
 
+        assertTrue(
+            held.statusText.contains(
+                "Orange markiert die beobachtete Position"
+            )
+        )
+
         assertNotEquals(
             accepted.markerColor,
             held.markerColor,

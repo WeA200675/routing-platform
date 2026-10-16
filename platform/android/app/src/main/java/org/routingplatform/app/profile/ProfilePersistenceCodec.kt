@@ -65,6 +65,7 @@ object ProfilePersistenceCodec {
             output.writeUTF(
                 profile.navigation.hapticIntensity.name
             )
+            output.writeInt(profile.navigation.speedingThresholdKmh)
 
             output.writeUTF(profile.display.appearance.name)
             output.writeUTF(profile.display.mapStyle.name)
@@ -302,6 +303,12 @@ object ProfilePersistenceCodec {
                         } else {
                             NavigationHapticIntensity.Standard
                         },
+                    speedingThresholdKmh =
+                        if (persistenceVersion >= LEGACY_PROFILE_PERSISTENCE_VERSION_V6) {
+                            input.readInt()
+                        } else {
+                            5
+                        },
                 )
 
             val display =
@@ -529,8 +536,11 @@ private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V3 =
 private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V4 =
     4
 
+private const val LEGACY_PROFILE_PERSISTENCE_VERSION_V6 =
+    6
+
 private const val PROFILE_PERSISTENCE_VERSION =
-    5
+    6
 
 private const val MIN_SUPPORTED_PROFILE_PERSISTENCE_VERSION =
     LEGACY_PROFILE_PERSISTENCE_VERSION
