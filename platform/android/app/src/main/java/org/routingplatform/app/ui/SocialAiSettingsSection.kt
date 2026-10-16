@@ -120,7 +120,7 @@ internal fun SocialAiSettingsSection(
                 val status = withContext(Dispatchers.IO) { hubClient.status() }
                 hubConnected = true
                 hubAiReady = status.ready
-                hubState = if (status.ready) "Verbunden · ${status.model}" else "Hub verbunden, KI-Anbieter fehlt"
+                hubState = if (status.ready) "Hub erreichbar · KI konfiguriert · ${status.model}" else "Hub verbunden, KI-Anbieter fehlt"
                 val current = hubRun
                 if (current?.status == "queued" || current?.status == "running") {
                     hubRun = withContext(Dispatchers.IO) { hubClient.trainingRun(current.id) }
