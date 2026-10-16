@@ -29,3 +29,8 @@ Contract regression test:
 ```sh
 python3 -m unittest backend/test_osrm_adapter.py
 ```
+
+
+## Mobile KI-Hub und Training
+
+Die Android-App kann sich über HTTPS mit dem privaten Hub verbinden, Gespräche an einen konfigurierten OpenAI-kompatiblen Anbieter senden und LoRA-Jobs auf dem Hub-Rechner starten. Konfiguration, TLS-Reverse-Proxy, Token-Schutz und CUDA-Voraussetzungen stehen in [AI_HUB_MOBILE_SETUP.md](../docs/AI_HUB_MOBILE_SETUP.md).
