@@ -1,10 +1,12 @@
 import json
+import io
 import pathlib
 import tempfile
 import time
 import unittest
 import urllib.request
 from threading import Thread
+from unittest.mock import patch
 
 from backend import traffic_intelligence_hub as hub
 
@@ -127,6 +129,47 @@ class HubTest(unittest.TestCase):
         ):
             with self.subTest(metric=metric), self.assertRaises(hub.HubError):
                 self.store.record_inference_metric(metric)
+
+    def test_ai_chat_requires_configured_secure_provider(self):
+        with patch.dict(os.environ, {"AI_API_BASE_URL": "http://example.com", "AI_MODEL_ID": "test-model"}):
+            with self.assertRaises(hub.HubError):
+                hub._generate_ai_reply("hello")
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(hub.HubError, "not configured"):
+                hub._generate_ai_reply("hello")
+
+    def test_ai_chat_uses_fixed_safety_prompt_and_does_not_log_message(self):
+        expected = {"choices": [{"message": {"content": "Hallo!"}}]}
+        captured = {}
+        def fake_urlopen(request, timeout):
+            captured["url"] = request.full_url
+            captured["payload"] = json.loads(request.data)
+            captured["timeout"] = timeout
+            return io.BytesIO(json.dumps(expected).encode())
+        with patch.dict(os.environ, {"AI_API_BASE_URL": "https://ai.example.test", "AI_MODEL_ID": "chat-model", "AI_API_KEY": "secret"}), \\
+             patch("backend.traffic_intelligence_hub.urllib.request.urlopen", side_effect=fake_urlopen):
+            result = hub._generate_ai_reply("Hallo")
+        self.assertEqual("https://ai.example.test/v1/chat/completions", captured["url"])
+        self.assertEqual("Hallo", captured["payload"]["messages"][1]["content"])
+        self.assertIn("Berechne, ändere oder bestätige niemals Routen", captured["payload"]["messages"][0]["content"])
+        self.assertEqual(25, captured["timeout"])
+        self.assertEqual({"reply": "Hallo!", "model": "chat-model", "task": "conversation"}, result)
+
+    def test_ai_chat_rejects_navigation_tasks_at_authenticated_api(self):
+        server = hub.create_server("127.0.0.1", 0, pathlib.Path(self.temp.name)/"ai.sqlite", set(), "t"*32)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{server.server_port}/v1/ai/chat",
+                data=json.dumps({"task": "route_explanation", "message": "which exit?"}).encode(),
+                headers={"Authorization": "Bearer "+"t"*32, "Content-Type": "application/json"}, method="POST")
+            with self.assertRaises(Exception) as caught:
+                urllib.request.urlopen(request)
+            self.assertIn("422", str(caught.exception))
+        finally:
+            server.shutdown()
+            server.server_close()
 
     def test_dashboard_training_runs_are_persistent_and_report_data_checks_only(self):
         run = self.store.create_training_run("GPS confidence", "gps_confidence")
