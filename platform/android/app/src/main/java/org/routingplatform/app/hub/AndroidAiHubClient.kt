@@ -1,4 +1,4 @@
-package org.routingplatform.app.ai
+package org.routingplatform.app.hub
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
