@@ -99,7 +99,7 @@ internal fun SocialAiSettingsSection(
                 val status = withContext(Dispatchers.IO) { hubClient.status() }
                 hubConnected = true
                 hubAiReady = status.ready
-                hubState = if (status.ready) "Verbunden · ${status.model}" else "Hub verbunden, KI-Anbieter fehlt"
+                hubState = if (status.ready) "KI konfiguriert · ${status.model}" else "Hub verbunden, KI-Anbieter fehlt"
                 hubRun = withContext(Dispatchers.IO) { hubClient.lastTrainingRun() }
             } catch (error: Exception) {
                 hubConnected = false
@@ -344,7 +344,7 @@ internal fun SocialAiSettingsSection(
                 },
                 modifier = Modifier.testTag("rp.social_ai.hub_connect"),
             ) { Text(if (hubBusy) "Verbinde …" else "Sicher verbinden") }
-            OutlinedButton(enabled = hubConnected && !hubBusy, onClick = { refreshHub() }) { Text("Status prüfen") }
+            OutlinedButton(enabled = !hubBusy && hubUrl.isNotBlank(), onClick = { refreshHub() }) { Text("Status prüfen") }
         }
         if (hubConnected) {
             OutlinedTextField(
