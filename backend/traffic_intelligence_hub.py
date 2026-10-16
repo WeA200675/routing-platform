@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 import urllib.request
+from urllib.error import HTTPError, URLError
 import uuid
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -364,6 +365,70 @@ def _now_ms():
     return int(time.time() * 1000)
 
 
+def _ai_endpoint():
+    """Read a fixed, operator-configured OpenAI-compatible chat endpoint."""
+    endpoint = os.environ.get("AI_API_BASE_URL", "").strip()
+    if not endpoint:
+        return None
+    parsed = urlparse(endpoint)
+    if parsed.scheme != "https" and not (
+        parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+    ):
+        raise HubError("AI_API_BASE_URL must use HTTPS (HTTP is allowed only on loopback)")
+    if not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
+        raise HubError("AI_API_BASE_URL is invalid")
+    if parsed.path.rstrip("/").endswith("/chat/completions"):
+        return endpoint
+    return endpoint.rstrip("/") + "/v1/chat/completions"
+
+
+def _generate_ai_reply(message):
+    """Single-turn conversational inference; never used for route decisions."""
+    message = _text(message, "message", 2_000)
+    endpoint = _ai_endpoint()
+    if not endpoint:
+        raise HubError("AI provider is not configured on the hub")
+    model = _text(os.environ.get("AI_MODEL_ID", ""), "AI_MODEL_ID", 160)
+    try:
+        timeout = int(os.environ.get("AI_TIMEOUT_SECONDS", "25"))
+    except ValueError as error:
+        raise HubError("AI_TIMEOUT_SECONDS must be an integer") from error
+    if not 1 <= timeout <= 60:
+        raise HubError("AI_TIMEOUT_SECONDS must be between 1 and 60")
+    payload = json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": (
+                "Du bist die Gesprächs-KI der Routing-App. Antworte klar und knapp auf Deutsch. "
+                "Diese Schnittstelle ist nur für allgemeine Unterhaltung und Erklärungen. "
+                "Berechne, ändere oder bestätige niemals Routen, Abbiegungen, Fahrspuren, "
+                "Geschwindigkeiten oder Gefahren. Verweise dafür auf die verifizierte "
+                "Navigationsanzeige. Erfinde keine aktuellen Verkehrs- oder Sicherheitsfakten."
+            )},
+            {"role": "user", "content": message},
+        ],
+        "temperature": 0.6,
+        "max_tokens": 400,
+    }, ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    api_key = os.environ.get("AI_API_KEY", "")
+    if api_key:
+        headers["Authorization"] = "Bearer " + api_key
+    request = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            result = json.load(response)
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError) as error:
+        raise HubError("AI provider is currently unavailable") from error
+    try:
+        answer = result["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as error:
+        raise HubError("AI provider returned an unsupported response") from error
+    if not isinstance(answer, str) or not answer.strip() or len(answer) > 8_000:
+        raise HubError("AI provider returned an empty or oversized response")
+    return {"reply": answer.strip(), "model": model, "task": "conversation"}
+
+
 def _start_training_run(store, run_id):
     with store.lock:
         if getattr(store, "_active_training_run", False):
@@ -569,6 +634,17 @@ class HubHandler(BaseHTTPRequestHandler):
                              "inference": self.store.inference_summary(),
                              "runs": self.store.training_runs()})
             return
+        if parsed.path == "/v1/ai/status":
+            if not self._authorized():
+                self._send(401, {"error": "authentication_required"}); return
+            try:
+                configured = _ai_endpoint() is not None and bool(os.environ.get("AI_MODEL_ID", "").strip())
+            except HubError:
+                configured = False
+            self._send(200, {"status": "ready" if configured else "not_configured",
+                             "model": os.environ.get("AI_MODEL_ID", "") if configured else "",
+                             "scope": "conversation_only", "storesPrompts": False})
+            return
         if parsed.path == "/v1/training/runs":
             if not self._authorized():
                 self._send(401, {"error": "authentication_required"}); return
@@ -612,6 +688,17 @@ class HubHandler(BaseHTTPRequestHandler):
             elif self.path == "/v1/metrics/inference":
                 result = self.store.record_inference_metric(body)
                 self._send(202, result)
+            elif self.path == "/v1/ai/chat":
+                if body.get("task", "conversation") != "conversation":
+                    raise HubError("AI chat is restricted to conversation; navigation remains deterministic")
+                started = time.monotonic()
+                result = _generate_ai_reply(body.get("message"))
+                elapsed = min(120_000, int((time.monotonic() - started) * 1000))
+                self.store.record_inference_metric({
+                    "modelId": result["model"], "task": "conversation",
+                    "outcome": "success", "elapsedMillis": elapsed,
+                })
+                self._send(200, result)
             elif self.path == "/v1/training/runs":
                 mode = body.get("mode", "validate")
                 if mode not in {"validate", "lora"}:
