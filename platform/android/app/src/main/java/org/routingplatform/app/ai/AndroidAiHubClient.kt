@@ -18,7 +18,7 @@ class AndroidAiHubClient(context: Context) {
     private val prefs = context.getSharedPreferences("routing-ai-hub-v1", Context.MODE_PRIVATE)
 
     data class HubStatus(val status: String, val model: String) {
-        val ready: Boolean get() = status == "ready"
+        val ready: Boolean get() = status == "configured"
     }
 
     data class TrainingRun(val id: String, val status: String, val progress: Int, val stage: String, val error: String)
