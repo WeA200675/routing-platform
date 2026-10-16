@@ -150,8 +150,7 @@ class HubTest(unittest.TestCase):
             captured["payload"] = json.loads(request.data)
             captured["timeout"] = timeout
             return io.BytesIO(json.dumps(expected).encode())
-        with patch.dict(os.environ, {"AI_API_BASE_URL": "https://ai.example.test", "AI_MODEL_ID": "chat-model", "AI_API_KEY": "secret"}), \\
-             patch("backend.traffic_intelligence_hub.urllib.request.urlopen", side_effect=fake_urlopen):
+        with patch.dict(os.environ, {"AI_API_BASE_URL": "https://ai.example.test", "AI_MODEL_ID": "chat-model", "AI_API_KEY": "secret"}), patch("backend.traffic_intelligence_hub.urllib.request.urlopen", side_effect=fake_urlopen):
             result = hub._generate_ai_reply("Hallo")
         self.assertEqual("https://ai.example.test/v1/chat/completions", captured["url"])
         self.assertEqual("Hallo", captured["payload"]["messages"][1]["content"])
