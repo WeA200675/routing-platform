@@ -274,7 +274,7 @@ internal fun SocialAiSettingsSection(
             style = MaterialTheme.typography.titleSmall,
         )
         Text(
-            text = "Teste hier den tatsächlich installierten lokalen KI-Laufzeitpfad. Antworten bleiben außerhalb der Navigation.",
+            text = "Teste die lokale KI. Wenn sie nicht verfügbar ist, wird das Gespräch an den verbundenen privaten KI-Hub weitergegeben. Antworten bleiben außerhalb der Navigation.",
             style = MaterialTheme.typography.bodySmall,
         )
         OutlinedTextField(
@@ -291,8 +291,19 @@ internal fun SocialAiSettingsSection(
                 conversationBusy = true
                 conversationReply = null
                 onGenerateConversation(conversationInput) { reply ->
-                    conversationReply = reply ?: "Keine lokale Antwort verfügbar. Prüfe, ob das KI-Modell installiert und bereit ist."
-                    conversationBusy = false
+                    if (reply != null) {
+                        conversationReply = reply
+                        conversationBusy = false
+                    } else if (hubConnected && hubAiReady) {
+                        hubScope.launch {
+                            try { conversationReply = withContext(Dispatchers.IO) { hubClient.chat(conversationInput) } }
+                            catch (error: Exception) { conversationReply = error.message ?: "Lokale und verbundene KI sind momentan nicht erreichbar." }
+                            finally { conversationBusy = false }
+                        }
+                    } else {
+                        conversationReply = "Keine lokale Antwort verfügbar. Verbinde in diesem Bereich den privaten KI-Hub, um den geprüften Gesprächs-Fallback zu verwenden."
+                        conversationBusy = false
+                    }
                 }
             },
             enabled = conversationInput.isNotBlank() && !conversationBusy,
