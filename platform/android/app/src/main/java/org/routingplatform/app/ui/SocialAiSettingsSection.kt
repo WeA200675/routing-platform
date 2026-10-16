@@ -2,6 +2,20 @@ package org.routingplatform.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.routingplatform.app.ai.AndroidAiHubClient
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -65,6 +79,59 @@ internal fun SocialAiSettingsSection(
     var conversationInput by remember { mutableStateOf("") }
     var conversationReply by remember { mutableStateOf<String?>(null) }
     var conversationBusy by remember { mutableStateOf(false) }
+    val hubClient = remember { AndroidAiHubClient(LocalContext.current.applicationContext) }
+    val hubScope = rememberCoroutineScope()
+    var hubUrl by remember { mutableStateOf(hubClient.savedUrl()) }
+    var hubToken by remember { mutableStateOf("") }
+    var hubConnected by remember { mutableStateOf(false) }
+    var hubAiReady by remember { mutableStateOf(false) }
+    var hubState by remember { mutableStateOf("Nicht verbunden") }
+    var hubMessage by remember { mutableStateOf("") }
+    var hubReply by remember { mutableStateOf<String?>(null) }
+    var hubRun by remember { mutableStateOf<AndroidAiHubClient.TrainingRun?>(null) }
+    var hubPreset by remember { mutableStateOf("speech_clarity") }
+    var hubMenuOpen by remember { mutableStateOf(false) }
+    var hubBusy by remember { mutableStateOf(false) }
+
+    fun refreshHub() {
+        hubScope.launch {
+            try {
+                val status = withContext(Dispatchers.IO) { hubClient.status() }
+                hubConnected = true
+                hubAiReady = status.ready
+                hubState = if (status.ready) "Verbunden · ${status.model}" else "Hub verbunden, KI-Anbieter fehlt"
+                hubRun = withContext(Dispatchers.IO) { hubClient.lastTrainingRun() }
+            } catch (error: Exception) {
+                hubConnected = false
+                hubAiReady = false
+                hubState = error.message ?: "Verbindung fehlgeschlagen"
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (hubClient.savedUrl().isNotBlank()) refreshHub()
+    }
+    LaunchedEffect(hubConnected, hubRun?.id, hubRun?.status) {
+        while (isActive && hubClient.savedUrl().isNotBlank()) {
+            delay(if (hubConnected && (hubRun?.status == "queued" || hubRun?.status == "running")) 8_000 else if (hubConnected) 30_000 else 10_000)
+            try {
+                val status = withContext(Dispatchers.IO) { hubClient.status() }
+                hubConnected = true
+                hubAiReady = status.ready
+                hubState = if (status.ready) "Verbunden · ${status.model}" else "Hub verbunden, KI-Anbieter fehlt"
+                val current = hubRun
+                if (current?.status == "queued" || current?.status == "running") {
+                    hubRun = withContext(Dispatchers.IO) { hubClient.trainingRun(current.id) }
+                }
+            } catch (_: Exception) {
+                hubConnected = false
+                hubAiReady = false
+                hubState = "Verbindung unterbrochen · erneut verbinden"
+            }
+        }
+    }
+
 
     Column(
         modifier =
@@ -234,6 +301,112 @@ internal fun SocialAiSettingsSection(
         }
         conversationReply?.let { reply ->
             Text(reply, modifier = Modifier.testTag("rp.social_ai.conversation_reply"))
+        }
+
+        HorizontalDivider()
+        Text("KI-Hub · wiederverbindbare Verbindung", style = MaterialTheme.typography.titleSmall)
+        Text(
+            "Verbinde die App sicher mit deinem privaten Hub. Der Token wird verschlüsselt im Android Keystore abgelegt. KI-Gespräche bleiben getrennt von der sicherheitskritischen Routenführung.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(
+            value = hubUrl,
+            onValueChange = { hubUrl = it.take(500) },
+            modifier = Modifier.fillMaxWidth().testTag("rp.social_ai.hub_url"),
+            label = { Text("HTTPS-Adresse des privaten KI-Hubs") },
+            enabled = !hubBusy,
+            singleLine = true,
+        )
+        OutlinedTextField(
+            value = hubToken,
+            onValueChange = { hubToken = it.take(512) },
+            modifier = Modifier.fillMaxWidth().testTag("rp.social_ai.hub_token"),
+            label = { Text("Hub-Zugriffstoken") },
+            visualTransformation = PasswordVisualTransformation(),
+            enabled = !hubBusy,
+            singleLine = true,
+        )
+        Text(hubState, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("rp.social_ai.hub_status"))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                enabled = !hubBusy && hubUrl.isNotBlank() && hubToken.length >= 32,
+                onClick = {
+                    hubBusy = true
+                    hubScope.launch {
+                        try {
+                            withContext(Dispatchers.IO) { hubClient.saveConnection(hubUrl, hubToken) }
+                            hubToken = ""
+                            refreshHub()
+                        } catch (error: Exception) {
+                            hubState = error.message ?: "Verbindung fehlgeschlagen"
+                        } finally { hubBusy = false }
+                    }
+                },
+                modifier = Modifier.testTag("rp.social_ai.hub_connect"),
+            ) { Text(if (hubBusy) "Verbinde …" else "Sicher verbinden") }
+            OutlinedButton(enabled = hubConnected && !hubBusy, onClick = { refreshHub() }) { Text("Status prüfen") }
+        }
+        if (hubConnected) {
+            OutlinedTextField(
+                value = hubMessage,
+                onValueChange = { hubMessage = it.take(1200); hubReply = null },
+                modifier = Modifier.fillMaxWidth().testTag("rp.social_ai.hub_chat_input"),
+                label = { Text("Nachricht an die verbundene KI") },
+                enabled = !hubBusy && hubAiReady,
+                minLines = 2,
+                maxLines = 4,
+            )
+            Button(
+                enabled = hubAiReady && !hubBusy && hubMessage.isNotBlank(),
+                onClick = {
+                    hubBusy = true
+                    hubReply = null
+                    hubScope.launch {
+                        try { hubReply = withContext(Dispatchers.IO) { hubClient.chat(hubMessage) } }
+                        catch (error: Exception) { hubReply = error.message ?: "KI momentan nicht erreichbar" }
+                        finally { hubBusy = false }
+                    }
+                },
+                modifier = Modifier.testTag("rp.social_ai.hub_chat_send"),
+            ) { Text(if (hubBusy) "KI antwortet …" else "Mit Hub-KI sprechen") }
+            hubReply?.let { Text(it, modifier = Modifier.testTag("rp.social_ai.hub_chat_reply")) }
+            HorizontalDivider()
+            Text("LoRA-Training vom Handy starten", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Das Handy startet und überwacht den Trainingsjob. Die Gewichte werden auf dem Hub-Rechner trainiert; er braucht CUDA, einen gepinnten Modellstand und mindestens 20 geprüfte Beispiele für das gewählte Thema.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Box {
+                OutlinedButton(onClick = { hubMenuOpen = true }, enabled = !hubBusy) {
+                    Text(mapOf("speech_clarity" to "Sprachklarheit", "route_explanation" to "Routenbegründungen",
+                        "traffic_summary" to "Stauzusammenfassungen", "hazard_summary" to "Gefahrenhinweise",
+                        "gps_confidence" to "GPS-Konfidenz")[hubPreset] ?: hubPreset)
+                }
+                DropdownMenu(expanded = hubMenuOpen, onDismissRequest = { hubMenuOpen = false }) {
+                    listOf("speech_clarity" to "Sprachklarheit", "route_explanation" to "Routenbegründungen",
+                        "traffic_summary" to "Stauzusammenfassungen", "hazard_summary" to "Gefahrenhinweise",
+                        "gps_confidence" to "GPS-Konfidenz").forEach { (key, label) ->
+                        DropdownMenuItem(text = { Text(label) }, onClick = { hubPreset = key; hubMenuOpen = false })
+                    }
+                }
+            }
+            Button(
+                enabled = !hubBusy && hubRun?.status != "queued" && hubRun?.status != "running",
+                onClick = {
+                    hubBusy = true
+                    hubScope.launch {
+                        try { hubRun = withContext(Dispatchers.IO) { hubClient.startTraining("Handy-LoRA-${hubPreset}", hubPreset) } }
+                        catch (error: Exception) { hubState = error.message ?: "Trainingsstart fehlgeschlagen" }
+                        finally { hubBusy = false }
+                    }
+                },
+                modifier = Modifier.testTag("rp.social_ai.hub_training_start"),
+            ) { Text(if (hubBusy) "Wird gestartet …" else "LoRA-Training starten") }
+            hubRun?.let { run ->
+                Text("${run.status.uppercase()} · ${run.progress}% · ${run.stage}" +
+                    if (run.error.isNotBlank()) " · ${run.error}" else "",
+                    modifier = Modifier.testTag("rp.social_ai.hub_training_status"))
+            }
         }
 
         if (!preferences.adultFlirtOptIn) {
