@@ -375,11 +375,13 @@ def _ai_endpoint():
         parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
     ):
         raise HubError("AI_API_BASE_URL must use HTTPS (HTTP is allowed only on loopback)")
-    if not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
+    if not parsed.hostname or parsed.username or parsed.password or parsed.fragment or parsed.query:
         raise HubError("AI_API_BASE_URL is invalid")
-    if parsed.path.rstrip("/").endswith("/chat/completions"):
+    path = parsed.path.rstrip("/")
+    if path.endswith("/chat/completions"):
         return endpoint
-    return endpoint.rstrip("/") + "/v1/chat/completions"
+    suffix = "/chat/completions" if path.endswith("/v1") else "/v1/chat/completions"
+    return endpoint.rstrip("/") + suffix
 
 
 def _generate_ai_reply(message):
@@ -641,7 +643,7 @@ class HubHandler(BaseHTTPRequestHandler):
                 configured = _ai_endpoint() is not None and bool(os.environ.get("AI_MODEL_ID", "").strip())
             except HubError:
                 configured = False
-            self._send(200, {"status": "ready" if configured else "not_configured",
+            self._send(200, {"status": "configured" if configured else "not_configured",
                              "model": os.environ.get("AI_MODEL_ID", "") if configured else "",
                              "scope": "conversation_only", "storesPrompts": False})
             return
