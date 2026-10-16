@@ -24,13 +24,17 @@ jobs:
           G6 FINAL PHYSICAL DEVICE GATE
           
           1. Select one successful immutable Production Candidate run and record its exact 40-character source SHA.
-          2. Download g620-candidate-evidence from that exact run; do not use a moving 'latest' artifact.
-          3. Extract g620-release.apk to C:\g620-rc\g620-release.apk
-          4. Run: C:\platform-tools\adb.exe uninstall org.routingplatform.app
-          5. Run: C:\platform-tools\adb.exe install C:\g620-rc\g620-release.apk
-          6. Run: C:\platform-tools\adb.exe shell am start -n org.routingplatform.app/.ai.SocialAiDeviceTestActivity
+          2. Download g620-physical-device-test from that exact run; do not use a moving 'latest' artifact.
+          3. Extract g620-field-test.apk and its .sha256 file to C:\g6-rc.
+          4. Verify the APK with: certutil -hashfile C:\g6-rc\g620-field-test.apk SHA256
+             Compare the result with g620-field-test.apk.sha256.
+          5. Connect the Pixel 10 Pro with USB debugging enabled and verify it appears in:
+             C:\platform-tools\adb.exe devices -l
+          6. Run: C:\platform-tools\adb.exe uninstall org.routingplatform.app
+          7. Run: C:\platform-tools\adb.exe install C:\g6-rc\g620-field-test.apk
+          8. Run: C:\platform-tools\adb.exe shell am start -n org.routingplatform.app/.ai.SocialAiDeviceTestActivity
           
-          Required evidence: PASS, non-empty local response, inference/total timing, Netzwerk-Fallback: keiner.
+          Required evidence: PASS, exact model/runtime SHA-256, non-empty local response, inference/recovery/total timings, available RAM, and Netzwerk-Fallback: keiner.
           Then exercise the product navigation flow with:
           Fahr mich nach Hause, vermeide Autobahnen und halte vorher an einem Supermarkt.
           

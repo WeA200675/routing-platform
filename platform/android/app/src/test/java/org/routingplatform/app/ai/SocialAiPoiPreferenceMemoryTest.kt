@@ -62,6 +62,34 @@ class SocialAiPoiPreferenceMemoryTest {
     }
 
     @Test
+    fun localBayesianPreferenceModelUsesNeutralPriorAndUpdatesFromExplicitRatings() {
+        val neutral = SocialAiPoiCategoryFeedback(helpful = 0, notHelpful = 0)
+        val positive = SocialAiPoiCategoryFeedback(helpful = 1, notHelpful = 0)
+        val negative = SocialAiPoiCategoryFeedback(helpful = 0, notHelpful = 1)
+        val established = SocialAiPoiCategoryFeedback(helpful = 8, notHelpful = 2)
+
+        assertEquals(0.5, neutral.probabilityHelpful, 0.0001)
+        assertEquals(2.0 / 3.0, positive.probabilityHelpful, 0.0001)
+        assertEquals(1.0 / 3.0, negative.probabilityHelpful, 0.0001)
+        assertEquals(0.75, established.probabilityHelpful, 0.0001)
+        assertEquals(10, established.evidenceCount)
+    }
+
+    @Test
+    fun categoryOrderingUsesPosteriorProbabilityInsteadOfRawRatingCount() {
+        val ordered = SocialAiPoiPreferenceMemory.orderedCategories(
+            mapOf(
+                "fuel" to SocialAiPoiCategoryFeedback(helpful = 3, notHelpful = 0),
+                "food" to SocialAiPoiCategoryFeedback(helpful = 8, notHelpful = 2),
+            )
+        )
+
+        // Fuel has fewer absolute positive ratings, but a higher estimated
+        // helpful probability: 0.80 versus 0.75 for food.
+        assertEquals("fuel", ordered.first())
+    }
+
+    @Test
     fun queryCategoriesAreRecognizedWithoutKeepingPlaceNames() {
         assertEquals("fuel", SocialAiPoiPreferenceMemory.categoryForQuery("Ich muss kurz tanken"))
         assertEquals("charging", SocialAiPoiPreferenceMemory.categoryForQuery("E-Ladestation"))

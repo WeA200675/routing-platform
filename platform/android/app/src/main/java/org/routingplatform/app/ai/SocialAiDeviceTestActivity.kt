@@ -97,7 +97,12 @@ class SocialAiDeviceTestActivity : ComponentActivity() {
                     check(recoveryAnswer.isNotBlank()) { "Recovery-Test lieferte keine Ausgabe." }
 
                     val totalMs = SystemClock.elapsedRealtime() - started
-                    "G6 PASS ✓\n\nModell-SHA: PASS\nIntent-Safety: PASS\nNative Runtime: PASS\nLokale Inferenz: PASS\nUnload/Reload-Recovery: PASS\nWiederholte Inferenz: PASS\n\nLokale Antwort:\n$answer\n\nInferenz: ${inferenceMs} ms\nRecovery-Inferenz: ${recoveryMs} ms\nGesamttest: ${totalMs} ms\nVerfügbarer RAM: ${memory.availMem / (1024 * 1024)} MiB\nNetzwerk-Fallback: keiner"
+                    val modelSha = sha256(model)
+                    val runtimeSha = engine.artifactSha256.lowercase()
+                    check(runtimeSha.matches(Regex("[a-f0-9]{64}")) && runtimeSha != "0".repeat(64)) {
+                        "Native Runtime lieferte keine gültige Artefakt-SHA-256."
+                    }
+                    "G6 PASS ✓\n\nModell-SHA-256: $modelSha\nRuntime-SHA-256: $runtimeSha\nRuntime-ID: ${engine.engineId}\nIntent-Safety: PASS\nNative Runtime: PASS\nLokale Inferenz: PASS\nUnload/Reload-Recovery: PASS\nWiederholte Inferenz: PASS\n\nLokale Antwort:\n$answer\n\nInferenz: ${inferenceMs} ms\nRecovery-Inferenz: ${recoveryMs} ms\nGesamttest: ${totalMs} ms\nVerfügbarer RAM: ${memory.availMem / (1024 * 1024)} MiB\nNetzwerk-Fallback: keiner"
                 } finally {
                     engine.unloadModel()
                 }

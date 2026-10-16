@@ -2,6 +2,8 @@
 
 Die Android-App kann sich unter **Einstellungen → Soziale KI → KI-Hub** mit diesem Hub verbinden. Dort lassen sich Gespräche mit dem konfigurierten Modell senden sowie echte LoRA-Läufe auf dem Trainingsrechner starten und wieder aufnehmen. Der Hub antwortet nur für Unterhaltung; Navigation, Spuren, Abbiegungen und Verkehrslage bleiben bei den geprüften Routing- und Datenquellen.
 
+
+> Der KI-Hub ist optional und extern: Gespräche oder LoRA-Läufe nutzen ihn nur über die ausdrücklich getrennten Hub-Aktionen. Die App verwendet keinen automatischen Gesprächs-Fallback zum Hub. Für lokale KI-Inferenz und lokales Präferenzlernen auf dem Pixel siehe [Lokale KI und Pixel-10-Pro-Test](ON_DEVICE_AI_PIXEL10.md).
 ## 1. Hub sicher erreichbar machen
 
 Den Hub auf einem dauerhaften Rechner/Server starten und per Reverse Proxy mit einem gültigen TLS-Zertifikat über HTTPS veröffentlichen. Für externen Zugriff braucht der Hub eine mindestens 32 Zeichen lange Zufallskennung und einen Wildcard-Bind:

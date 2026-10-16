@@ -161,13 +161,19 @@ internal fun SocialAiSettingsSection(
         SettingToggle(
             title = "Routen- und Themenlernen",
             description =
-                "Lernt aus bestätigten positiven Routen- und Themenbewertungen, lokal auf diesem Gerät. " +
-                    "Ziele, Koordinaten und rohe Fahrten werden nicht gespeichert; Ausschalten löscht diese Lernwerte.",
+                "Lernt ausschließlich lokal aus bestätigten Routenbewertungen und deinen 👍/👎 für Zwischenziel-Kategorien. " +
+                    "Es speichert keine Ziele, Koordinaten oder Fahrten; Ausschalten löscht diese Lernwerte.",
             checked = preferences.learningEnabled,
             testTag = SocialAiUiTestTags.RouteLearningToggle,
             onCheckedChange = { enabled ->
                 onChanged(preferences.copy(learningEnabled = enabled))
             },
+        )
+
+        Text(
+            text = "Lokales Lernen: Deine Zwischenziel-Bewertungen aktualisieren direkt ein kleines Bayes-Präferenzmodell auf dem Gerät. Es sortiert passende Kategorien künftig nach deinen bisherigen Bewertungen. Das Qwen-Sprachmodell selbst wird dadurch nicht feinabgestimmt; Navigationsentscheidungen bleiben bei der geprüften Routing-Engine.",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.testTag("rp.social_ai.local_learning_explanation"),
         )
 
         SettingToggle(
@@ -274,7 +280,7 @@ internal fun SocialAiSettingsSection(
             style = MaterialTheme.typography.titleSmall,
         )
         Text(
-            text = "Teste die lokale KI. Wenn sie nicht verfügbar ist, wird das Gespräch an den verbundenen privaten KI-Hub weitergegeben. Antworten bleiben außerhalb der Navigation.",
+            text = "Dieser Test nutzt ausschließlich die lokale KI. Wenn Modell oder Laufzeit fehlen, erscheint ein lokaler Fehler; es gibt keinen automatischen Hub-Fallback. Antworten bleiben außerhalb der Navigation.",
             style = MaterialTheme.typography.bodySmall,
         )
         OutlinedTextField(
@@ -294,14 +300,8 @@ internal fun SocialAiSettingsSection(
                     if (reply != null) {
                         conversationReply = reply
                         conversationBusy = false
-                    } else if (hubConnected && hubAiReady) {
-                        hubScope.launch {
-                            try { conversationReply = withContext(Dispatchers.IO) { hubClient.chat(conversationInput) } }
-                            catch (error: Exception) { conversationReply = error.message ?: "Lokale und verbundene KI sind momentan nicht erreichbar." }
-                            finally { conversationBusy = false }
-                        }
                     } else {
-                        conversationReply = "Keine lokale Antwort verfügbar. Verbinde in diesem Bereich den privaten KI-Hub, um den geprüften Gesprächs-Fallback zu verwenden."
+                        conversationReply = "Lokale KI nicht verfügbar. Prüfe, ob das signierte lokale Kandidaten-APK mit Modell und Laufzeit installiert ist. Es wurden keine Gesprächsdaten an einen Hub gesendet."
                         conversationBusy = false
                     }
                 }
@@ -383,9 +383,9 @@ internal fun SocialAiSettingsSection(
             ) { Text(if (hubBusy) "KI antwortet …" else "Mit Hub-KI sprechen") }
             hubReply?.let { Text(it, modifier = Modifier.testTag("rp.social_ai.hub_chat_reply")) }
             HorizontalDivider()
-            Text("LoRA-Training vom Handy starten", style = MaterialTheme.typography.titleSmall)
+            Text("Optionales LoRA-Training auf dem Hub", style = MaterialTheme.typography.titleSmall)
             Text(
-                "Das Handy startet und überwacht den Trainingsjob. Die Gewichte werden auf dem Hub-Rechner trainiert; er braucht CUDA, einen gepinnten Modellstand und mindestens 20 geprüfte Beispiele für das gewählte Thema.",
+                "Diese getrennte Funktion startet echtes LoRA-Training auf dem Hub-Rechner, nicht auf dem Handy. Für lokales Lernen nutze die Zwischenziel-Bewertungen oben; sie aktualisieren das kleine Präferenzmodell auf diesem Gerät.",
                 style = MaterialTheme.typography.bodySmall,
             )
             Box {
@@ -413,7 +413,7 @@ internal fun SocialAiSettingsSection(
                     }
                 },
                 modifier = Modifier.testTag("rp.social_ai.hub_training_start"),
-            ) { Text(if (hubBusy) "Wird gestartet …" else "LoRA-Training starten") }
+            ) { Text(if (hubBusy) "Wird gestartet …" else "Externes Hub-Training starten") }
             hubRun?.let { run ->
                 Text("${run.status.uppercase()} · ${run.progress}% · ${run.stage}" +
                     if (run.error.isNotBlank()) " · ${run.error}" else "",
