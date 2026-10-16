@@ -32,7 +32,7 @@ class AndroidAiHubClient(context: Context) {
         require(parsed.protocol == "https" && parsed.host.isNotBlank() && parsed.userInfo == null && parsed.query == null && parsed.ref == null) {
             "Der KI-Hub benötigt eine gültige HTTPS-Adresse ohne Zugangsdaten im Link."
         }
-        require(token.length in 32..512) { "Der Hub-Token muss zwischen 32 und 512 Zeichen enthalten." }
+        require(Regex("[A-Za-z0-9._~-]{32,512}").matches(token)) { "Der Hub-Token muss 32 bis 512 sichere Token-Zeichen enthalten." }
         val encrypted = encrypt(token)
         check(prefs.edit().putString(KEY_URL, normalized).putString(KEY_TOKEN, encrypted.first)
             .putString(KEY_IV, encrypted.second).commit()) { "Die Hub-Verbindung konnte nicht sicher gespeichert werden." }
