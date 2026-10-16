@@ -2363,10 +2363,7 @@ class MainActivity :
                                             userText = userText,
                                             rememberedContext = remembered,
                                         )
-                                    }.getOrElse { error ->
-                                        error.message?.takeIf(String::isNotBlank)
-                                            ?: "Die lokale KI konnte nicht gestartet werden. Prüfe Modell, Laufzeit und freien Gerätespeicher."
-                                    }
+                                    }.getOrNull()
                                 runOnUiThread {
                                     complete(response)
                                 }
