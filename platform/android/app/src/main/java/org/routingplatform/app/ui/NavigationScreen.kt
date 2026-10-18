@@ -1355,7 +1355,14 @@ internal fun NavigationScreen(
                             onClick = { previewSettingsExpanded = !previewSettingsExpanded },
                         ) {
                             Text(
-        
+                                if (previewSettingsExpanded) {
+                                    "▾ Einstellungen ausblenden"
+                                } else {
+                                    "▸ Einstellungen anzeigen"
+                                }
+                            )
+                        }
+
                         if (BuildConfig.DEBUG) {
                             OutlinedButton(
                                 modifier = Modifier
@@ -1369,14 +1376,6 @@ internal fun NavigationScreen(
                             ) {
                                 Text("KI-Gerätetest öffnen")
                             }
-                        }
-
-                        if (previewSettingsExpanded) {
-                                    "▾ Einstellungen ausblenden"
-                                } else {
-                                    "▸ Einstellungen anzeigen"
-                                }
-                            )
                         }
 
                         if (previewSettingsExpanded) {
