@@ -1,5 +1,9 @@
 package org.routingplatform.app.ui
 
+import android.content.Intent
+import org.routingplatform.app.ai.SocialAiDeviceTestActivity
+import org.routingplatform.app.BuildConfig
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -157,6 +161,28 @@ internal fun SocialAiSettingsSection(
                     "Gelernte Vorlieben bleiben davon getrennt.",
             style = MaterialTheme.typography.bodySmall,
         )
+
+        if (BuildConfig.DEBUG) {
+        Text(
+                text = "Lokaler KI-Gerätetest",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = "Prüft das installierte Modell und die native Laufzeit direkt auf diesem Handy. Der Test läuft lokal und bleibt getrennt von der Navigation.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Button(
+                onClick = {
+                    appContext.startActivity(
+                        Intent(appContext, SocialAiDeviceTestActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                },
+                modifier = Modifier.fillMaxWidth().testTag("rp.social_ai.device_test_open"),
+            ) {
+                Text("KI-Gerätetest öffnen")
+            }
+            }
 
         SettingToggle(
             title = "Routen- und Themenlernen",
