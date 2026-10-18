@@ -1,6 +1,8 @@
 package org.routingplatform.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -8,10 +10,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
@@ -46,6 +53,10 @@ internal fun NavigationSettingsGrid(
         Modifier =
         Modifier,
 ) {
+    var selectedCategory by rememberSaveable { mutableStateOf("Fahrt") }
+    val categories = listOf("Fahrt", "Karte", "Gerät")
+    val visibleItems = items.filter { settingsCategoryFor(it) == selectedCategory }
+
     val dark =
         MaterialTheme
             .colorScheme
@@ -59,10 +70,26 @@ internal fun NavigationSettingsGrid(
 
         verticalArrangement =
             Arrangement.spacedBy(
-                4.dp
+                8.dp
             ),
     ) {
-        items
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            categories.forEach { category ->
+                FilterChip(
+                    selected = selectedCategory == category,
+                    onClick = { selectedCategory = category },
+                    label = { Text(category) },
+                    modifier = Modifier.testTag("navigation_settings_category_$category"),
+                )
+            }
+        }
+
+        visibleItems
             .chunked(
                 2
             )
@@ -188,3 +215,20 @@ internal fun NavigationSettingsGrid(
             }
     }
 }
+
+private fun settingsCategoryFor(item: NavigationSettingTile): String =
+    when (item.testTag) {
+        "security_diagnostics_open",
+        "navigation_calibration_summary_open",
+        "offline_routing_setup_open" -> "Gerät"
+
+        "map_style_settings",
+        NavigationUiTestTags.CameraZoomSettingsOpen,
+        NavigationUiTestTags.MapOrientationSettingsOpen,
+        NavigationUiTestTags.TextScaleSettingsOpen,
+        NavigationUiTestTags.InformationDensitySettingsOpen,
+        NavigationUiTestTags.RouteLineScaleSettingsOpen,
+        NavigationUiTestTags.AccentColorSettingsOpen -> "Karte"
+
+        else -> "Fahrt"
+    }
