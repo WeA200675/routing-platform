@@ -1,10 +1,14 @@
 package org.routingplatform.app.ui
+import android.content.Intent
+import org.routingplatform.app.BuildConfig
+import org.routingplatform.app.ai.SocialAiDeviceTestActivity
 
 import android.os.SystemClock
 import androidx.compose.runtime.LaunchedEffect
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -357,6 +362,8 @@ internal fun NavigationScreen(
         (Int) -> Unit =
         {},
 ) {
+    val context = LocalContext.current
+
     var calibrationSummaryOpen by remember { mutableStateOf(false) }
 
     var onboardingDialogOpen by rememberSaveable { mutableStateOf(false) }
@@ -613,22 +620,29 @@ internal fun NavigationScreen(
                     .informationDensity
             )
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .semantics {
-                    /*
-                     * Expose testTag as resource-id to UIAutomator.
-                     * This is automation metadata only.
-                     */
-                    testTagsAsResourceId =
-                        true
-                }
-                .testTag(
-                    NavigationUiTestTags.Root
-                ),
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val previewPanelMaxHeight = maxHeight * 0.62f
+        val activePanelMaxHeight = if (snapshot.state == NavigationSessionState.Preview) {
+            previewPanelMaxHeight
+        } else {
+            164.dp
+        }
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .semantics {
+                        /*
+                         * Expose testTag as resource-id to UIAutomator.
+                         * This is automation metadata only.
+                         */
+                        testTagsAsResourceId =
+                            true
+                    }
+                    .testTag(
+                        NavigationUiTestTags.Root
+                    ),
+        ) {
         Box(
             modifier =
                 Modifier
@@ -739,6 +753,21 @@ internal fun NavigationScreen(
                 modifier =
                     Modifier.fillMaxSize(),
             )
+
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(8.dp),
+                shape = MaterialTheme.shapes.small,
+                tonalElevation = 2.dp,
+            ) {
+                Text(
+                    text = "v${BuildConfig.VERSION_NAME}",
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
 
             if (
                 focusMode
@@ -941,6 +970,9 @@ internal fun NavigationScreen(
         }
 
         Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = activePanelMaxHeight),
             tonalElevation =
                 4.dp,
         ) {
@@ -948,6 +980,7 @@ internal fun NavigationScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                         .navigationBarsPadding()
                         .padding(if (snapshot.state == NavigationSessionState.Navigating) 8.dp else 18.dp)
                         .let { base ->
@@ -956,7 +989,8 @@ internal fun NavigationScreen(
                             } else {
                                 base
                             }
-                        },
+                        }
+                        .testTag("navigation_bottom_panel_scroll"),
             ) {
                 if (snapshot.state == NavigationSessionState.Navigating && trafficDetourOffer != null) {
                     TrafficDetourOfferCard(
@@ -1327,6 +1361,21 @@ internal fun NavigationScreen(
                                     "▸ Einstellungen anzeigen"
                                 }
                             )
+                        }
+
+                        if (BuildConfig.DEBUG) {
+                            OutlinedButton(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("local_ai_device_test_open"),
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(context, SocialAiDeviceTestActivity::class.java)
+                                    )
+                                },
+                            ) {
+                                Text("KI-Gerätetest öffnen")
+                            }
                         }
 
                         if (previewSettingsExpanded) {
@@ -1787,6 +1836,7 @@ internal fun NavigationScreen(
                 }
             }
         }
+    }
     }
 
     if (
