@@ -29,11 +29,6 @@
             android:exported="false" />
 
         <activity
-            android:name=".ai.SocialAiDeviceTestActivity"
-            android:exported="false"
-            android:label="Lokaler KI-Gerätetest" />
-
-        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
