@@ -138,6 +138,32 @@ object AndroidNavigationRouteContractJson {
                                 source.optionalInt(
                                     "engineType"
                                 ),
+
+                            destinationSign =
+                                source.optString("destinationSign")
+                                    .takeIf { it.isNotBlank() && it != "null" }
+                                    ?.take(160),
+
+                            laneIndications =
+                                source.optJSONArray("laneIndications")?.let { lanes ->
+                                    buildList {
+                                        for (laneIndex in 0 until minOf(lanes.length(), 12)) {
+                                            lanes.optString(laneIndex)
+                                                .takeIf(String::isNotBlank)
+                                                ?.take(48)
+                                                ?.let(::add)
+                                        }
+                                    }
+                                } ?: emptyList(),
+
+                            maneuverSide =
+                                when (source.optString("maneuverSide").lowercase()) {
+                                    "left" -> NavigationManeuverSide.Left
+                                    "right" -> NavigationManeuverSide.Right
+                                    "straight" -> NavigationManeuverSide.Straight
+                                    "uturn", "u_turn" -> NavigationManeuverSide.UTurn
+                                    else -> null
+                                },
                         )
                     )
                 }

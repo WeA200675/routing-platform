@@ -50,11 +50,11 @@ internal data class NavigationSpeedLimitMonitorUpdate(
 internal class NavigationSpeedLimitMonitor {
     private var activeRouteId: String? = null
     private var cumulativeDistanceM: DoubleArray = doubleArrayOf()
-    private val deliveredApproachStages = mutableSetOf<String>()
     private var overLimitSegmentStart: Int? = null
     private var overLimitSampleCount = 0
     private var overLimitActive = false
     private var lastOverLimitAlertNanos: Long? = null
+    private var lastOverLimitSampleNanos: Long? = null
 
     fun update(
         snapshot: NavigationUiSnapshot,
@@ -63,15 +63,16 @@ internal class NavigationSpeedLimitMonitor {
         speedSampleElapsedRealtimeNanos: Long?,
         speedPositionTrusted: Boolean,
         nowElapsedRealtimeNanos: Long,
+        speedingThresholdKmh: Int = 5,
     ): NavigationSpeedLimitMonitorUpdate {
         if (snapshot.routeId != activeRouteId) {
             activeRouteId = snapshot.routeId
             cumulativeDistanceM = cumulativeDistances(snapshot)
-            deliveredApproachStages.clear()
             overLimitSegmentStart = null
             overLimitSampleCount = 0
             overLimitActive = false
             lastOverLimitAlertNanos = null
+            lastOverLimitSampleNanos = null
         }
 
         val shapePosition =
@@ -88,6 +89,8 @@ internal class NavigationSpeedLimitMonitor {
             ?.roundToInt()
             ?.takeIf { it > 0 }
 
+        require(speedingThresholdKmh in setOf(0, 5, 10, 20))
+
         val sampleIsFresh =
             speedSampleElapsedRealtimeNanos
                 ?.let { sampleTime ->
@@ -103,6 +106,20 @@ internal class NavigationSpeedLimitMonitor {
                 speedMps >= 0.0
             ) {
                 (speedMps * METERS_PER_SECOND_TO_KMH).roundToInt()
+            } else {
+                null
+            }
+
+        val speedLowerBoundKmh =
+            if (currentSpeedKmh == null || speedMps == null) {
+                null
+            } else if (speedAccuracyMps == null) {
+                speedMps * METERS_PER_SECOND_TO_KMH
+            } else if (speedAccuracyMps.isFinite() && speedAccuracyMps >= 0.0) {
+                (
+                    speedMps -
+                        SPEED_ACCURACY_CONFIDENCE_MULTIPLIER * speedAccuracyMps
+                    ).coerceAtLeast(0.0) * METERS_PER_SECOND_TO_KMH
             } else {
                 null
             }
@@ -131,24 +148,38 @@ internal class NavigationSpeedLimitMonitor {
             currentSegment != null &&
             currentLimit != null &&
             !currentSegment.unlimited &&
-            currentSpeedKmh != null
+            currentSpeedKmh != null &&
+            speedLowerBoundKmh != null
         ) {
             if (overLimitSegmentStart != currentSegment.beginShapeIndex) {
                 overLimitSegmentStart = currentSegment.beginShapeIndex
                 overLimitSampleCount = 0
                 overLimitActive = false
             }
-            val accuracyAllowanceKmh =
-                ((speedAccuracyMps ?: 0.0).coerceAtLeast(0.0) *
-                    METERS_PER_SECOND_TO_KMH * SPEED_ACCURACY_MULTIPLIER)
-                    .coerceAtMost(MAX_SPEED_ACCURACY_ALLOWANCE_KMH)
-            val thresholdKmh =
-                currentLimit + maxOf(MIN_SPEEDING_MARGIN_KMH, accuracyAllowanceKmh)
-            if (currentSpeedKmh > thresholdKmh) {
-                overLimitSampleCount += 1
+            val sampleTime = speedSampleElapsedRealtimeNanos
+            val previousSampleTime = lastOverLimitSampleNanos
+            val sampleIsDistinctAndOrdered =
+                sampleTime != null &&
+                    sampleTime > 0L &&
+                    (previousSampleTime == null || sampleTime > previousSampleTime) &&
+                    (previousSampleTime == null ||
+                        sampleTime - previousSampleTime <= MAX_CONSECUTIVE_SAMPLE_GAP_NANOS)
+            if (speedLowerBoundKmh > currentLimit + speedingThresholdKmh) {
+                if (sampleIsDistinctAndOrdered) {
+                    overLimitSampleCount += 1
+                } else if (sampleTime == previousSampleTime) {
+                    // Recomposition with the same fix cannot confirm speeding twice.
+                } else {
+                    overLimitSampleCount = 1
+                    overLimitActive = false
+                }
+                if (sampleTime != null && sampleTime > 0L) {
+                    lastOverLimitSampleNanos = sampleTime
+                }
             } else {
                 overLimitSampleCount = 0
                 overLimitActive = false
+                lastOverLimitSampleNanos = sampleTime
             }
             overLimit = overLimitSampleCount >= REQUIRED_OVER_LIMIT_SAMPLES
             if (overLimit && !overLimitActive) {
@@ -171,38 +202,10 @@ internal class NavigationSpeedLimitMonitor {
             overLimitSegmentStart = currentSegment?.beginShapeIndex
             overLimitSampleCount = 0
             overLimitActive = false
+            lastOverLimitSampleNanos = speedSampleElapsedRealtimeNanos
         }
 
-        if (
-            warning == null &&
-            snapshot.state == NavigationSessionState.Navigating &&
-            upcoming != null &&
-            distanceToUpcoming != null
-        ) {
-            val limit = upcoming.speedLimitKmh!!.roundToInt()
-            val stage =
-                when {
-                    distanceToUpcoming <= EARLY_LIMIT_WARNING_METERS ->
-                        NavigationSpeedLimitWarningKind.Approaching150m
 
-                    distanceToUpcoming <= PREVIEW_LIMIT_WARNING_METERS ->
-                        NavigationSpeedLimitWarningKind.Approaching500m
-
-                    else -> null
-                }
-            if (stage != null) {
-                val stageKey = upcoming.beginShapeIndex.toString() + ":" + stage.name
-                if (deliveredApproachStages.add(stageKey)) {
-                    warning = NavigationSpeedLimitWarning(
-                        routeId = snapshot.routeId,
-                        beginShapeIndex = upcoming.beginShapeIndex,
-                        limitKmh = limit,
-                        kind = stage,
-                        distanceM = distanceToUpcoming,
-                    )
-                }
-            }
-        }
 
         val label =
             when {
@@ -287,9 +290,6 @@ private const val METERS_PER_SECOND_TO_KMH = 3.6
 private const val SHAPE_INDEX_EPSILON = 0.000_001
 private const val MAX_SPEED_SAMPLE_AGE_NANOS = 2_000_000_000L
 private const val REQUIRED_OVER_LIMIT_SAMPLES = 2
-private const val MIN_SPEEDING_MARGIN_KMH = 5.0
-private const val SPEED_ACCURACY_MULTIPLIER = 2.0
-private const val MAX_SPEED_ACCURACY_ALLOWANCE_KMH = 12.0
+private const val MAX_CONSECUTIVE_SAMPLE_GAP_NANOS = 5_000_000_000L
+private const val SPEED_ACCURACY_CONFIDENCE_MULTIPLIER = 2.0
 private const val OVER_LIMIT_REPEAT_COOLDOWN_NANOS = 30_000_000_000L
-private const val PREVIEW_LIMIT_WARNING_METERS = 500.0
-private const val EARLY_LIMIT_WARNING_METERS = 150.0

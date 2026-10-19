@@ -22,6 +22,12 @@ class SocialAiProductRuntime(
         return SocialAiProductionRouting(active)
     }
 
+    /** Loads the integrity-checked local model during route idle time. */
+    @Synchronized
+    fun warmUp() {
+        load()
+    }
+
     @Synchronized
     fun generateConversationResponse(
         input: SocialAiRuntimeInput,
@@ -101,6 +107,11 @@ class SocialAiProductRuntime(
 
         val target = File(context.filesDir, MODEL_FILE)
         if (!target.isFile || target.length() != MODEL_SIZE_BYTES || !SocialAiModelIntegrity.verify(target, MODEL_METADATA)) {
+            if (!isModelAssetPackaged()) {
+                throw IllegalStateException(
+                    "Dieses Test-APK enthält kein lokales KI-Modell. Installiere das vollständige G6.20-Kandidaten-APK.",
+                )
+            }
             require(context.filesDir.usableSpace >= MODEL_SIZE_BYTES * 2L + MINIMUM_FREE_STORAGE_AFTER_INSTALL_BYTES) {
                 "Nicht genügend Speicherplatz für die verifizierte lokale KI-Installation."
             }
@@ -134,7 +145,14 @@ class SocialAiProductRuntime(
             }
         }
 
-        val loadedEngine = JniSocialAiNativeEngine()
+        val loadedEngine = try {
+            JniSocialAiNativeEngine()
+        } catch (error: UnsatisfiedLinkError) {
+            throw IllegalStateException(
+                "Die geprüfte lokale KI-Laufzeit fehlt in diesem APK. Installiere das vollständige G6.20-Kandidaten-APK.",
+                error,
+            )
+        }
         require(loadedEngine.loadModel(target.absolutePath, CONTEXT_TOKENS)) {
             "Die lokale KI-Runtime hat das verifizierte Modell abgelehnt."
         }
@@ -142,6 +160,11 @@ class SocialAiProductRuntime(
         engine = loadedEngine
         return loadedEngine
     }
+
+    private fun isModelAssetPackaged(): Boolean =
+        runCatching {
+            context.assets.open(MODEL_ASSET).use { }
+        }.isSuccess
 
     @Synchronized
     override fun close() {

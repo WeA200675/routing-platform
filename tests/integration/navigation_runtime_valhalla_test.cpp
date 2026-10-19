@@ -363,6 +363,25 @@ export_navigation_route_contract(
               street_index]);
     }
 
+    output << "],\n";
+
+    output << "      \"destinationSign\": ";
+    if (maneuver.destination_sign) {
+      write_json_string(output, *maneuver.destination_sign);
+    } else {
+      output << "null";
+    }
+    output << ",\n";
+
+    output << "      \"laneIndications\": [";
+    for (std::size_t lane_index = 0U;
+         lane_index < maneuver.lane_indications.size();
+         ++lane_index) {
+      if (lane_index > 0U) {
+        output << ", ";
+      }
+      write_json_string(output, maneuver.lane_indications[lane_index]);
+    }
     output << "]\n";
     output << "    }";
 

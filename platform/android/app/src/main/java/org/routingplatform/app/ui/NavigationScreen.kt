@@ -1,10 +1,14 @@
 package org.routingplatform.app.ui
+import android.content.Intent
+import org.routingplatform.app.BuildConfig
+import org.routingplatform.app.ai.SocialAiDeviceTestActivity
 
 import android.os.SystemClock
 import androidx.compose.runtime.LaunchedEffect
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,9 +16,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -38,6 +44,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +76,7 @@ import org.routingplatform.app.profile.NavigationControlSide
 import org.routingplatform.app.profile.NavigationHapticIntensity
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
 import org.routingplatform.app.profile.ProfileMapOrientation
+import org.routingplatform.app.profile.ProfileMapStyle
 import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoicePreferences
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
@@ -110,6 +119,8 @@ internal fun NavigationScreen(
     routeAcquisitionFaultCode:
         NavigationFaultCode? =
         null,
+
+    navigationRuntimeRecoveryMessage: String? = null,
 
     trafficDetourOffer: TrafficDetourOffer? = null,
     onAcceptTrafficDetour: (TrafficDetourOffer) -> Unit = {},
@@ -351,6 +362,8 @@ internal fun NavigationScreen(
         (Int) -> Unit =
         {},
 ) {
+    val context = LocalContext.current
+
     var calibrationSummaryOpen by remember { mutableStateOf(false) }
 
     var onboardingDialogOpen by rememberSaveable { mutableStateOf(false) }
@@ -483,6 +496,30 @@ internal fun NavigationScreen(
                 false
             )
         }
+    var mapStyleSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    var speedingThresholdSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    if (mapStyleSettingsOpen) {
+        MapStyleSettingsDialog(
+            currentStyle = displayPreferences.mapStyle,
+            onSelect = { style ->
+                onDisplayPreferencesChanged(displayPreferences.copy(mapStyle = style))
+                mapStyleSettingsOpen = false
+            },
+            onDismiss = { mapStyleSettingsOpen = false },
+        )
+    }
+
+    if (speedingThresholdSettingsOpen) {
+        SpeedingThresholdSettingsDialog(
+            selectedKmh = navigationPreferences.speedingThresholdKmh,
+            onSelect = { threshold ->
+                onNavigationPreferencesChanged(navigationPreferences.copy(speedingThresholdKmh = threshold))
+                speedingThresholdSettingsOpen = false
+            },
+            onDismiss = { speedingThresholdSettingsOpen = false },
+        )
+    }
+
     var accentColorSettingsOpen by
         remember {
             mutableStateOf(
@@ -551,6 +588,7 @@ internal fun NavigationScreen(
         currentSpeedAccuracyMps,
         speedSampleElapsedRealtimeNanos,
         speedPositionTrusted,
+        navigationPreferences.speedingThresholdKmh,
     ) {
         val update = speedLimitMonitor.update(
             snapshot = snapshot,
@@ -559,6 +597,7 @@ internal fun NavigationScreen(
             speedSampleElapsedRealtimeNanos = speedSampleElapsedRealtimeNanos,
             speedPositionTrusted = speedPositionTrusted,
             nowElapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos(),
+            speedingThresholdKmh = navigationPreferences.speedingThresholdKmh,
         )
         speedLimitPresentation = update.presentation
         update.warning?.let(onSpeedLimitWarning)
@@ -581,22 +620,29 @@ internal fun NavigationScreen(
                     .informationDensity
             )
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .semantics {
-                    /*
-                     * Expose testTag as resource-id to UIAutomator.
-                     * This is automation metadata only.
-                     */
-                    testTagsAsResourceId =
-                        true
-                }
-                .testTag(
-                    NavigationUiTestTags.Root
-                ),
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val previewPanelMaxHeight = maxHeight * 0.62f
+        val activePanelMaxHeight = if (snapshot.state == NavigationSessionState.Preview) {
+            previewPanelMaxHeight
+        } else {
+            164.dp
+        }
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .semantics {
+                        /*
+                         * Expose testTag as resource-id to UIAutomator.
+                         * This is automation metadata only.
+                         */
+                        testTagsAsResourceId =
+                            true
+                    }
+                    .testTag(
+                        NavigationUiTestTags.Root
+                    ),
+        ) {
         Box(
             modifier =
                 Modifier
@@ -660,6 +706,11 @@ internal fun NavigationScreen(
                             NavigationSessionState
                             .Navigating,
 
+                currentSpeedMps = currentSpeedMps,
+                currentSpeedAccuracyMps = currentSpeedAccuracyMps,
+                speedSampleElapsedRealtimeNanos = speedSampleElapsedRealtimeNanos,
+                speedPositionTrusted = speedPositionTrusted,
+
                 distanceToCurrentManeuverEndM =
                     snapshot
                         .distanceToCurrentManeuverEndM,
@@ -707,6 +758,21 @@ internal fun NavigationScreen(
                 modifier =
                     Modifier.fillMaxSize(),
             )
+
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(8.dp),
+                shape = MaterialTheme.shapes.small,
+                tonalElevation = 2.dp,
+            ) {
+                Text(
+                    text = "v${BuildConfig.VERSION_NAME}",
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
 
             if (
                 focusMode
@@ -800,10 +866,118 @@ internal fun NavigationScreen(
                         }
                 }
             }
+
+            if (snapshot.state == NavigationSessionState.Navigating) {
+                snapshot.currentManeuver
+                    ?.guidanceInstruction
+                    ?.takeIf(String::isNotBlank)
+                    ?.let { instruction ->
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(top = 68.dp, start = 54.dp, end = 54.dp),
+                            tonalElevation = 6.dp,
+                            shape = MaterialTheme.shapes.medium,
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                snapshot.currentManeuver
+                                    ?.let(::maneuverDirectionGlyph)
+                                    ?.let { glyph ->
+                                        Text(
+                                            text = glyph,
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            fontWeight = FontWeight.ExtraBold,
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                Column {
+                                    Text(
+                                        text = "Nächste Aktion",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        text = instruction,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    snapshot.currentManeuver?.destinationSign
+                                        ?.takeIf(String::isNotBlank)
+                                        ?.let { sign ->
+                                            Text(
+                                                text = "Schild: $sign",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                            )
+                                        }
+                                    snapshot.currentManeuver?.laneIndications
+                                        ?.takeIf { it.isNotEmpty() }
+                                        ?.let { lanes ->
+                                            Column {
+                                                Text(
+                                                    text = "Spurhinweise",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                )
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    lanes.forEachIndexed { laneIndex, indication ->
+                                                        val routeValid = indication.contains("✓")
+                                                        Surface(
+                                                            color = if (routeValid) {
+                                                                MaterialTheme.colorScheme.primaryContainer
+                                                            } else {
+                                                                MaterialTheme.colorScheme.surfaceVariant
+                                                            },
+                                                            shape = MaterialTheme.shapes.small,
+                                                            border = if (routeValid) {
+                                                                androidx.compose.foundation.BorderStroke(
+                                                                    1.dp,
+                                                                    MaterialTheme.colorScheme.primary,
+                                                                )
+                                                            } else {
+                                                                null
+                                                            },
+                                                        ) {
+                                                            Text(
+                                                                text = indication.replace("✓", "").trim(),
+                                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                                    .semantics {
+                                                                        contentDescription = if (routeValid) {
+                                                                            "Spur ${laneIndex + 1}, laut Routing für das Manöver geeignet"
+                                                                        } else {
+                                                                            "Spur ${laneIndex + 1}"
+                                                                        }
+                                                                    },
+                                                                style = MaterialTheme.typography.titleMedium,
+                                                                fontWeight = if (routeValid) FontWeight.Bold else FontWeight.Normal,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    Text(
+                                        text = "In " + NavigationFormatter.distance(snapshot.distanceToCurrentManeuverEndM),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            }
+                        }
+                    }
             }
         }
 
         Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = activePanelMaxHeight),
             tonalElevation =
                 4.dp,
         ) {
@@ -811,8 +985,17 @@ internal fun NavigationScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                         .navigationBarsPadding()
-                        .padding(18.dp),
+                        .padding(if (snapshot.state == NavigationSessionState.Navigating) 8.dp else 18.dp)
+                        .let { base ->
+                            if (snapshot.state == NavigationSessionState.Navigating) {
+                                base.heightIn(max = 164.dp)
+                            } else {
+                                base
+                            }
+                        }
+                        .testTag("navigation_bottom_panel_scroll"),
             ) {
                 if (snapshot.state == NavigationSessionState.Navigating && trafficDetourOffer != null) {
                     TrafficDetourOfferCard(
@@ -851,36 +1034,33 @@ internal fun NavigationScreen(
 
                         fontWeight =
                             FontWeight.Medium,
+                        maxLines = if (snapshot.state == NavigationSessionState.Navigating) 1 else Int.MAX_VALUE,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
 
-                    Spacer(
-                        modifier =
-                            Modifier.height(
-                                8.dp
-                            )
+                    if (snapshot.state != NavigationSessionState.Navigating) {
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+
+                if (snapshot.state == NavigationSessionState.Navigating && !navigationRuntimeRecoveryMessage.isNullOrBlank()) {
+                    Text(
+                        text = navigationRuntimeRecoveryMessage,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
 
-                Text(
-                    text =
-                        snapshot
-                            .currentManeuver
-                            ?.guidanceInstruction
-                            ?: "Route bereit",
-
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleLarge,
-
-                    fontWeight =
-                        FontWeight.SemiBold,
-                )
-
-                Spacer(
-                    modifier =
-                        Modifier.height(12.dp)
-                )
+                if (snapshot.state != NavigationSessionState.Navigating) {
+                    Text(
+                        text = snapshot.currentManeuver?.guidanceInstruction ?: "Route bereit",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
 
                 Row(
                     modifier =
@@ -921,6 +1101,7 @@ internal fun NavigationScreen(
                     if (
                         informationDensityPresentation
                             .showProgress
+                        && snapshot.state != NavigationSessionState.Navigating
                     ) {
                         InfoValue(
                             label =
@@ -1040,6 +1221,7 @@ internal fun NavigationScreen(
                 }
 
                 if (
+                    snapshot.state != NavigationSessionState.Navigating &&
                     informationDensityPresentation
                         .showManeuverDistance
                 ) {
@@ -1071,47 +1253,7 @@ internal fun NavigationScreen(
                         }
                 }
 
-                if (
-                    snapshot.state ==
-                        NavigationSessionState.Navigating
-                ) {
-                    Row(
-                        modifier =
-                            Modifier.fillMaxWidth(),
-
-                        horizontalArrangement =
-                            Arrangement.SpaceBetween,
-
-                        verticalAlignment =
-                            Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text =
-                                "Karte: Dunkel",
-
-                            style =
-                                MaterialTheme.typography.bodySmall,
-                        )
-
-                        TextButton(
-                            enabled =
-                                nightPresentation.brightnessCorrection >
-                                    NAVIGATION_BRIGHTNESS_CORRECTION_MIN,
-
-                            onClick = {
-                                focusMode.notifyUserActivity()
-                                onNightBrightnessDarker()
-                            },
-                        ) {
-                            Text("Display dunkler")
-                        }
-                    }
-                }
-
-                Spacer(
-                    modifier =
-                        Modifier.height(16.dp)
-                )
+                Spacer(Modifier.height(if (snapshot.state == NavigationSessionState.Navigating) 6.dp else 16.dp))
 
                 val navigationControl =
                     NavigationControlPresentation
@@ -1226,6 +1368,21 @@ internal fun NavigationScreen(
                             )
                         }
 
+                        if (BuildConfig.DEBUG) {
+                            OutlinedButton(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("local_ai_device_test_open"),
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(context, SocialAiDeviceTestActivity::class.java)
+                                    )
+                                },
+                            ) {
+                                Text("KI-Gerätetest öffnen")
+                            }
+                        }
+
                         if (previewSettingsExpanded) {
                         val activePack =
                             ExperiencePackRuntimeResolver
@@ -1268,6 +1425,12 @@ internal fun NavigationScreen(
                                         title = "Fahrstatistik",
                                         value = driveStatisticsSummary,
                                         onClick = { driveStatisticsOpen = true },
+                                    ),
+                                    NavigationSettingTile(
+                                        testTag = "speeding_threshold_settings",
+                                        title = "Tempolimit-Warnung",
+                                        value = "+${navigationPreferences.speedingThresholdKmh} km/h",
+                                        onClick = { speedingThresholdSettingsOpen = true },
                                     ),
                                     NavigationSettingTile(
                                         testTag = "driving_preferences_open",
@@ -1361,6 +1524,20 @@ internal fun NavigationScreen(
                                         },
                                     ),
 
+                                    NavigationSettingTile(
+                                        testTag = "map_style_settings",
+                                        title = "Kartenprofil",
+                                        value = when (displayPreferences.mapStyle) {
+                                            ProfileMapStyle.Standard -> "Standard"
+                                            ProfileMapStyle.Minimal -> "Straßen"
+                                            ProfileMapStyle.HighContrast -> "Kontrast"
+                                            ProfileMapStyle.Night -> "Nacht"
+                                            ProfileMapStyle.Terrain -> "Terra / Outdoor"
+                                            ProfileMapStyle.RoadOnly -> "Straßen pur"
+                                            ProfileMapStyle.ThreeDimensional -> "3D-Gebäude"
+                                        },
+                                        onClick = { mapStyleSettingsOpen = true },
+                                    ),
                                     NavigationSettingTile(
                                         testTag =
                                             NavigationUiTestTags
@@ -1633,51 +1810,7 @@ internal fun NavigationScreen(
                                         FontWeight.Medium,
                                 )
 
-                                Row(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth(),
 
-                                    horizontalArrangement =
-                                        Arrangement
-                                            .SpaceBetween,
-                                ) {
-                                    TextButton(
-                                        enabled =
-                                            nightPresentation
-                                                .brightnessCorrection >
-                                                NAVIGATION_BRIGHTNESS_CORRECTION_MIN,
-
-                                        onClick = {
-                                            focusMode
-                                                .notifyUserActivity()
-
-                                            onNightBrightnessDarker()
-                                        },
-                                    ) {
-                                        Text(
-                                            "Dunkler"
-                                        )
-                                    }
-
-                                    TextButton(
-                                        enabled =
-                                            nightPresentation
-                                                .brightnessCorrection <
-                                                NAVIGATION_BRIGHTNESS_CORRECTION_MAX,
-
-                                        onClick = {
-                                            focusMode
-                                                .notifyUserActivity()
-
-                                            onNightBrightnessBrighter()
-                                        },
-                                    ) {
-                                        Text(
-                                            "Heller"
-                                        )
-                                    }
-                                }
                             }
                         }
                         }
@@ -1708,6 +1841,7 @@ internal fun NavigationScreen(
                 }
             }
         }
+    }
     }
 
     if (
@@ -2094,6 +2228,7 @@ internal fun NavigationScreen(
             },
         )
     }
+}
 }
 
 @Composable
@@ -2486,6 +2621,11 @@ private fun DestinationPlannerDialog(
                             "Adresse, Ort oder POI"
                         )
                     },
+                )
+
+                Text(
+                    text = "Rastplatzfilter: „Raststätte mit WC“ oder „Raststätte ohne WC“. Unbekannte WC-Angaben bleiben separat gekennzeichnet.",
+                    style = MaterialTheme.typography.bodySmall,
                 )
 
                 Spacer(
@@ -3182,33 +3322,25 @@ private fun NavigationPrimaryControl(
         }
 
         if (presentation.destructive) {
-            OutlinedButton(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp)
+            Row(
+                modifier = Modifier.weight(1f).padding(start = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    modifier = Modifier.weight(1f).heightIn(min = 36.dp)
                         .testTag("navigation-via-point-add"),
+                    enabled = viaPointEnabled,
+                    onClick = onAddViaPoint,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                ) { Text("＋ Stopp", style = MaterialTheme.typography.labelSmall, maxLines = 1) }
 
-                enabled =
-                    viaPointEnabled,
-
-                onClick =
-                    onAddViaPoint,
-            ) {
-                Text("+ Zwischenziel")
-            }
-
-            OutlinedButton(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp)
+                OutlinedButton(
+                    modifier = Modifier.weight(1f).heightIn(min = 36.dp)
                         .testTag("navigation-restart"),
-
-                onClick =
-                    onRestartNavigation,
-            ) {
-                Text("Neu starten")
+                    onClick = onRestartNavigation,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                ) { Text("↻ Neustart", style = MaterialTheme.typography.labelSmall, maxLines = 1) }
             }
         }
     }
@@ -3281,3 +3413,25 @@ private fun drivingPreferenceSummary(preferences: DrivingPreferences): String =
             }
         },
     ).joinToString(" · ")
+
+private fun maneuverDirectionGlyph(maneuver: org.routingplatform.app.navigation.NavigationManeuver): String? =
+    when (maneuver.engineType) {
+        2, 9, 10, 11, 18, 20, 23, 37 -> "↗"
+        3, 14, 15, 16, 19, 21, 24, 38 -> "↖"
+        7, 8, 17, 22 -> "↑"
+        12 -> "↷"
+        13 -> "↶"
+        else -> when (maneuver.type) {
+            org.routingplatform.app.navigation.ManeuverType.Start,
+            org.routingplatform.app.navigation.ManeuverType.Continue -> "↑"
+            org.routingplatform.app.navigation.ManeuverType.TurnLeft -> "←"
+            org.routingplatform.app.navigation.ManeuverType.TurnRight -> "→"
+            org.routingplatform.app.navigation.ManeuverType.UTurn -> "↩"
+            org.routingplatform.app.navigation.ManeuverType.Exit -> null
+            org.routingplatform.app.navigation.ManeuverType.Merge,
+            org.routingplatform.app.navigation.ManeuverType.RoundaboutEnter,
+            org.routingplatform.app.navigation.ManeuverType.RoundaboutExit,
+            org.routingplatform.app.navigation.ManeuverType.Arrive,
+            org.routingplatform.app.navigation.ManeuverType.Unknown -> null
+        }
+    }

@@ -4,10 +4,13 @@ import android.util.Log
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -45,7 +50,9 @@ import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.RasterLayer
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.android.style.sources.RasterSource
 import org.routingplatform.app.navigation.NavigationRecoveryDecision
 import org.routingplatform.app.navigation.NavigationRecoveryPolicy
 import org.routingplatform.app.navigation.NavigationReliabilityClassifier
@@ -106,6 +113,11 @@ internal fun RouteMap(
     distanceToCurrentManeuverEndM:
         Double =
         Double.POSITIVE_INFINITY,
+
+    currentSpeedMps: Double? = null,
+    currentSpeedAccuracyMps: Double? = null,
+    speedSampleElapsedRealtimeNanos: Long? = null,
+    speedPositionTrusted: Boolean = false,
 
     focusModeActive:
         Boolean =
@@ -244,6 +256,8 @@ internal fun RouteMap(
             NavigationBearingStabilizer()
         }
 
+    val zoomStabilizer = remember { NavigationCameraZoomStabilizer() }
+
     var displayedMapBearing by remember {
         mutableStateOf(0.0)
     }
@@ -279,6 +293,10 @@ internal fun RouteMap(
                 NavigationMapLoadState.Loading
             )
         }
+
+    var terrainReliefOverlayInstalled by remember(styleDescriptor.styleUri) {
+        mutableStateOf(false)
+    }
 
     var mapLoadRetryCount by
         remember(
@@ -739,10 +757,23 @@ internal fun RouteMap(
                                 segmentFraction,
                         )
 
-                    installNavigationBuildingLayer(
-                        style = style,
-                        darkMode = automaticNightMode,
-                    )
+                    if (styleDescriptor.showBuildingExtrusions) {
+                        installNavigationBuildingLayer(
+                            style = style,
+                            darkMode = automaticNightMode,
+                        )
+                    }
+
+                    terrainReliefOverlayInstalled =
+                        if (styleDescriptor.showTerrainRelief) {
+                            installTerrainReliefOverlay(style)
+                        } else {
+                            false
+                        }
+
+                    if (styleDescriptor.roadsOnly) {
+                        installRoadOnlyMapLayers(style)
+                    }
 
                     installNavigationLayers(
                         style =
@@ -814,6 +845,10 @@ internal fun RouteMap(
         displayPreferences,
         automaticMapZoomEnabled,
         distanceToCurrentManeuverEndM,
+        currentSpeedMps,
+        currentSpeedAccuracyMps,
+        speedSampleElapsedRealtimeNanos,
+        speedPositionTrusted,
         observedPosition,
         selectedTarget,
         compassPresentation,
@@ -1079,6 +1114,11 @@ internal fun RouteMap(
                     ?: progressGeometry
                         .currentPosition
 
+            val nowElapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+            val speedSampleAgeMs = speedSampleElapsedRealtimeNanos?.let { sampleTime ->
+                val ageNanos = nowElapsedRealtimeNanos - sampleTime
+                if (ageNanos < 0L) null else ageNanos / 1_000_000L
+            }
             val zoomPresentation =
                 NavigationCameraZoomPolicy
                     .create(
@@ -1091,6 +1131,19 @@ internal fun RouteMap(
 
                         distanceToManeuverM =
                             distanceToCurrentManeuverEndM,
+
+                        speedMps =
+                            currentSpeedMps,
+
+                        speedAccuracyMps =
+                            currentSpeedAccuracyMps,
+
+                        speedTrusted =
+                            speedPositionTrusted &&
+                                observedPosition?.cameraFollowAllowed == true,
+
+                        speedSampleAgeMs =
+                            speedSampleAgeMs,
                     )
 
             val followSuspended =
@@ -1099,6 +1152,17 @@ internal fun RouteMap(
                 } == true
 
             if (!followSuspended) {
+                val stableMapZoom =
+                    if (zoomPresentation.automaticApplied) {
+                        zoomStabilizer.update(
+                            zoomPresentation.zoom,
+                            SystemClock.elapsedRealtime(),
+                        )
+                    } else {
+                        zoomStabilizer.reset()
+                        zoomPresentation.zoom
+                    }
+
                 val stableMapBearing =
                     if (compassPresentation.headingUpActive) {
                         bearingStabilizer.update(
@@ -1120,7 +1184,7 @@ internal fun RouteMap(
                                 cameraTarget.longitude,
                             )
                         )
-                        .zoom(zoomPresentation.zoom)
+                        .zoom(stableMapZoom)
                         .tilt(displayPreferences.mapTiltDegrees)
                         .bearing(stableMapBearing)
                         .build()
@@ -1214,55 +1278,63 @@ internal fun RouteMap(
                 } else {
                     MaterialTheme.colorScheme.surface
                 },
-                tonalElevation = 6.dp,
+                tonalElevation = if (speedLimitPresentation.overLimit) 8.dp else 4.dp,
                 shape = MaterialTheme.shapes.medium,
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                 ) {
-                    Text(
-                        text = speedLimitPresentation.speedKmh?.let {
-                            it.toString() + " km/h"
-                        } ?: speedLimitPresentation.label,
-                        fontWeight = FontWeight.Bold,
-                        color = if (speedLimitPresentation.overLimit) {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                    )
                     if (speedLimitPresentation.limitKmh != null) {
+                        SpeedLimitRoadSign(
+                            limitKmh = speedLimitPresentation.limitKmh,
+                            emphasized = speedLimitPresentation.overLimit,
+                        )
+                        Spacer(Modifier.width(10.dp))
+                    }
+                    Column {
                         Text(
-                            text = "Tempolimit " + speedLimitPresentation.limitKmh + " km/h",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = speedLimitPresentation.speedKmh?.let { "$it km/h" }
+                                ?: "GPS-Geschwindigkeit nicht verfügbar",
+                            fontWeight = FontWeight.Bold,
                             color = if (speedLimitPresentation.overLimit) {
                                 MaterialTheme.colorScheme.onErrorContainer
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                MaterialTheme.colorScheme.onSurface
                             },
                         )
-                    } else if (speedLimitPresentation.unlimited) {
-                        Text(
-                            text = "Kein Zahlenlimit laut Karte",
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                    if (speedLimitPresentation.overLimit) {
-                        Text(
-                            text = "Geschwindigkeit über dem Kartentempolimit",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                        )
-                    }
-                    if (
-                        speedLimitPresentation.upcomingLimitKmh != null &&
-                        speedLimitPresentation.distanceToUpcomingLimitM != null
-                    ) {
-                        Text(
-                            text = "In " + speedLimitPresentation.distanceToUpcomingLimitM +
-                                " m: " + speedLimitPresentation.upcomingLimitKmh + " km/h",
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                        when {
+                            speedLimitPresentation.overLimit -> {
+                                Text(
+                                    text = "Kartentempolimit überschritten",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
+                            speedLimitPresentation.limitKmh != null -> {
+                                Text(
+                                    text = "Kartengrenze",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            speedLimitPresentation.dataStatus ==
+                                org.routingplatform.app.navigation.NavigationSpeedLimitDataStatus.Unavailable -> {
+                                Text(
+                                    text = "Tempolimitdaten nicht verfügbar",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            else -> {
+                                Text(
+                                    text = "Kartentempolimit unbekannt",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1371,8 +1443,55 @@ internal fun RouteMap(
                         .labelSmall,
             )
         }
+
+        if (effectiveMapStyle == ProfileMapStyle.Terrain) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp),
+                tonalElevation = 4.dp,
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(
+                    text = if (terrainReliefOverlayInstalled) {
+                        "Relief-Overlay · © OpenTopoMap · © OpenStreetMap"
+                    } else {
+                        "Relief nicht geladen · Outdoor-Karte aktiv"
+                    },
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
     }
 }
+
+/** Adds an optional topographic raster; the vector street style stays underneath as fallback. */
+private fun installTerrainReliefOverlay(style: Style): Boolean =
+    try {
+        if (style.getSource("routing-platform-terrain-relief") == null) {
+            style.addSource(
+                RasterSource(
+                    "routing-platform-terrain-relief",
+                    "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
+                    256,
+                ),
+            )
+        }
+        if (style.getLayer("routing-platform-terrain-relief-layer") == null) {
+            style.addLayer(
+                RasterLayer(
+                    "routing-platform-terrain-relief-layer",
+                    "routing-platform-terrain-relief",
+                ).withProperties(
+                    PropertyFactory.rasterOpacity(0.62f),
+                ),
+            )
+        }
+        true
+    } catch (_: RuntimeException) {
+        false
+    }
 
 @Composable
 private fun NavigationCompass(
@@ -2005,3 +2124,54 @@ private const val OBSERVED_POSITION_SOURCE_ID =
 
 private const val OBSERVED_POSITION_LAYER_ID =
     "routing-platform-observed-position-layer"
+@Composable
+private fun SpeedLimitRoadSign(
+    limitKmh: Int,
+    emphasized: Boolean,
+) {
+    Surface(
+        modifier = Modifier
+            .size(width = 52.dp, height = 58.dp)
+            .semantics {
+                contentDescription = "Geschwindigkeitsbegrenzung $limitKmh km/h"
+            },
+        color = androidx.compose.ui.graphics.Color.White,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+        shadowElevation = if (emphasized) 3.dp else 1.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (emphasized) 5.dp else 4.dp,
+            color = androidx.compose.ui.graphics.Color(0xFFD62828),
+        ),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = limitKmh.toString(),
+                color = androidx.compose.ui.graphics.Color.Black,
+                fontWeight = FontWeight.ExtraBold,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+private fun installRoadOnlyMapLayers(style: Style) {
+    // The Positron base style is intentionally reduced further: only named
+    // road line layers remain visible. Route/progress/position layers are
+    // installed afterward and are preserved.
+    style.layers.toList().forEach { layer ->
+        val layerId = layer.id.lowercase()
+        val isRoadLine =
+            layer is LineLayer &&
+                (
+                    layerId.contains("road") ||
+                        layerId.contains("highway") ||
+                        layerId.contains("street")
+                    )
+        if (!isRoadLine) {
+            layer.setProperties(
+                PropertyFactory.visibility(Property.NONE)
+            )
+        }
+    }
+}

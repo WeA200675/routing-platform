@@ -7,7 +7,9 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Build
 import android.os.Looper
+import android.os.SystemClock
 
 fun hasNavigationLocationPermission(
     context: Context,
@@ -56,21 +58,19 @@ class AndroidLocationSource(
         }
 
         val enabledProviders =
-            listOf(
-                LocationManager.GPS_PROVIDER,
-                LocationManager.NETWORK_PROVIDER,
-            ).filter { provider ->
-                runCatching {
-                    locationManager
-                        .isProviderEnabled(
-                            provider
-                        )
-                }.getOrDefault(
-                    false
-                )
-            }
+            runCatching {
+                locationManager
+                    .getProviders(true)
+                    .toSet()
+            }.getOrDefault(emptySet())
 
-        if (enabledProviders.isEmpty()) {
+        val providers =
+            selectNavigationProviders(
+                apiLevel = Build.VERSION.SDK_INT,
+                enabledProviders = enabledProviders,
+            )
+
+        if (providers.isEmpty()) {
             return false
         }
 
@@ -80,9 +80,9 @@ class AndroidLocationSource(
         var registeredAnyProvider =
             false
 
-        enabledProviders.forEach { provider ->
+        providers.forEach { provider ->
             val requestIntervalMs =
-                if (provider == LocationManager.GPS_PROVIDER) {
+                if (provider != LocationManager.NETWORK_PROVIDER) {
                     GPS_UPDATE_INTERVAL_MS
                 } else {
                     NETWORK_UPDATE_INTERVAL_MS
@@ -130,6 +130,21 @@ class AndroidLocationSource(
     override fun onLocationChanged(
         location: Location,
     ) {
+        val nowElapsedRealtimeNanos =
+            SystemClock.elapsedRealtimeNanos()
+
+        val fixElapsedRealtimeNanos =
+            location.elapsedRealtimeNanos
+
+        if (
+            !isNavigationLocationFixFresh(
+                fixElapsedRealtimeNanos = fixElapsedRealtimeNanos,
+                nowElapsedRealtimeNanos = nowElapsedRealtimeNanos,
+            )
+        ) {
+            return
+        }
+
         val latitude =
             location.latitude
 
@@ -215,3 +230,40 @@ private const val NETWORK_UPDATE_INTERVAL_MS =
 
 private const val MIN_UPDATE_DISTANCE_M =
     0.0f
+
+internal fun selectNavigationProviders(
+    apiLevel: Int,
+    enabledProviders: Set<String>,
+    fusedProvider: String = "fused",
+    gpsProvider: String = LocationManager.GPS_PROVIDER,
+    networkProvider: String = LocationManager.NETWORK_PROVIDER,
+): List<String> {
+    if (
+        apiLevel >= Build.VERSION_CODES.S &&
+        fusedProvider in enabledProviders
+    ) {
+        return listOf(fusedProvider)
+    }
+
+    return listOf(gpsProvider, networkProvider)
+        .filter { it in enabledProviders }
+}
+
+private const val MAX_LOCATION_FIX_AGE_NANOS =
+    10_000_000_000L
+
+private const val MAX_FUTURE_FIX_SKEW_NANOS =
+    1_000_000_000L
+
+internal fun isNavigationLocationFixFresh(
+    fixElapsedRealtimeNanos: Long,
+    nowElapsedRealtimeNanos: Long,
+    maximumAgeNanos: Long = MAX_LOCATION_FIX_AGE_NANOS,
+    maximumFutureSkewNanos: Long = MAX_FUTURE_FIX_SKEW_NANOS,
+): Boolean =
+    fixElapsedRealtimeNanos > 0L &&
+        nowElapsedRealtimeNanos >= 0L &&
+        maximumAgeNanos >= 0L &&
+        maximumFutureSkewNanos >= 0L &&
+        fixElapsedRealtimeNanos <= nowElapsedRealtimeNanos + maximumFutureSkewNanos &&
+        nowElapsedRealtimeNanos - fixElapsedRealtimeNanos <= maximumAgeNanos

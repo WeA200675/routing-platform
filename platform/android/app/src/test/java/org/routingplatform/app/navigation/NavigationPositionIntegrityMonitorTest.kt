@@ -10,7 +10,7 @@ import org.junit.Test
 class NavigationPositionIntegrityMonitorTest {
 
     @Test
-    fun goodRawFixIsNeverPromotedToHighConfidence() {
+    fun preciseRawFixIsClassifiedHigh() {
         val monitor =
             NavigationPositionIntegrityMonitor()
 
@@ -41,7 +41,7 @@ class NavigationPositionIntegrityMonitorTest {
             )
 
         assertEquals(
-            NavigationPositionConfidence.Medium,
+            NavigationPositionConfidence.High,
             estimate.confidence,
         )
 

@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - main
+      - "g6.*/*"
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,13 @@ jobs:
 
       - name: Test OSRM navigation adapter contract
         run: python3 -m unittest backend/test_osrm_adapter.py
+      - name: Test traffic intelligence and training handoff
+        run: python3 -m unittest backend/test_traffic_intelligence_hub.py
+      - name: Test configured traffic feed polling
+        run: python3 -m unittest backend/test_traffic_feed_poller.py
+
+      - name: Verify AI training application CLI
+        run: python3 tools/ai_training_app.py --help
 
       - name: Configure CMake
         run: >-

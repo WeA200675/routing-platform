@@ -5,6 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.routingplatform.app.navigation.ManeuverType
 import org.routingplatform.app.navigation.NavigationManeuver
+import org.routingplatform.app.navigation.NavigationRouteFamily
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.RoutePoint
@@ -17,6 +18,38 @@ import org.routingplatform.app.profile.VoiceGuidanceVerbosity
 import org.routingplatform.app.profile.VoicePreferences
 
 class NavigationVoicePresentationTest {
+
+    @Test
+    fun routeStartExplainsStrategyAndClearlyMarksTrafficUnavailable() {
+        val cue = NavigationVoicePresentation.routeStartCue(
+            snapshot(distanceMeters = 500.0),
+            NavigationRouteFamily.Fastest,
+            voice(),
+        )
+
+        org.junit.Assert.assertEquals("route-start-summary:Fastest", cue?.key?.instruction)
+        org.junit.Assert.assertTrue(cue?.text.orEmpty().contains("schnellste Route"))
+        org.junit.Assert.assertTrue(cue?.text.orEmpty().contains("Live-Verkehrsdaten sind nicht verbunden"))
+        org.junit.Assert.assertFalse(cue?.text.orEmpty().contains("Stau vorhanden"))
+    }
+
+    @Test
+    fun routeStartSummaryRequiresEnabledVoiceAndActiveNavigation() {
+        assertNull(
+            NavigationVoicePresentation.routeStartCue(
+                snapshot(state = NavigationSessionState.Preview, distanceMeters = 500.0),
+                NavigationRouteFamily.Fastest,
+                voice(),
+            )
+        )
+        assertNull(
+            NavigationVoicePresentation.routeStartCue(
+                snapshot(distanceMeters = 500.0),
+                NavigationRouteFamily.Fastest,
+                voice(enabled = false),
+            )
+        )
+    }
 
     @Test
     fun disabledVoiceProducesNoCue() {
@@ -442,8 +475,53 @@ class NavigationVoicePresentationTest {
                 personality = preferences,
             )
 
-        assertEquals("In 120 Metern rechts abbiegen", criticalCue?.text)
+        assertEquals("Ausfahrt nehmen. Bitte Beschilderung beachten.", criticalCue?.text)
         assertEquals(1.0, criticalCue?.speechPitch ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun surpriseThemesAffectSpokenGuidanceWhileCriticalRepeatsStayNeutral() {
+        val cases = listOf(
+            ExperiencePackCatalog.ZEN_PACK_ID to "Ganz ruhig:",
+            "cozy" to "Gern für dich:",
+            "focus" to "Ich bin dabei:",
+            ExperiencePackCatalog.GALACTIC_PACK_ID to "Sprungfenster voraus:",
+        )
+        for ((packId, leadIn) in cases) {
+            val themed = NavigationVoicePresentation.cue(
+                snapshot = snapshot(distanceMeters = 180.0),
+                voice = voice(),
+                personality = NavigationPersonalityPreferences(
+                    selectedPackId = packId,
+                    selectionSource = ExperiencePackSelectionSource.Explicit,
+                ),
+            )
+            org.junit.Assert.assertTrue("$packId should affect spoken output", themed?.text?.startsWith(leadIn) == true)
+            org.junit.Assert.assertTrue(themed?.text?.endsWith("In 120 Metern rechts abbiegen") == true)
+        }
+    }
+
+    @Test
+    fun surpriseActivationProducesAnAudibleConfirmationOnlyWhenEnabledInPreview() {
+        val preferences = NavigationPersonalityPreferences(
+            selectedPackId = ExperiencePackCatalog.ZEN_PACK_ID,
+            selectionSource = ExperiencePackSelectionSource.WeeklyDiscovery,
+            weeklyDiscoveryEnabled = true,
+        )
+        val cue = NavigationVoicePresentation.experiencePackActivationCue(
+            snapshot = snapshot(state = NavigationSessionState.Preview, distanceMeters = 900.0),
+            voice = voice(),
+            personality = preferences,
+        )
+        org.junit.Assert.assertTrue(cue?.text?.contains("Überraschungsstil") == true)
+        org.junit.Assert.assertTrue(cue?.text?.contains("aktiv") == true)
+        assertNull(
+            NavigationVoicePresentation.experiencePackActivationCue(
+                snapshot = snapshot(distanceMeters = 900.0),
+                voice = voice(),
+                personality = preferences,
+            ),
+        )
     }
 
     private fun voice(

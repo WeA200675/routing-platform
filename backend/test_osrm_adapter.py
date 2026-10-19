@@ -33,6 +33,11 @@ class OsrmAdapterTest(unittest.TestCase):
                 "geometry": {"coordinates": [[12.1,48.5],[12.15,48.55],[12.2,48.6]]},
                 "legs": [{"steps": [{
                     "distance": 1234.0, "duration": 321.0, "name": "Teststraße",
+                    "destinations": "A 92 · München",
+                    "intersections": [{"lanes": [
+                        {"indications": ["straight"], "valid": False},
+                        {"indications": ["slight right", "right"], "valid": True},
+                    ]}],
                     "maneuver": {"type": "depart", "location": [12.1,48.5],
                                  "bearing_before": 0, "bearing_after": 90},
                 }]}],
@@ -50,6 +55,36 @@ class OsrmAdapterTest(unittest.TestCase):
         self.assertEqual([[48.5,12.1],[48.55,12.15],[48.6,12.2]], result["geometry"])
         self.assertEqual("unavailable", result["segmentDataStatus"])
         self.assertEqual("traffic_unavailable", result["diagnostics"][0]["code"])
+        self.assertEqual("A 92 · München", result["maneuvers"][0]["destinationSign"])
+        self.assertEqual(["↑", "↗→ ✓"],
+                         result["maneuvers"][0]["laneIndications"])
+
+    def test_missing_lane_and_sign_metadata_stays_empty(self):
+        payload = self.osrm()
+        payload["routes"][0]["legs"][0]["steps"][0].pop("destinations", None)
+        payload["routes"][0]["legs"][0]["steps"][0].pop("intersections", None)
+        response = Response()
+        with mock.patch.object(adapter.urllib.request, "urlopen", return_value=response), \
+             mock.patch.object(adapter.json, "load", return_value=payload):
+            result = adapter.route(self.request())
+        self.assertIsNone(result["maneuvers"][0]["destinationSign"])
+        self.assertEqual([], result["maneuvers"][0]["laneIndications"])
+
+    def test_off_ramp_side_is_preserved_as_provider_guidance(self):
+        payload = self.osrm()
+        payload["routes"][0]["legs"][0]["steps"][0]["maneuver"] = {
+            "type": "off ramp", "modifier": "right", "location": [12.1, 48.5],
+            "bearing_before": 90, "bearing_after": 0,
+        }
+        response = Response()
+        with mock.patch.object(adapter.urllib.request, "urlopen", return_value=response), \
+             mock.patch.object(adapter.json, "load", return_value=payload):
+            result = adapter.route(self.request())
+        maneuver = result["maneuvers"][0]
+        self.assertEqual("exit", maneuver["type"])
+        self.assertEqual("right", maneuver["maneuverSide"])
+        self.assertEqual("Ausfahrt rechts nehmen. Bitte Beschilderung beachten.",
+                         maneuver["instruction"])
 
     def test_via_order_is_sent_to_engine_exactly(self):
         response = Response()

@@ -39,6 +39,10 @@ class NavigationPositionIntegrityMonitor(
         Double =
         DEFAULT_MEDIUM_CONFIDENCE_ACCURACY_M,
 
+    private val highConfidenceAccuracyM:
+        Double =
+        DEFAULT_HIGH_CONFIDENCE_ACCURACY_M,
+
     private val maximumAcceptedAccuracyM:
         Double =
         DEFAULT_MAXIMUM_ACCEPTED_ACCURACY_M,
@@ -55,6 +59,12 @@ class NavigationPositionIntegrityMonitor(
         require(
             mediumConfidenceAccuracyM.isFinite() &&
                 mediumConfidenceAccuracyM > 0.0
+        )
+
+        require(
+            highConfidenceAccuracyM.isFinite() &&
+                highConfidenceAccuracyM > 0.0 &&
+                highConfidenceAccuracyM < mediumConfidenceAccuracyM
         )
 
         require(
@@ -173,6 +183,10 @@ class NavigationPositionIntegrityMonitor(
             when {
                 accuracyM == null ->
                     NavigationPositionConfidence.Low
+
+                accuracyM <=
+                    highConfidenceAccuracyM ->
+                    NavigationPositionConfidence.High
 
                 accuracyM <=
                     mediumConfidenceAccuracyM ->
@@ -304,6 +318,9 @@ private fun distanceMeters(
             y
     )
 }
+
+private const val DEFAULT_HIGH_CONFIDENCE_ACCURACY_M =
+    5.0
 
 private const val DEFAULT_MEDIUM_CONFIDENCE_ACCURACY_M =
     12.0

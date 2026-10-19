@@ -37,6 +37,7 @@ on:
   pull_request:
     branches:
       - main
+      - "g6.*/*"
     paths:
       - .github/workflows/g620-candidate.yml
       - .github/workflows/android-ci.yml
@@ -230,6 +231,16 @@ jobs:
           }
           JSON
           python3 tools/release/verify_distribution_state.py --distribution-state "$RUNNER_TEMP/g620/build/evidence/distribution-state.json"
+
+      - name: Upload physical-device test APK
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: g620-physical-device-test
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/g620/build/g620-field-test.apk
+            ${{ runner.temp }}/g620/build/g620-field-test.apk.sha256
 
       - name: Upload candidate evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

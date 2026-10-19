@@ -437,14 +437,8 @@ internal fun rememberNavigationNightAdaptation(
                 .window
                 .attributes
 
-        attributes.screenBrightness =
-            if (navigationActive) {
-                presentation
-                    .windowBrightness
-                    ?: originalWindowBrightness
-            } else {
-                originalWindowBrightness
-            }
+        // Leave screen brightness under Android's system control.
+        attributes.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
 
         activity
             .window
@@ -461,8 +455,7 @@ internal fun rememberNavigationNightAdaptation(
                     .window
                     .attributes
 
-            attributes.screenBrightness =
-                originalWindowBrightness
+            attributes.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
 
             activity
                 .window

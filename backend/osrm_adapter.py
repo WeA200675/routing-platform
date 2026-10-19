@@ -25,11 +25,72 @@ TYPE_MAP = {
 }
 
 
+def maneuver_side(modifier):
+    normalized = str(modifier or "").lower().replace(" ", "_")
+    if normalized in {"left", "slight_left", "sharp_left"}:
+        return "left"
+    if normalized in {"right", "slight_right", "sharp_right"}:
+        return "right"
+    if normalized in {"uturn", "u_turn"}:
+        return "uturn"
+    if normalized == "straight":
+        return "straight"
+    return None
+
+
+def maneuver_instruction(maneuver, name):
+    kind = maneuver.get("type", "")
+    modifier = maneuver_side(maneuver.get("modifier"))
+    if kind == "off ramp":
+        side = "rechts" if modifier == "right" else "links" if modifier == "left" else None
+        return f"Ausfahrt {side} nehmen. Bitte Beschilderung beachten." if side else \
+            "Ausfahrt nehmen. Bitte Beschilderung beachten."
+    if kind == "on ramp":
+        side = "rechts" if modifier == "right" else "links" if modifier == "left" else None
+        return f"{side.capitalize()} einfädeln. Bitte Beschilderung beachten." if side else \
+            "Einfädeln. Bitte Beschilderung beachten."
+    if kind in {"turn", "end of road", "fork"}:
+        if modifier == "left": return "Links abbiegen."
+        if modifier == "right": return "Rechts abbiegen."
+        if modifier == "uturn": return "Wenden. Bitte Beschilderung beachten."
+    return name or kind or "Weiterfahren"
+
+
 def point(value):
     lat, lon = float(value["latitude"]), float(value["longitude"])
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         raise ValueError("invalid coordinate")
     return lat, lon
+
+
+LANE_ARROW = {
+    "sharp left": "⇐", "left": "←", "slight left": "↖",
+    "straight": "↑", "slight right": "↗", "right": "→",
+    "sharp right": "⇒", "uturn": "↶",
+}
+
+
+def maneuver_lane_indications(step):
+    """Return lane glyphs only when OSRM identifies one unambiguous junction."""
+    intersections = [
+        intersection for intersection in step.get("intersections", [])
+        if intersection.get("lanes")
+    ]
+    if len(intersections) != 1:
+        return []
+    lanes = intersections[0]["lanes"]
+    if len(lanes) > 12:
+        return []
+    result = []
+    for lane in lanes:
+        indications = lane.get("indications") or []
+        if not indications:
+            return []
+        glyphs = [LANE_ARROW.get(str(value).lower()) for value in indications]
+        if any(glyph is None for glyph in glyphs):
+            return []
+        result.append("".join(glyphs) + (" ✓" if lane.get("valid") is True else ""))
+    return result
 
 
 def route(request):
@@ -56,11 +117,15 @@ def route(request):
         for step in leg.get("steps", []):
             m = step.get("maneuver", {})
             modifier = m.get("modifier", "")
-            kind = TYPE_MAP.get(m.get("type", ""), "unknown")
-            if m.get("type") == "turn":
-                if modifier == "left": kind = "turn_left"
-                elif modifier == "right": kind = "turn_right"
-                elif modifier == "uturn": kind = "u_turn"
+            source_type = m.get("type", "")
+            kind = TYPE_MAP.get(source_type, "unknown")
+            if source_type == "off ramp": kind = "exit"
+            elif source_type == "on ramp": kind = "merge"
+            if source_type in {"turn", "end of road", "fork"}:
+                side = maneuver_side(modifier)
+                if side == "left": kind = "turn_left"
+                elif side == "right": kind = "turn_right"
+                elif side == "uturn": kind = "u_turn"
             loc = m.get("location")
             if not loc:
                 raise RuntimeError("OSRM maneuver is missing its engine location")
@@ -73,9 +138,14 @@ def route(request):
                 raise RuntimeError(
                     "OSRM maneuver location is not present in route geometry"
                 ) from exc
+            destinations = step.get("destinations") or step.get("ref")
+            # OSRM does not supply a trustworthy lane-to-route assignment.
+            # Preserve only the provider's actual lane indications; consumers
+            # must not infer a recommended lane from them.
+            lane_indications = maneuver_lane_indications(step)
             maneuvers.append({
                 "type": kind,
-                "instruction": step.get("name") or m.get("type", "continue"),
+                "instruction": maneuver_instruction(m, step.get("name")),
                 "streetNames": [step["name"]] if step.get("name") else [],
                 "distanceM": float(step["distance"]),
                 "durationS": float(step["duration"]),
@@ -84,6 +154,9 @@ def route(request):
                 "bearingBeforeDeg": m.get("bearing_before"),
                 "bearingAfterDeg": m.get("bearing_after"),
                 "engineType": None,
+                "maneuverSide": maneuver_side(modifier),
+                "destinationSign": str(destinations)[:160] if destinations else None,
+                "laneIndications": lane_indications,
             })
     # Contract requires route-ordered maneuver indices. Fail closed if
     # upstream steps contradict the geometry ordering instead of clamping them.

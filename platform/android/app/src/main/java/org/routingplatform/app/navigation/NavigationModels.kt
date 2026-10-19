@@ -20,6 +20,13 @@ enum class ManeuverType {
     Arrive,
 }
 
+enum class NavigationManeuverSide {
+    Left,
+    Right,
+    Straight,
+    UTurn,
+}
+
 data class RoutePoint(
     val latitude: Double,
     val longitude: Double,
@@ -54,6 +61,14 @@ data class NavigationManeuver(
     val engineType:
         Int? =
         null,
+
+    val destinationSign: String? = null,
+
+    /** Provider supplied lane indications; absent data stays absent. */
+    val laneIndications: List<String> = emptyList(),
+
+    /** Side supplied by the routing engine, normalized across providers. */
+    val maneuverSide: NavigationManeuverSide? = null,
 ) {
     /**
      * Presentation-safe maneuver text. Valhalla's raw maneuver type distinguishes
@@ -62,34 +77,82 @@ data class NavigationManeuver(
      */
     val guidanceInstruction: String
         get() {
-            val expectedSide = when (engineType) {
-                9, 10, 11, 18, 20, 23, 37 -> "right"
-                14, 15, 16, 19, 21, 24, 38 -> "left"
-                else -> null
-            } ?: return instruction
+            val expectedSide =
+                when (maneuverSide) {
+                    NavigationManeuverSide.Left -> "left"
+                    NavigationManeuverSide.Right -> "right"
+                    NavigationManeuverSide.UTurn -> "uturn"
+                    NavigationManeuverSide.Straight, null -> null
+                } ?: when (engineType) {
+                    9, 10, 11, 12, 18, 20, 23, 37 -> "right"
+                    13, 14, 15, 16, 19, 21, 24, 38 -> "left"
+                    else -> null
+                } ?: when (type) {
+                    ManeuverType.TurnLeft -> "left"
+                    ManeuverType.TurnRight -> "right"
+                    else -> null
+                }
 
-            val saysLeft = Regex("""\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\b""", RegexOption.IGNORE_CASE)
-                .containsMatchIn(instruction)
-            val saysRight = Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE)
-                .containsMatchIn(instruction)
-            val contradicts = if (expectedSide == "right") saysLeft && !saysRight else saysRight && !saysLeft
+            val saysLeft =
+                Regex("""\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\b""", RegexOption.IGNORE_CASE)
+                    .containsMatchIn(instruction)
+            val saysRight =
+                Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE)
+                    .containsMatchIn(instruction)
+            val saysUTurn =
+                Regex("""\b(umkehren|wenden|u-turn|uturn)\b""", RegexOption.IGNORE_CASE)
+                    .containsMatchIn(instruction)
+            val isExit = type == ManeuverType.Exit || engineType == 20 || engineType == 21
+            val isUTurn = type == ManeuverType.UTurn || engineType == 12 || engineType == 13
+            val isMerge = type == ManeuverType.Merge || engineType == 18 || engineType == 19 ||
+                engineType == 37 || engineType == 38
+            val german =
+                Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\b""", RegexOption.IGNORE_CASE)
+                    .containsMatchIn(instruction)
+
+            // An exit has no safe left/right fallback when the routing engine
+            // omitted its side-specific maneuver type. Remove any conflicting
+            // side from its instruction instead of guessing from the text.
+            if ((isExit || isUTurn) && expectedSide == null && (saysLeft || saysRight)) {
+                return if (isExit) {
+                    if (german) "Ausfahrt nehmen. Bitte Beschilderung beachten."
+                    else "Take the exit. Follow road signs."
+                } else {
+                    if (german) "Wenden. Bitte Beschilderung beachten."
+                    else "Make a U-turn. Follow road signs."
+                }
+            }
+
+            val contradicts = when (expectedSide) {
+                "right" -> saysLeft || saysUTurn
+                "left" -> saysRight || saysUTurn
+                "uturn" -> saysLeft || saysRight
+                else -> false
+            }
             if (!contradicts) return instruction
 
-            val german = Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\b""", RegexOption.IGNORE_CASE)
-                .containsMatchIn(instruction)
             return when {
-                german && (engineType == 20 || engineType == 21) ->
+                expectedSide == "uturn" && isUTurn ->
+                    if (german) "Wenden. Bitte Beschilderung beachten."
+                    else "Make a U-turn. Follow road signs."
+                german && isUTurn ->
+                    if (expectedSide == "right") "Rechts wenden. Bitte Beschilderung beachten."
+                    else "Links wenden. Bitte Beschilderung beachten."
+                german && isExit ->
                     if (expectedSide == "right") "Ausfahrt rechts nehmen. Bitte Beschilderung beachten."
                     else "Ausfahrt links nehmen. Bitte Beschilderung beachten."
-                german && (engineType == 18 || engineType == 19 || engineType == 37 || engineType == 38) ->
+                german && isMerge ->
                     if (expectedSide == "right") "Rechts einfädeln. Bitte Beschilderung beachten."
                     else "Links einfädeln. Bitte Beschilderung beachten."
                 german ->
                     if (expectedSide == "right") "Rechts abbiegen. Bitte Beschilderung beachten."
                     else "Links abbiegen. Bitte Beschilderung beachten."
-                engineType == 20 || engineType == 21 ->
+                isExit ->
                     if (expectedSide == "right") "Take the exit on the right. Follow road signs."
                     else "Take the exit on the left. Follow road signs."
+                isUTurn ->
+                    if (expectedSide == "right") "Make a U-turn to the right. Follow road signs."
+                    else "Make a U-turn to the left. Follow road signs."
                 else ->
                     if (expectedSide == "right") "Turn right. Follow road signs."
                     else "Turn left. Follow road signs."

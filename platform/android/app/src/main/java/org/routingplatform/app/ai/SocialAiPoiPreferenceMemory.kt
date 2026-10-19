@@ -9,8 +9,19 @@ data class SocialAiPoiCategoryFeedback(
     val score: Int
         get() = helpful - notHelpful
 
+    val evidenceCount: Int
+        get() = helpful + notHelpful
+
+    /**
+     * Beta-Bernoulli posterior mean with a neutral Beta(1, 1) prior.
+     * The persisted helpful/not-helpful counters are sufficient statistics
+     * for this small, profile-local on-device preference model.
+     */
+    val probabilityHelpful: Double
+        get() = (helpful + 1.0) / (evidenceCount + 2.0)
+
     val hasFeedback: Boolean
-        get() = helpful + notHelpful > 0
+        get() = evidenceCount > 0
 }
 
 /**
@@ -36,8 +47,13 @@ object SocialAiPoiPreferenceMemory {
     ): List<String> =
         categories.withIndex()
             .sortedWith(
-                compareByDescending<IndexedValue<String>> { feedback[it.value]?.score ?: 0 }
-                    .thenBy { it.index }
+                compareByDescending<IndexedValue<String>> {
+                    feedback[it.value]?.probabilityHelpful ?: 0.5
+                }.thenByDescending {
+                    feedback[it.value]?.evidenceCount ?: 0
+                }.thenBy {
+                    it.index
+                }
             )
             .map { it.value }
 

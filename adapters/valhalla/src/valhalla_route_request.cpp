@@ -213,7 +213,8 @@ std::string build_route_request(
   json
       << "],\"costing\":\""
       << costing
-      << "\",\"units\":\"kilometers\"";
+      << "\",\"units\":\"kilometers\""
+      << ",\"turn_lanes\":true";
 
   // Valhalla calls the requested number of
   // additional paths "alternates".

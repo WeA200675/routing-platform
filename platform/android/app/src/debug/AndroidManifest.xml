@@ -24,8 +24,8 @@
         <!-- Local-AI acceptance surface: debug/device candidate only. -->
         <activity
             android:name=".ai.SocialAiDeviceTestActivity"
-            android:exported="true"
-            android:label="G6 Local AI Test" />
+            android:exported="false"
+            android:label="Lokaler KI-Gerätetest" />
 
         <!--
             G5R5 device fault probe.

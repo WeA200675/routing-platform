@@ -34,6 +34,99 @@ class NavigationPositionFusionEngineTest {
     }
 
     @Test
+    fun repeatedCarrierMeasurementsDoNotInflateUsableSatelliteCount() {
+        val measurements =
+            (1..4).flatMap { satelliteNumber ->
+                val satellite =
+                    NavigationSatelliteKey(
+                        constellation =
+                            if (satelliteNumber <= 2) {
+                                NavigationGnssConstellation.Gps
+                            } else {
+                                NavigationGnssConstellation.Galileo
+                            },
+                        svid = satelliteNumber,
+                    )
+
+                (1..4).map { band ->
+                    rawMeasurement(
+                        key = satellite,
+                        frequencyHz =
+                            if (band % 2 == 0) {
+                                1_575_420_000.0
+                            } else {
+                                1_176_450_000.0
+                            },
+                        timestamp = 1_000L,
+                    )
+                }
+            }
+
+        val snapshot =
+            NavigationRawGnssSnapshot(
+                clock =
+                    NavigationRawGnssClockEvidence(
+                        biasNanos = null,
+                        biasUncertaintyNanos = null,
+                    ),
+                measurements = measurements,
+                elapsedRealtimeNanos = 1_000L,
+            )
+
+        assertEquals(16, snapshot.measurementCount)
+        assertEquals(4, snapshot.usableSatelliteCount)
+        assertEquals(NavigationRawGnssQuality.Usable, snapshot.quality)
+    }
+
+    @Test
+    fun rawMeasurementsWithoutCodeLockOrResolvedTimeDoNotCountAsSignalEvidence() {
+        val measurement =
+            rawMeasurement(
+                key =
+                    NavigationSatelliteKey(
+                        constellation = NavigationGnssConstellation.Gps,
+                        svid = 4,
+                    ),
+                frequencyHz = 1_575_420_000.0,
+                timestamp = 1_000L,
+            ).copy(state = 0)
+
+        val snapshot =
+            NavigationRawGnssSnapshot(
+                clock = NavigationRawGnssClockEvidence(null, null),
+                measurements = listOf(measurement),
+                elapsedRealtimeNanos = 1_000L,
+            )
+
+        assertEquals(0, snapshot.usableSatelliteCount)
+        assertEquals(NavigationRawGnssQuality.Weak, snapshot.quality)
+    }
+
+    @Test
+    fun codeLockWithoutResolvedTimeIsNotValidRawGnssEvidence() {
+        val measurement =
+            rawMeasurement(
+                key =
+                    NavigationSatelliteKey(
+                        constellation = NavigationGnssConstellation.Gps,
+                        svid = 5,
+                    ),
+                frequencyHz = 1_575_420_000.0,
+                timestamp = 1_000L,
+            ).copy(state = 1)
+
+        val snapshot =
+            NavigationRawGnssSnapshot(
+                clock = NavigationRawGnssClockEvidence(null, null),
+                measurements = listOf(measurement),
+                elapsedRealtimeNanos = 1_000L,
+            )
+
+        assertEquals(0, snapshot.usableSatelliteCount)
+        assertEquals(NavigationRawGnssQuality.Weak, snapshot.quality)
+    }
+
+    @Test
     fun dualFrequencySatelliteIsDetected() {
         val key =
             NavigationSatelliteKey(
@@ -312,62 +405,88 @@ class NavigationPositionFusionEngineTest {
     }
 
     @Test
-    fun highConfidenceIsCappedWithoutStrongRawGnss() {
-        val engine =
-            NavigationPositionFusionEngine()
+    fun preciseConsistentFixCanReachHighWithoutRawGnssCallback() {
+        val engine = NavigationPositionFusionEngine()
+        var update: NavigationPositionFusionUpdate? = null
 
-        var update:
-            NavigationPositionFusionUpdate? =
-            null
-
-        repeat(
-            12
-        ) {
-                index ->
-
-            val timestamp =
-                (
-                    index.toLong() +
-                        1L
-                ) *
-                    1_000_000_000L
-
-            update =
-                engine.ingest(
-                    sample =
-                        locationSample(
-                            index =
-                                index,
-
-                            timestamp =
-                                timestamp,
-                        ),
-
-                    sensors =
-                        sensorSnapshot(
-                            timestamp =
-                                timestamp,
-
-                            bearingDegrees =
-                                90.0,
-                        ),
-
-                    environment =
-                        strongEnvironment(
-                            timestamp =
-                                timestamp
-                        ),
-
-                    rawGnss =
-                        null,
-                )
+        repeat(12) { index ->
+            val timestamp = (index.toLong() + 1L) * 1_000_000_000L
+            update = engine.ingest(
+                sample = locationSample(index, timestamp),
+                sensors = sensorSnapshot(timestamp, 90.0),
+                environment = strongEnvironment(timestamp),
+                rawGnss = null,
+            )
         }
 
         assertEquals(
-            NavigationPositionConfidence.Medium,
-            checkNotNull(
-                update
-            ).stabilizedConfidence,
+            NavigationPositionConfidence.High,
+            checkNotNull(update).stabilizedConfidence,
+        )
+    }
+
+    @Test
+    fun accuratePositionWithUsableSatelliteEvidenceCanReachHigh() {
+        val engine = NavigationPositionFusionEngine()
+        var update: NavigationPositionFusionUpdate? = null
+
+        repeat(12) { index ->
+            val timestamp = (index.toLong() + 1L) * 1_000_000_000L
+            val environment =
+                strongEnvironment(timestamp).copy(
+                    observedSatellites =
+                        strongEnvironment(timestamp)
+                            .observedSatellites
+                            .mapIndexed { satelliteIndex, satellite ->
+                                satellite.copy(usedInFix = satelliteIndex < 5)
+                            },
+                )
+
+            update = engine.ingest(
+                sample = locationSample(index, timestamp),
+                sensors = sensorSnapshot(timestamp, 90.0),
+                environment = environment,
+                rawGnss = null,
+            )
+        }
+
+        assertEquals(
+            NavigationGnssQuality.Usable,
+            NavigationGnssEvidence(
+                visibleSatelliteCount = 12,
+                usedInFixSatelliteCount = 5,
+                meanCn0DbHz = 31.0,
+                maxCn0DbHz = 31.0,
+            ).quality,
+        )
+        assertEquals(
+            NavigationPositionConfidence.High,
+            checkNotNull(update).stabilizedConfidence,
+        )
+    }
+
+    @Test
+    fun repeatedPreciseFixesWithWeakRawGnssCanStillReachHigh() {
+        val engine = NavigationPositionFusionEngine()
+        var update: NavigationPositionFusionUpdate? = null
+
+        repeat(12) { index ->
+            val timestamp = (index.toLong() + 1L) * 1_000_000_000L
+            update = engine.ingest(
+                sample = locationSample(index, timestamp),
+                sensors = sensorSnapshot(timestamp, 90.0),
+                environment = strongEnvironment(timestamp),
+                rawGnss = NavigationRawGnssSnapshot(
+                    clock = NavigationRawGnssClockEvidence(null, null),
+                    measurements = emptyList(),
+                    elapsedRealtimeNanos = timestamp,
+                ),
+            )
+        }
+
+        assertEquals(
+            NavigationPositionConfidence.High,
+            checkNotNull(update).stabilizedConfidence,
         )
     }
 
@@ -1102,7 +1221,7 @@ class NavigationPositionFusionEngineTest {
                 frequencyHz,
 
             state =
-                1,
+                16_385,
 
             elapsedRealtimeNanos =
                 timestamp,
