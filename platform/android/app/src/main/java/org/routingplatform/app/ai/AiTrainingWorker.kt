@@ -1,9 +1,7 @@
 package org.routingplatform.app.ai
 
 import android.content.Context
-import android.app.ActivityManager
 import android.os.Build
-import android.os.PowerManager
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -240,22 +238,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
             return Result.success()
         }
 
-        val processState = ActivityManager.RunningAppProcessInfo()
-        ActivityManager.getMyMemoryState(processState)
-        if (processState.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE) {
-            AiTrainingStore.update(applicationContext) {
-                it.copy(status = "Wartet auf Hintergrund", message = "Der lokale Modelllauf startet erst, wenn die App nicht sichtbar ist.")
-            }
-            return Result.retry()
-        }
-        val activityManager = applicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val memory = ActivityManager.MemoryInfo().also(activityManager::getMemoryInfo)
-        if (memory.availMem < MINIMUM_FREE_MEMORY_BYTES) {
-            AiTrainingStore.update(applicationContext) {
-                it.copy(status = "Wartet auf freien Speicher", message = "Der Lauf wartet, bis mindestens 1 GiB RAM frei ist.")
-            }
-            return Result.retry()
-        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val powerManager = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
             if (powerManager.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE) {
