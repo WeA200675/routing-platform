@@ -87,6 +87,8 @@ dependencies {
         "androidx.lifecycle:lifecycle-runtime-compose:2.10.0"
     )
 
+    implementation("androidx.work:work-runtime:2.12.0")
+
     implementation(
         "androidx.compose.ui:ui"
     )
