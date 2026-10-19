@@ -706,6 +706,11 @@ internal fun NavigationScreen(
                             NavigationSessionState
                             .Navigating,
 
+                currentSpeedMps = currentSpeedMps,
+                currentSpeedAccuracyMps = currentSpeedAccuracyMps,
+                speedSampleElapsedRealtimeNanos = speedSampleElapsedRealtimeNanos,
+                speedPositionTrusted = speedPositionTrusted,
+
                 distanceToCurrentManeuverEndM =
                     snapshot
                         .distanceToCurrentManeuverEndM,
