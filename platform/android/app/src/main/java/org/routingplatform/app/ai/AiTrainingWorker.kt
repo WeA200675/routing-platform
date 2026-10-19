@@ -1,6 +1,9 @@
 package org.routingplatform.app.ai
 
 import android.content.Context
+import android.app.ActivityManager
+import android.os.Build
+import android.os.PowerManager
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -96,6 +99,14 @@ internal data class AiTrainingResult(
     val recordedAt: Long,
 )
 
+internal object AiTrainingEvaluationPolicy {
+    fun passes(answer: String, requiredTerms: List<String>): Boolean {
+        if (answer.isBlank() || requiredTerms.isEmpty()) return false
+        val normalized = answer.lowercase()
+        return requiredTerms.all { term -> term.lowercase() in normalized }
+    }
+}
+
 internal object AiTrainingStore {
     private const val PREFS = "ai_training_center_v1"
     private const val KEY_SESSION = "session"
@@ -180,6 +191,7 @@ internal object AiTrainingScheduler {
         val startIndex = session.completed
         val constraints = Constraints.Builder()
             .setRequiresBatteryNotLow(true)
+            .setRequiresStorageNotLow(true)
             .setRequiresCharging(session.requiresCharging)
             .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
             .build()
@@ -228,6 +240,32 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
             return Result.success()
         }
 
+        val processState = ActivityManager.RunningAppProcessInfo()
+        ActivityManager.getMyMemoryState(processState)
+        if (processState.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE) {
+            AiTrainingStore.update(applicationContext) {
+                it.copy(status = "Wartet auf Hintergrund", message = "Der lokale Modelllauf startet erst, wenn die App nicht sichtbar ist.")
+            }
+            return Result.retry()
+        }
+        val activityManager = applicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val memory = ActivityManager.MemoryInfo().also(activityManager::getMemoryInfo)
+        if (memory.availMem < MINIMUM_FREE_MEMORY_BYTES) {
+            AiTrainingStore.update(applicationContext) {
+                it.copy(status = "Wartet auf freien Speicher", message = "Der Lauf wartet, bis mindestens 1 GiB RAM frei ist.")
+            }
+            return Result.retry()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val powerManager = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (powerManager.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE) {
+                AiTrainingStore.update(applicationContext) {
+                    it.copy(status = "Wartet auf Abkühlung", message = "Der Lauf pausiert bei hoher Gerätetemperatur.")
+                }
+                return Result.retry()
+            }
+        }
+
         val model = File(applicationContext.filesDir, MODEL_FILE)
         if (!model.isFile || sha256(model) != MODEL_SHA256) {
             AiTrainingStore.update(applicationContext) {
@@ -253,8 +291,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
                     maxTokens,
                 ).trim()
                 val latency = (android.os.SystemClock.elapsedRealtime() - start).coerceAtLeast(0L)
-                val normalized = answer.lowercase()
-                val passed = answer.isNotBlank() && scenario.requiredTerms.all { normalized.contains(it.lowercase()) }
+                val passed = AiTrainingEvaluationPolicy.passes(answer, scenario.requiredTerms)
                 AiTrainingStore.record(
                     applicationContext,
                     AiTrainingResult(track.id, scenario.label, latency, passed, System.currentTimeMillis()),
@@ -304,6 +341,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
     }
 
     companion object {
+        private const val MINIMUM_FREE_MEMORY_BYTES = 1_024L * 1024 * 1024
         private const val MODEL_FILE = "g620-qwen2.5-1.5b-q4_k_m.gguf"
         private const val MODEL_SHA256 = "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370"
     }
