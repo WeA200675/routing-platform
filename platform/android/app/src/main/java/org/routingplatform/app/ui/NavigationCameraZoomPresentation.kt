@@ -85,7 +85,9 @@ internal object NavigationCameraZoomPolicy {
     /** Continuous, bounded framing curve; the map camera adds temporal smoothing. */
     private fun speedZoomOffset(speedKmh: Double): Double {
         val anchors = listOf(0.0 to 0.85, 30.0 to 0.45, 80.0 to -0.25, 130.0 to -1.0, 220.0 to -1.0)
-        val upperIndex = anchors.indexOfFirst { speedKmh <= it.first }.coerceAtLeast(1)
+        val upperIndex = anchors.indexOfFirst { speedKmh <= it.first }
+            .let { if (it < 0) anchors.lastIndex else it }
+            .coerceAtLeast(1)
         val (lowSpeed, lowOffset) = anchors[upperIndex - 1]
         val (highSpeed, highOffset) = anchors[upperIndex]
         val fraction = ((speedKmh - lowSpeed) / (highSpeed - lowSpeed)).coerceIn(0.0, 1.0)
