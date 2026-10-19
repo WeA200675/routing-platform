@@ -2,6 +2,7 @@ package org.routingplatform.app.ai
 
 import android.content.Context
 import android.os.Build
+import android.os.PowerManager
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -265,7 +266,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
         var completed = startIndex
         try {
             check(engine.loadModel(model.absolutePath, 4096)) { "Lokales Modell konnte nicht geladen werden." }
-            val end = (startIndex + BATCH_SIZE).coerceAtMost(total)
+            val end = (startIndex + AiTrainingScheduler.BATCH_SIZE).coerceAtMost(total)
             while (completed < end && !isStopped) {
                 val scenario = cases[completed % cases.size]
                 val started = android.os.SystemClock.elapsedRealtime()
