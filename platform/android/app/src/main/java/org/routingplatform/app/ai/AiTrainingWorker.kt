@@ -285,23 +285,19 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
             val end = (startIndex + BATCH_SIZE).coerceAtMost(total)
             while (completed < end && !isStopped) {
                 val scenario = cases[completed % cases.size]
-                val start = android.os.SystemClock.elapsedRealtime()
-                val answer = engine.generate(
-                    buildPrompt(scenario.prompt, focus),
-                    maxTokens,
-                ).trim()
-                val latency = (android.os.SystemClock.elapsedRealtime() - start).coerceAtLeast(0L)
+                val started = android.os.SystemClock.elapsedRealtime()
+                val answer = engine.generate(buildPrompt(scenario.prompt, focus), maxTokens).trim()
+                val latency = (android.os.SystemClock.elapsedRealtime() - started).coerceAtLeast(0L)
                 val passed = AiTrainingEvaluationPolicy.passes(answer, scenario.requiredTerms)
-                AiTrainingStore.record(
-                    applicationContext,
-                    AiTrainingResult(track.id, scenario.label, latency, passed, System.currentTimeMillis()),
-                )
+                AiTrainingStore.record(applicationContext, AiTrainingResult(track.id, scenario.label, latency, passed, System.currentTimeMillis()))
                 completed += 1
-                val allResults = AiTrainingStore.results(applicationContext).takeLast(completed)
-                val passes = allResults.count { it.trackId == track.id && it.recordedAt >= AiTrainingStore.currentSession(applicationContext)?.startedAt.orZero() && it.passed }
-                val average = allResults.filter { it.trackId == track.id && it.recordedAt >= AiTrainingStore.currentSession(applicationContext)?.startedAt.orZero() }.map { it.latencyMs }.average().takeIf { it.isFinite() }?.toLong() ?: latency
+                val sessionResults = AiTrainingStore.results(applicationContext).filter {
+                    it.trackId == track.id && it.recordedAt >= (AiTrainingStore.currentSession(applicationContext)?.startedAt ?: 0L)
+                }
+                val passCount = sessionResults.count { it.passed }
+                val average = sessionResults.map { it.latencyMs }.average().takeIf { it.isFinite() }?.toLong() ?: latency
                 AiTrainingStore.update(applicationContext) {
-                    it.copy(completed = completed, passed = passes.coerceAtMost(completed), averageLatencyMs = average, status = "Läuft", message = scenario.label)
+                    it.copy(completed = completed, passed = passCount, averageLatencyMs = average, status = "Läuft", message = scenario.label)
                 }
                 setProgressAsync(Data.Builder().putInt("completed", completed).putInt("total", total).putString("scenario", scenario.label).build())
             }
