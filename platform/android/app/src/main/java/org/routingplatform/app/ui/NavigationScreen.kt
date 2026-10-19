@@ -1368,6 +1368,19 @@ internal fun NavigationScreen(
                             )
                         }
 
+                        OutlinedButton(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("local_ai_training_center_open"),
+                            onClick = {
+                                context.startActivity(
+                                    Intent(context, org.routingplatform.app.ai.AiTrainingCenterActivity::class.java)
+                                )
+                            },
+                        ) {
+                            Text("KI-Trainingscenter öffnen")
+                        }
+
                         if (BuildConfig.DEBUG) {
                             OutlinedButton(
                                 modifier = Modifier
