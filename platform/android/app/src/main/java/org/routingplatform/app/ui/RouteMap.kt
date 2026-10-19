@@ -114,6 +114,11 @@ internal fun RouteMap(
         Double =
         Double.POSITIVE_INFINITY,
 
+    currentSpeedMps: Double? = null,
+    currentSpeedAccuracyMps: Double? = null,
+    speedSampleElapsedRealtimeNanos: Long? = null,
+    speedPositionTrusted: Boolean = false,
+
     focusModeActive:
         Boolean =
         false,
@@ -250,6 +255,8 @@ internal fun RouteMap(
         remember {
             NavigationBearingStabilizer()
         }
+
+    val zoomStabilizer = remember { NavigationCameraZoomStabilizer() }
 
     var displayedMapBearing by remember {
         mutableStateOf(0.0)
@@ -838,6 +845,10 @@ internal fun RouteMap(
         displayPreferences,
         automaticMapZoomEnabled,
         distanceToCurrentManeuverEndM,
+        currentSpeedMps,
+        currentSpeedAccuracyMps,
+        speedSampleElapsedRealtimeNanos,
+        speedPositionTrusted,
         observedPosition,
         selectedTarget,
         compassPresentation,
@@ -1103,6 +1114,11 @@ internal fun RouteMap(
                     ?: progressGeometry
                         .currentPosition
 
+            val nowElapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+            val speedSampleAgeMs = speedSampleElapsedRealtimeNanos?.let { sampleTime ->
+                val ageNanos = nowElapsedRealtimeNanos - sampleTime
+                if (ageNanos < 0L) null else ageNanos / 1_000_000L
+            }
             val zoomPresentation =
                 NavigationCameraZoomPolicy
                     .create(
@@ -1115,6 +1131,19 @@ internal fun RouteMap(
 
                         distanceToManeuverM =
                             distanceToCurrentManeuverEndM,
+
+                        speedMps =
+                            currentSpeedMps,
+
+                        speedAccuracyMps =
+                            currentSpeedAccuracyMps,
+
+                        speedTrusted =
+                            speedPositionTrusted &&
+                                observedPosition?.cameraFollowAllowed == true,
+
+                        speedSampleAgeMs =
+                            speedSampleAgeMs,
                     )
 
             val followSuspended =
@@ -1123,6 +1152,17 @@ internal fun RouteMap(
                 } == true
 
             if (!followSuspended) {
+                val stableMapZoom =
+                    if (zoomPresentation.automaticApplied) {
+                        zoomStabilizer.update(
+                            zoomPresentation.zoom,
+                            SystemClock.elapsedRealtime(),
+                        )
+                    } else {
+                        zoomStabilizer.reset()
+                        zoomPresentation.zoom
+                    }
+
                 val stableMapBearing =
                     if (compassPresentation.headingUpActive) {
                         bearingStabilizer.update(
@@ -1144,7 +1184,7 @@ internal fun RouteMap(
                                 cameraTarget.longitude,
                             )
                         )
-                        .zoom(zoomPresentation.zoom)
+                        .zoom(stableMapZoom)
                         .tilt(displayPreferences.mapTiltDegrees)
                         .bearing(stableMapBearing)
                         .build()
