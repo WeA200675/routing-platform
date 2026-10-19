@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -125,10 +124,11 @@ private fun TrainingCenterScreen(
         }
     }
 
-    val lastResults = results.takeLast(20)
-    val passedCount = results.count { it.passed }
-    val passRate = if (results.isEmpty()) 0 else (passedCount * 100 / results.size)
-    val averageLatency = results.takeLast(30).map { it.latencyMs }.average().takeIf { it.isFinite() }?.roundToInt() ?: 0
+    val trackResults = results.filter { it.trackId == selectedTrack.id }
+    val lastResults = trackResults.takeLast(20)
+    val passedCount = trackResults.count { it.passed }
+    val passRate = if (trackResults.isEmpty()) 0 else (passedCount * 100 / trackResults.size)
+    val averageLatency = trackResults.takeLast(30).map { it.latencyMs }.average().takeIf { it.isFinite() }?.roundToInt() ?: 0
     val isRunning = session?.status == "Läuft" || session?.status == "Wartet auf Bedingungen"
     val canResume = session?.let { it.completed < it.total && (it.status == "Pausiert" || it.status == "Fehler") } == true
     val modelExists = File(context.filesDir, "g620-qwen2.5-1.5b-q4_k_m.gguf").isFile
@@ -160,11 +160,11 @@ private fun TrainingCenterScreen(
 
         Text("Leistungsübersicht", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            MetricCard("Beispiele", results.size.toString(), "lokal ausgewertet", Modifier.weight(1f))
+            MetricCard("Beispiele", results.size.toString(), "${selectedTrack.title} · lokal", Modifier.weight(1f))
             MetricCard("Regelchecks", "$passRate %", "$passedCount bestanden", Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            MetricCard("Ø Inferenz", if (averageLatency > 0) "$averageLatency ms" else "—", "letzte 30 Antworten", Modifier.weight(1f))
+            MetricCard("Ø Inferenz", if (averageLatency > 0) "$averageLatency ms" else "—", "${selectedTrack.title} · letzte 30", Modifier.weight(1f))
             MetricCard("Letzter Lauf", session?.status ?: "Noch keiner", session?.let { "${it.completed}/${it.total} Beispiele" } ?: "bereit", Modifier.weight(1f))
         }
 
