@@ -212,6 +212,13 @@ internal object AiTrainingStore {
         }
     }
 
+    fun updateGeneratedCase(context: Context, replacement: AiTrainingGeneratedCase) {
+        synchronized(this) {
+            val updated = generatedCases(context).map { if (it.id == replacement.id) replacement else it }
+            saveGeneratedCases(context, updated)
+        }
+    }
+
     fun setGeneratedCaseStatus(context: Context, id: String, status: String) {
         require(status in setOf("Freigegeben", "Zurückgestellt", "Verworfen"))
         synchronized(this) {
