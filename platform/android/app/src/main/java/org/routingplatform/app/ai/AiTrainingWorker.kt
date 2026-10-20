@@ -36,7 +36,7 @@ internal data class TrainingCase(
     val label: String,
 )
 
-private val trainingCases = mapOf(
+internal val trainingCases = mapOf(
     AiTrainingTrack.Vocabulary to listOf(
         TrainingCase("Erkläre den Begriff Zwischenziel in einem kurzen, natürlichen Satz und nenne ausdrücklich das Wort Zwischenstopp.", listOf("zwischenziel", "zwischenstopp"), "Zwischenziel"),
         TrainingCase("Erkläre knapp den Unterschied zwischen Reststrecke und Restzeit. Verwende beide Begriffe.", listOf("reststrecke", "restzeit"), "Navigationsbegriffe"),
@@ -97,6 +97,55 @@ internal data class AiTrainingResult(
     val passed: Boolean,
     val recordedAt: Long,
 )
+
+internal data class AiTrainingGeneratedCase(
+    val id: String,
+    val trackId: String,
+    val label: String,
+    val prompt: String,
+    val requiredTerms: List<String>,
+    val qualityScore: Int,
+    val status: String,
+    val createdAt: Long,
+)
+
+internal object AiTrainingCaseReview {
+    fun parseAndScore(
+        raw: String,
+        track: AiTrainingTrack,
+        existing: List<AiTrainingGeneratedCase>,
+        now: Long,
+    ): AiTrainingGeneratedCase? = runCatching {
+        val start = raw.indexOf('{')
+        val end = raw.lastIndexOf('}')
+        require(start >= 0 && end > start)
+        val json = JSONObject(raw.substring(start, end + 1))
+        val label = json.getString("label").trim()
+        val prompt = json.getString("prompt").trim()
+        val termsArray = json.getJSONArray("requiredTerms")
+        require(label.length in 3..60 && prompt.length in 40..400 && termsArray.length() in 2..4)
+        val terms = (0 until termsArray.length()).map { termsArray.getString(it).trim().lowercase() }
+        require(terms.all { it.length in 2..32 && it in prompt.lowercase() })
+        val lower = prompt.lowercase()
+        require(listOf("https://", "http://", "telefonnummer", "kennzeichen", "adresse:", "fahre jetzt", "biege jetzt")
+            .none { it in lower })
+        require(!Regex("""-?\\d{1,3}\\.\\d{3,}""").containsMatchIn(prompt))
+        val normalized = lower.replace(Regex("[^a-zäöüß0-9 ]"), " ").replace(Regex("\\s+"), " ").trim()
+        require(existing.none { it.trackId == track.id &&
+            it.prompt.lowercase().replace(Regex("[^a-zäöüß0-9 ]"), " ").replace(Regex("\\s+"), " ").trim() == normalized })
+        val topic = when (track) {
+            AiTrainingTrack.Vocabulary -> listOf("begriff", "erkläre", "unterschied", "wort")
+            AiTrainingTrack.Voice -> listOf("ansage", "formuliere", "sprich", "richtung")
+            AiTrainingTrack.RouteIntent -> listOf("ziel", "vermeide", "zwischenstopp", "wunsch")
+            AiTrainingTrack.Maneuvers -> listOf("abbieg", "ausfahrt", "spur", "beschilderung")
+            AiTrainingTrack.GpsSafety -> listOf("gps", "position", "messung", "genauigkeit")
+            AiTrainingTrack.Traffic -> listOf("stau", "verkehrsdaten", "gefahr", "meldung")
+        }
+        val score = 55 + (if (topic.any { it in lower }) 25 else 0) + (if (terms.distinct().size == terms.size) 20 else 0)
+        require(score >= 80)
+        AiTrainingGeneratedCase(java.util.UUID.randomUUID().toString(), track.id, label, prompt, terms.distinct(), score, "Zur Prüfung", now)
+    }.getOrNull()
+}
 
 internal object AiTrainingPrioritizer {
     fun nextCase(track: AiTrainingTrack, cases: List<TrainingCase>, allResults: List<AiTrainingResult>): TrainingCase {
