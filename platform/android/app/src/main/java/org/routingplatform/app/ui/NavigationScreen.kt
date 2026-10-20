@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -909,15 +910,35 @@ internal fun NavigationScreen(
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                     )
+                                    val maneuverNeedsLaneGuidance = snapshot.currentManeuver?.type in setOf(
+                                        org.routingplatform.app.navigation.ManeuverType.Exit,
+                                        org.routingplatform.app.navigation.ManeuverType.Merge,
+                                        org.routingplatform.app.navigation.ManeuverType.TurnLeft,
+                                        org.routingplatform.app.navigation.ManeuverType.TurnRight,
+                                    )
                                     snapshot.currentManeuver?.destinationSign
                                         ?.takeIf(String::isNotBlank)
                                         ?.let { sign ->
-                                            Text(
-                                                text = "Schild: $sign",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontWeight = FontWeight.SemiBold,
-                                            )
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                                shape = MaterialTheme.shapes.small,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            ) {
+                                                Text(
+                                                    text = "🪧 $sign",
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                )
+                                            }
                                         }
+                                    if (maneuverNeedsLaneGuidance && snapshot.currentManeuver?.destinationSign.isNullOrBlank()) {
+                                        Text(
+                                            "Schilddaten nicht verfügbar · bitte der Beschilderung folgen",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                     snapshot.currentManeuver?.laneIndications
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.let { lanes ->
