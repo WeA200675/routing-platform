@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.valhalla.valhalla.Valhalla
+import org.routingplatform.app.ai.JniSocialAiNativeEngine
+import java.security.MessageDigest
 import com.valhalla.valhalla.config.ValhallaConfigFactory
 import org.json.JSONArray
 import org.json.JSONObject
@@ -139,8 +141,13 @@ internal class AndroidOfflineValhallaRouteSource(
             NavigationRouteFamily.Scenic,
             NavigationRouteFamily.Stable,
         )
-        val raw = valhalla.routeRaw(buildRequestJson(request))
-        val parsed = parseResponse(raw, request.family)
+        val baseline = parseResponse(valhalla.routeRaw(buildRequestJson(request)), request.family)
+        val parsed = chooseAiRoute(valhalla, request, baseline) ?: baseline.copy(
+            diagnostics = baseline.diagnostics + NavigationRouteDiagnostic(
+                "on_device_ai_route_advisor_fallback",
+                "KI-Routenvergleich nicht verfügbar; die geprüfte Valhalla-Grundroute bleibt aktiv.",
+            ),
+        )
         val route = if (usesStandardProfileFallback) {
             parsed.copy(
                 diagnostics = parsed.diagnostics + NavigationRouteDiagnostic(
@@ -150,6 +157,78 @@ internal class AndroidOfflineValhallaRouteSource(
             )
         } else parsed
         return attachSpeedLimitAttributes(valhalla, route)
+    }
+
+
+    private fun chooseAiRoute(
+        valhalla: Valhalla,
+        request: NavigationRouteRequest,
+        baseline: NavigationRouteContract,
+    ): NavigationRouteContract? = runCatching {
+        val model = File(appContext.filesDir, "g620-qwen2.5-1.5b-q4_k_m.gguf")
+        require(model.isFile && model.length() in 100_000_000L..3_000_000_000L)
+        require(sha256(model) == "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370")
+        val families = listOf(request.family, NavigationRouteFamily.Fastest, NavigationRouteFamily.Shortest,
+            NavigationRouteFamily.MajorRoads, NavigationRouteFamily.Comfort).distinct().take(4)
+        val candidates = families.mapIndexedNotNull { id, family ->
+            runCatching {
+                val route = if (family == request.family) baseline else
+                    parseResponse(valhalla.routeRaw(buildRequestJson(request.copy(family = family))), family)
+                require(route.geometry.size >= 2 && route.distanceM.isFinite() && route.durationS.isFinite())
+                require(distanceMeters(route.geometry.first(), request.origin) <= 2_500.0)
+                require(distanceMeters(route.geometry.last(), request.destination) <= 2_500.0)
+                id to route
+            }.getOrNull()
+        }
+        require(candidates.size >= 2)
+        val engine = JniSocialAiNativeEngine()
+        try {
+            require(engine.loadModel(model.absolutePath, 4096))
+            val options = candidates.joinToString("\n") { (id, route) ->
+                "Kandidat $id: Profil=${route.family.name}, Distanz=${route.distanceM.toLong()}m, Zeit=${route.durationS.toLong()}s, Abbiegungen=${route.maneuvers.size}"
+            }
+            val prompt = "<|im_start|>system\nVergleiche nur diese graphberechneten Routen. Wähle eine Kandidaten-ID. Erfinde keine Fakten. Gewünschtes Profil: ${request.family.name}. Antworte ausschließlich JSON: {\"candidate\":0,\"reason\":\"balanced\"}. reason ist fastest, shortest, major_roads, comfort oder balanced.\n<|im_end|>\n<|im_start|>user\n$options\n<|im_end|>\n<|im_start|>assistant\n"
+            val raw = engine.generate(prompt, 96)
+            val start = raw.indexOf('{')
+            val end = raw.lastIndexOf('}')
+            require(start >= 0 && end > start)
+            val choice = JSONObject(raw.substring(start, end + 1))
+            val id = choice.getInt("candidate")
+            val reason = choice.optString("reason")
+            require(reason in setOf("fastest", "shortest", "major_roads", "comfort", "balanced"))
+            val selected = candidates.firstOrNull { it.first == id }?.second ?: error("Unknown candidate")
+            selected.copy(diagnostics = selected.diagnostics + NavigationRouteDiagnostic(
+                "on_device_ai_route_advisor",
+                "Lokale KI verglich ${candidates.size} Valhalla-Routen und wählte Profil ${selected.family.name} ($reason).",
+            ))
+        } finally {
+            runCatching { engine.unloadModel() }
+        }
+    }.getOrNull()
+
+    private fun sha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered().use { input ->
+            val buffer = ByteArray(1024 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun distanceMeters(a: RoutePoint, b: RoutePoint): Double {
+        val radius = 6_371_000.0
+        val dLat = Math.toRadians(b.latitude - a.latitude)
+        val dLon = Math.toRadians(b.longitude - a.longitude)
+        val lat1 = Math.toRadians(a.latitude)
+        val lat2 = Math.toRadians(b.latitude)
+        val h = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+            kotlin.math.cos(lat1) * kotlin.math.cos(lat2) *
+            kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
+        return 2 * radius * kotlin.math.asin(kotlin.math.sqrt(h.coerceIn(0.0, 1.0)))
     }
 
     /**
