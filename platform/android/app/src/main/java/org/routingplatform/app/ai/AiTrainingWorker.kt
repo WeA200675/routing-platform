@@ -98,6 +98,33 @@ internal data class AiTrainingResult(
     val recordedAt: Long,
 )
 
+internal object AiTrainingPrioritizer {
+    fun nextCase(track: AiTrainingTrack, cases: List<TrainingCase>, allResults: List<AiTrainingResult>): TrainingCase {
+        require(cases.isNotEmpty())
+        val results = allResults.filter { it.trackId == track.id }
+        return cases.withIndex().maxWithOrNull(
+            compareBy<IndexedValue<TrainingCase>> { item ->
+                val recent = results.filter { it.caseLabel == item.value.label }.takeLast(12)
+                if (recent.isEmpty()) 1.25
+                else {
+                    val rate = recent.count { it.passed }.toDouble() / recent.size
+                    (1.0 - rate) + if (recent.size < 4) 0.20 else 0.0
+                }
+            }.thenBy { item ->
+                -(results.lastOrNull { it.caseLabel == item.value.label }?.recordedAt ?: 0L)
+            }.thenBy { -item.index }
+        )!!.value
+    }
+
+    fun nextTrack(allResults: List<AiTrainingResult>): AiTrainingTrack =
+        AiTrainingTrack.entries.minWithOrNull(
+            compareBy<AiTrainingTrack> { track ->
+                val recent = allResults.filter { it.trackId == track.id }.takeLast(30)
+                if (recent.isEmpty()) -1.0 else recent.count { it.passed }.toDouble() / recent.size
+            }.thenBy { track -> allResults.count { it.trackId == track.id } }
+        ) ?: AiTrainingTrack.RouteIntent
+}
+
 internal object AiTrainingEvaluationPolicy {
     fun passes(answer: String, requiredTerms: List<String>): Boolean {
         if (answer.isBlank() || requiredTerms.isEmpty()) return false
@@ -182,7 +209,7 @@ internal object AiTrainingStore {
 }
 
 internal object AiTrainingScheduler {
-    const val BATCH_SIZE = 3
+    const val BATCH_SIZE = 6
 
     fun workName(sessionId: String) = "ai_training_$sessionId"
 
@@ -230,7 +257,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
     override fun doWork(): Result {
         val sessionId = inputData.getString(AiTrainingScheduler.KEY_SESSION_ID) ?: return Result.failure()
         val track = AiTrainingTrack.fromId(inputData.getString(AiTrainingScheduler.KEY_TRACK_ID).orEmpty())
-        val total = inputData.getInt(AiTrainingScheduler.KEY_TOTAL, 0).coerceIn(1, 120)
+        val total = inputData.getInt(AiTrainingScheduler.KEY_TOTAL, 0).coerceIn(1, 1200)
         val startIndex = inputData.getInt(AiTrainingScheduler.KEY_START_INDEX, 0).coerceIn(0, total)
         val maxTokens = inputData.getInt(AiTrainingScheduler.KEY_MAX_TOKENS, 128).coerceIn(32, 512)
         val focus = inputData.getString(AiTrainingScheduler.KEY_CUSTOM_FOCUS).orEmpty().take(500)
@@ -268,7 +295,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
             check(engine.loadModel(model.absolutePath, 4096)) { "Lokales Modell konnte nicht geladen werden." }
             val end = (startIndex + AiTrainingScheduler.BATCH_SIZE).coerceAtMost(total)
             while (completed < end && !isStopped) {
-                val scenario = cases[completed % cases.size]
+                val scenario = AiTrainingPrioritizer.nextCase(track, cases, AiTrainingStore.results(applicationContext))
                 val started = android.os.SystemClock.elapsedRealtime()
                 val answer = engine.generate(buildPrompt(scenario.prompt, focus), maxTokens).trim()
                 val latency = (android.os.SystemClock.elapsedRealtime() - started).coerceAtLeast(0L)
