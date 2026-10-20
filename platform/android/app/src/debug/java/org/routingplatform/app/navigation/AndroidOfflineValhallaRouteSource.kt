@@ -157,8 +157,15 @@ internal class AndroidOfflineValhallaRouteSource(
             )
         } else parsed
         val withSpeedLimits = attachSpeedLimitAttributes(valhalla, route)
-        // Best-effort online lane/sign enrichment never changes route geometry or the baseline route.
-        return OnlineManeuverDataResolver.enrich(withSpeedLimits)
+        // Best-effort online lane/sign enrichment never changes route geometry or blocks routing.
+        return runCatching { OnlineManeuverDataResolver.enrich(withSpeedLimits) }.getOrElse {
+            withSpeedLimits.copy(
+                diagnostics = withSpeedLimits.diagnostics + NavigationRouteDiagnostic(
+                    "online_maneuver_data_osm_unavailable",
+                    "Onlineabgleich fehlgeschlagen; vorhandene Route bleibt aktiv und fehlende Spurangaben bleiben nicht verfügbar.",
+                ),
+            )
+        }
     }
 
 
