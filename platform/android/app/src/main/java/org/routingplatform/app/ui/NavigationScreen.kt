@@ -910,12 +910,15 @@ internal fun NavigationScreen(
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                     )
-                                    val maneuverNeedsLaneGuidance = snapshot.currentManeuver?.type in setOf(
-                                        org.routingplatform.app.navigation.ManeuverType.Exit,
-                                        org.routingplatform.app.navigation.ManeuverType.Merge,
-                                        org.routingplatform.app.navigation.ManeuverType.TurnLeft,
-                                        org.routingplatform.app.navigation.ManeuverType.TurnRight,
-                                    )
+                                    val maneuverNeedsLaneGuidance =
+                                        snapshot.currentManeuver?.type?.let { type ->
+                                            type in setOf(
+                                                org.routingplatform.app.navigation.ManeuverType.Exit,
+                                                org.routingplatform.app.navigation.ManeuverType.Merge,
+                                                org.routingplatform.app.navigation.ManeuverType.TurnLeft,
+                                                org.routingplatform.app.navigation.ManeuverType.TurnRight,
+                                            )
+                                        } == true
                                     snapshot.currentManeuver?.destinationSign
                                         ?.takeIf(String::isNotBlank)
                                         ?.let { sign ->
