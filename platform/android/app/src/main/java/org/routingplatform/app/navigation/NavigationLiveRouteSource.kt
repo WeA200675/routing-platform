@@ -96,6 +96,7 @@ class AndroidHttpNavigationRouteSource(
     private val onReliabilityEvent:
         (NavigationReliabilityEvent) -> Unit =
         {},
+    private val enrichOnlineManeuverData: Boolean = false,
 ) : NavigationRouteSource {
 
     private val appContext =
@@ -208,9 +209,16 @@ class AndroidHttpNavigationRouteSource(
 
         while (true) {
             try {
-                return fetch(
-                    request
-                )
+                val route = fetch(request)
+                if (!enrichOnlineManeuverData) return route
+                return runCatching { OnlineManeuverDataResolver.enrich(route) }.getOrElse {
+                    route.copy(
+                        diagnostics = route.diagnostics + NavigationRouteDiagnostic(
+                            "online_maneuver_data_osm_unavailable",
+                            "Onlineabgleich fehlgeschlagen; vorhandene Route bleibt aktiv und fehlende Spurangaben bleiben nicht verfügbar.",
+                        ),
+                    )
+                }
             } catch (
                 interrupted:
                     InterruptedException
