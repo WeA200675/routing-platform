@@ -21,6 +21,17 @@ class AiTrainingEvaluationPolicyTest {
         assertTrue(AiTrainingEvaluationPolicy.passes("Folge der AUSFAHRT A92.", listOf("ausfahrt", "a92")))
     }
 
+    @Test fun sourceTrainingCoversProvenanceFreshnessFallbackAndUnavailableData() {
+        val cases = trainingCases[AiTrainingTrack.DataSources].orEmpty()
+        assertEquals(8, cases.size)
+        val corpus = cases.joinToString(" ").lowercase()
+        assertTrue(corpus.contains("openstreetmap"))
+        assertTrue(corpus.contains("zeitstempel"))
+        assertTrue(corpus.contains("lizenz"))
+        assertTrue(corpus.contains("nicht verfügbar"))
+        assertTrue(corpus.contains("widersprechen"))
+    }
+
     @Test fun prioritizesWeakAndUnseenCases() {
         val cases = listOf(
             TrainingCase("Fall stabil", listOf("ok"), "stabil"),
