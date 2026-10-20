@@ -23,7 +23,8 @@ internal enum class AiTrainingTrack(val id: String, val title: String, val detai
     RouteIntent("route_intent", "Routenwünsche", "Ziel, Vermeidung und Zwischenstopp erkennen"),
     Maneuvers("maneuvers", "Abbiegen & Ausfahrten", "Richtungsangaben verständlich formulieren"),
     GpsSafety("gps_safety", "GPS & Sicherheit", "Einzelfehler nicht als bestätigte Abweichung behandeln"),
-    Traffic("traffic", "Stau & Gefahren", "Fehlende Live-Daten offen benennen");
+    Traffic("traffic", "Stau & Gefahren", "Fehlende Live-Daten offen benennen"),
+    DataSources("data_sources", "Quellen & Datenabgleich", "Spur- und Schilddaten online finden und verifizieren");
 
     companion object {
         fun fromId(id: String) = entries.firstOrNull { it.id == id } ?: RouteIntent
@@ -72,6 +73,16 @@ internal val trainingCases = mapOf(
         TrainingCase("Ein bestätigter Stau liegt 4 Kilometer voraus und verursacht 8 Minuten Verzögerung. Fasse nur diese Fakten zusammen.", listOf("stau", "4", "kilometer", "8", "minuten"), "Stauzusammenfassung"),
         TrainingCase("Eine Gefahrenmeldung ist abgelaufen. Behandle sie nicht als aktuelle Gefahr und sage, dass ihr Status veraltet ist.", listOf("abgelaufen", "veraltet"), "Meldungsalter"),
         TrainingCase("Für eine Umleitung fehlen verlässliche Verkehrsdaten. Erkläre, dass die Route nicht allein auf Vermutungen geändert wird.", listOf("verkehrsdaten", "vermutung"), "Umleitungsentscheidung"),
+    ),
+    AiTrainingTrack.DataSources to listOf(
+        TrainingCase("Für eine nächste Ausfahrt fehlen Spurdaten. Beschreibe die Suche nach einer aktuellen, straßengenau passenden Onlinequelle und prüfe Quelle, Zeitstempel und Fahrtrichtung, bevor die Angabe angezeigt wird.", listOf("onlinequelle", "zeitstempel", "fahrtrichtung"), "Spurdatenquelle prüfen"),
+        TrainingCase("OpenStreetMap liefert turn:lanes für eine nahe Straße, aber die Fahrtrichtung passt nicht zur Route. Verwirf den Treffer und suche weiter nach der richtigen Richtungsfahrbahn.", listOf("openstreetmap", "fahrtrichtung", "verwerfen"), "Falsche Richtungsfahrbahn"),
+        TrainingCase("Ein Routinggraph enthält keine Spurinformation. Nenne einen geordneten Ersatzweg über eine zugelassene Onlinequelle und verlange einen eindeutigen Straßen- und Kreuzungsabgleich.", listOf("routinggraph", "onlinequelle", "kreuzungsabgleich"), "Quellen-Fallback"),
+        TrainingCase("Zwei Quellen widersprechen sich bei der Ausfahrtspur. Vergleiche Aktualität, Straßenidentität und Herkunft; gib bei ungelöstem Konflikt keine Spur als bestätigt aus.", listOf("aktualität", "herkunft", "bestätigt"), "Quellenkonflikt"),
+        TrainingCase("Ein Onlineanbieter ist nicht erreichbar und der lokale Kartensatz ist veraltet. Kennzeichne die Spur als nicht verfügbar und nenne beide fehlgeschlagenen Quellen.", listOf("nicht verfügbar", "lokal", "online"), "Netzwerkausfall"),
+        TrainingCase("Ein Kartentreffer nennt die Ausfahrt, aber keine Spurzuordnung. Trenne bestätigtes Schildziel von unbekannter Spur und erfinde keine Zuordnung.", listOf("schildziel", "spur", "unbekannt"), "Schild ohne Spurdaten"),
+        TrainingCase("Für einen Onlinefund fehlen Lizenz, Attribution oder Aktualisierungsdatum. Erkläre, welche Prüfung vor der Übernahme fehlt und verwende die Angabe noch nicht.", listOf("lizenz", "attribution", "aktualisierungsdatum"), "Nutzungsrechte prüfen"),
+        TrainingCase("Eine Quelle liefert Spurpfeile ohne nachvollziehbare Straßen- oder Kreuzungszuordnung. Beschreibe den Geometrie- und Richtungsabgleich, bevor die KI daraus eine Anzeige erstellt.", listOf("geometrie", "richtungsabgleich", "zuordnung"), "Geometrieabgleich"),
     ),
 )
 
@@ -140,6 +151,7 @@ internal object AiTrainingCaseReview {
             AiTrainingTrack.Maneuvers -> listOf("abbieg", "ausfahrt", "spur", "beschilderung")
             AiTrainingTrack.GpsSafety -> listOf("gps", "position", "messung", "genauigkeit")
             AiTrainingTrack.Traffic -> listOf("stau", "verkehrsdaten", "gefahr", "meldung")
+            AiTrainingTrack.DataSources -> listOf("quelle", "online", "aktualität", "attribution", "openstreetmap")
         }
         val score = 55 + (if (topic.any { it in lower }) 25 else 0) + (if (terms.distinct().size == terms.size) 20 else 0)
         require(score >= 80)
@@ -475,7 +487,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
     }
 
     private fun buildCaseDraftPrompt(track: AiTrainingTrack): String =
-        "<|im_start|>system\\nErzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten.\\n<|im_end|>\\n<|im_start|>user\\nErzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\\n<|im_end|>\\n<|im_start|>assistant\\n"
+        "<|im_start|>system\\nErzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten. Für Quellenfälle darfst du nur ausdrücklich im prompt bereitgestellte fiktive Metadaten auswerten; erfinde keine Quelle, Aktualität, Lizenz oder Spurzuordnung.\\n<|im_end|>\\n<|im_start|>user\\nErzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\\n<|im_end|>\\n<|im_start|>assistant\\n"
 
     private fun buildPrompt(task: String, focus: String): String {
         val extra = focus.takeIf { it.isNotBlank() }?.let { "\nZusätzlicher Übungsschwerpunkt: $it" }.orEmpty()
