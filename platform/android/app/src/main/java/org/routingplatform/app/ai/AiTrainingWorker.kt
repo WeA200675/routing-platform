@@ -173,7 +173,7 @@ internal object AiTrainingPrioritizer {
                 }
             }.thenBy { item ->
                 -(results.lastOrNull { it.caseLabel == item.value.label }?.recordedAt ?: 0L)
-            }.thenBy { -item.index }
+            }.thenBy { item -> -item.index }
         )!!.value
     }
 
