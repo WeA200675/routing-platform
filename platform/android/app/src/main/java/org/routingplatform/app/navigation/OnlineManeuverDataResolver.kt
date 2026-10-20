@@ -9,7 +9,7 @@ import kotlin.math.*
 /** Fetches missing lane metadata from OSM and applies it only to an exact, direction-matched road. */
 internal object OnlineManeuverDataResolver {
     private const val RADIUS_M = 18.0
-    private const val MAX_TARGETS = 12
+    private const val MAX_TARGETS = 24
     private val endpoints = listOf("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter")
     private data class Target(val index: Int, val point: RoutePoint, val heading: Int, val names: Set<String>)
     private data class Way(val tags: Map<String, String>, val points: List<RoutePoint>)
@@ -25,7 +25,9 @@ internal object OnlineManeuverDataResolver {
             if (m.type !in setOf(ManeuverType.Exit, ManeuverType.Merge, ManeuverType.TurnLeft, ManeuverType.TurnRight)) return@mapIndexedNotNull null
             if (m.laneIndications.isNotEmpty() && !m.destinationSign.isNullOrBlank()) return@mapIndexedNotNull null
             val heading = m.bearingBeforeDeg ?: return@mapIndexedNotNull null
-            val names = m.streetNames.map(::norm).filter(String::isNotBlank).toSet()
+            // The preceding maneuver's road names identify the approach carriageway.
+            val approachNames = route.maneuvers.getOrNull(i - 1)?.streetNames.orEmpty()
+            val names = (approachNames.ifEmpty { m.streetNames }).map(::norm).filter(String::isNotBlank).toSet()
             if (names.isEmpty()) return@mapIndexedNotNull null
             Target(i, route.geometry[m.beginShapeIndex.coerceIn(0, route.geometry.lastIndex)], heading, names)
         }.take(MAX_TARGETS)
