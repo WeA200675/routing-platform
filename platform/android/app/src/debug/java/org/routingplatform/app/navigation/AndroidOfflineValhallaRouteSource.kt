@@ -188,7 +188,11 @@ internal class AndroidOfflineValhallaRouteSource(
                 "Kandidat $id: Profil=${route.family.name}, Distanz=${route.distanceM.toLong()}m, Zeit=${route.durationS.toLong()}s, Abbiegungen=${route.maneuvers.size}"
             }
             val prompt = "<|im_start|>system\nVergleiche nur diese graphberechneten Routen. Wähle eine Kandidaten-ID. Erfinde keine Fakten. Gewünschtes Profil: ${request.family.name}. Antworte ausschließlich JSON: {\"candidate\":0,\"reason\":\"balanced\"}. reason ist fastest, shortest, major_roads, comfort oder balanced.\n<|im_end|>\n<|im_start|>user\n$options\n<|im_end|>\n<|im_start|>assistant\n"
-            val raw = engine.generate(prompt, 96)
+            val learned = NavigationRoutePreferenceLearningStore.preferredFamily(appContext)
+                ?.let { "Bisheriges explizites Fahrerfeedback: Profil ${it.first.name} (${it.second}). Berücksichtige es als Präferenz, sofern die Route vergleichbar bleibt." }
+                ?: "Noch kein ausreichendes Fahrerfeedback gespeichert."
+            val promptWithLearning = prompt.replace("$options\\n<|im_end|>", "$options\\n$learned\\n<|im_end|>")
+            val raw = engine.generate(promptWithLearning, 96)
             val start = raw.indexOf('{')
             val end = raw.lastIndexOf('}')
             require(start >= 0 && end > start)
@@ -197,9 +201,15 @@ internal class AndroidOfflineValhallaRouteSource(
             val reason = choice.optString("reason")
             require(reason in setOf("fastest", "shortest", "major_roads", "comfort", "balanced"))
             val selected = candidates.firstOrNull { it.first == id }?.second ?: error("Unknown candidate")
-            selected.copy(diagnostics = selected.diagnostics + NavigationRouteDiagnostic(
-                "on_device_ai_route_advisor",
-                "Lokale KI verglich ${candidates.size} Valhalla-Routen und wählte Profil ${selected.family.name} ($reason).",
+            selected.copy(diagnostics = selected.diagnostics + listOf(
+                NavigationRouteDiagnostic(
+                    "on_device_ai_route_advisor",
+                    "Lokale KI verglich ${candidates.size} Valhalla-Routen und wählte Profil ${selected.family.name} ($reason).",
+                ),
+                NavigationRouteDiagnostic(
+                    "on_device_ai_route_family_${selected.family.name}",
+                    "Interne Zuordnung für explizites lokales Routenfeedback.",
+                ),
             ))
         } finally {
             runCatching { engine.unloadModel() }
