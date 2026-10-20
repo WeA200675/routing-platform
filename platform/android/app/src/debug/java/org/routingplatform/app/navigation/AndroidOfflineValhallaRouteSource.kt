@@ -168,8 +168,10 @@ internal class AndroidOfflineValhallaRouteSource(
         val model = File(appContext.filesDir, "g620-qwen2.5-1.5b-q4_k_m.gguf")
         require(model.isFile && model.length() in 100_000_000L..3_000_000_000L)
         require(sha256(model) == "1adf0b11065d8ad2e8123ea110d1ec956dab4ab038eab665614adba04b6c3370")
-        val families = listOf(request.family, NavigationRouteFamily.Fastest, NavigationRouteFamily.Shortest,
-            NavigationRouteFamily.MajorRoads, NavigationRouteFamily.Comfort).distinct().take(4)
+        val learnedFamily = NavigationRoutePreferenceLearningStore.preferredFamily(appContext)?.first
+        val families = listOfNotNull(request.family, learnedFamily, NavigationRouteFamily.Fastest,
+            NavigationRouteFamily.Shortest, NavigationRouteFamily.MajorRoads, NavigationRouteFamily.Comfort)
+            .distinct().take(4)
         val candidates = families.mapIndexedNotNull { id, family ->
             runCatching {
                 val route = if (family == request.family) baseline else
@@ -200,7 +202,14 @@ internal class AndroidOfflineValhallaRouteSource(
             val id = choice.getInt("candidate")
             val reason = choice.optString("reason")
             require(reason in setOf("fastest", "shortest", "major_roads", "comfort", "balanced"))
-            val selected = candidates.firstOrNull { it.first == id }?.second ?: error("Unknown candidate")
+            val aiSelected = candidates.firstOrNull { it.first == id }?.second ?: error("Unknown candidate")
+            val preferredRoute = candidates.firstOrNull { it.second.family == learnedFamily }?.second
+            val selected = if (
+                preferredRoute != null &&
+                aiSelected.family != preferredRoute.family &&
+                aiSelected.durationS > preferredRoute.durationS * 0.85 &&
+                aiSelected.distanceM > preferredRoute.distanceM * 0.85
+            ) preferredRoute else aiSelected
             selected.copy(diagnostics = selected.diagnostics + listOf(
                 NavigationRouteDiagnostic(
                     "on_device_ai_route_advisor",
