@@ -156,7 +156,9 @@ internal class AndroidOfflineValhallaRouteSource(
                 ),
             )
         } else parsed
-        return attachSpeedLimitAttributes(valhalla, route)
+        val withSpeedLimits = attachSpeedLimitAttributes(valhalla, route)
+        // Best-effort online lane/sign enrichment never changes route geometry or the baseline route.
+        return OnlineManeuverDataResolver.enrich(withSpeedLimits)
     }
 
 
