@@ -129,7 +129,7 @@ internal object AiTrainingCaseReview {
         val lower = prompt.lowercase()
         require(listOf("https://", "http://", "telefonnummer", "kennzeichen", "adresse:", "fahre jetzt", "biege jetzt")
             .none { it in lower })
-        require(!Regex("""-?\\d{1,3}\\.\\d{3,}""").containsMatchIn(prompt))
+        require(!Regex("""-?\d{1,3}\.\d{3,}""").containsMatchIn(prompt))
         val normalized = lower.replace(Regex("[^a-zäöüß0-9 ]"), " ").replace(Regex("\\s+"), " ").trim()
         require(existing.none { it.trackId == track.id &&
             it.prompt.lowercase().replace(Regex("[^a-zäöüß0-9 ]"), " ").replace(Regex("\\s+"), " ").trim() == normalized })
