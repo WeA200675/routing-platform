@@ -389,8 +389,9 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
             AiTrainingStore.update(applicationContext) { s -> s.copy(status = "Fehler", message = "Lokale native KI-Laufzeit ist in diesem Build nicht verfügbar.") }
             return Result.failure()
         }
-        val cases = trainingCases[track].orEmpty()
+        val cases = AiTrainingStore.casesForTrack(applicationContext, track)
         var completed = startIndex
+        var generatedDraft: AiTrainingGeneratedCase? = null
         try {
             check(engine.loadModel(model.absolutePath, 4096)) { "Lokales Modell konnte nicht geladen werden." }
             val end = (startIndex + AiTrainingScheduler.BATCH_SIZE).coerceAtMost(total)
@@ -412,6 +413,18 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
                 }
                 setProgressAsync(Data.Builder().putInt("completed", completed).putInt("total", total).putString("scenario", scenario.label).build())
             }
+            if (!isStopped && completed >= total) {
+                generatedDraft = runCatching {
+                    val candidateJson = engine.generate(buildCaseDraftPrompt(track), 256)
+                    AiTrainingCaseReview.parseAndScore(
+                        candidateJson,
+                        track,
+                        AiTrainingStore.generatedCases(applicationContext),
+                        System.currentTimeMillis(),
+                    )
+                }.getOrNull()
+                generatedDraft?.let { AiTrainingStore.recordGeneratedCase(applicationContext, it) }
+            }
         } catch (error: Throwable) {
             AiTrainingStore.update(applicationContext) { it.copy(status = "Fehler", message = error.message?.take(240) ?: "Lokaler Trainingslauf fehlgeschlagen.") }
             return Result.failure()
@@ -421,13 +434,24 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
 
         if (isStopped) return Result.success()
         if (completed >= total) {
-            AiTrainingStore.update(applicationContext) { it.copy(completed = total, status = "Abgeschlossen", message = "Regelbasierte Auswertung vollständig. Modellgewichte wurden nicht verändert.") }
+            AiTrainingStore.update(applicationContext) {
+                it.copy(
+                    completed = total,
+                    status = "Abgeschlossen",
+                    message = generatedDraft?.let { draft ->
+                        "Lauf beendet. KI-Fall „${draft.label}“ mit ${draft.qualityScore}% wartet auf Prüfung. Modellgewichte unverändert."
+                    } ?: "Lauf beendet. Kein prüfbarer KI-Fall erzeugt; Modellgewichte unverändert.",
+                )
+            }
             return Result.success()
         }
         val session = AiTrainingStore.currentSession(applicationContext) ?: return Result.failure()
         AiTrainingScheduler.enqueue(applicationContext, session, append = true)
         return Result.success()
     }
+
+    private fun buildCaseDraftPrompt(track: AiTrainingTrack): String =
+        "<|im_start|>system\\nErzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten.\\n<|im_end|>\\n<|im_start|>user\\nErzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\\n<|im_end|>\\n<|im_start|>assistant\\n"
 
     private fun buildPrompt(task: String, focus: String): String {
         val extra = focus.takeIf { it.isNotBlank() }?.let { "\nZusätzlicher Übungsschwerpunkt: $it" }.orEmpty()
