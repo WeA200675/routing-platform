@@ -130,8 +130,25 @@ internal class AndroidOfflineValhallaRouteSource(
             "On-device DACH routing data is not installed or failed its integrity checks."
         }
         val valhalla = engine()
+        val usesStandardProfileFallback = request.family in setOf(
+            NavigationRouteFamily.LowUrban,
+            NavigationRouteFamily.LowCurvature,
+            NavigationRouteFamily.LowGradient,
+            NavigationRouteFamily.LowTraffic,
+            NavigationRouteFamily.Energy,
+            NavigationRouteFamily.Scenic,
+            NavigationRouteFamily.Stable,
+        )
         val raw = valhalla.routeRaw(buildRequestJson(request))
-        val route = parseResponse(raw, request.family)
+        val parsed = parseResponse(raw, request.family)
+        val route = if (usesStandardProfileFallback) {
+            parsed.copy(
+                diagnostics = parsed.diagnostics + NavigationRouteDiagnostic(
+                    "offline_route_profile_fallback",
+                    "Lokale Grundroute aktiv: Das Profil „${request.family}“ wird offline nicht optimiert. Bitte die Route prüfen; die gewünschte Präferenz ist nicht garantiert.",
+                ),
+            )
+        } else parsed
         return attachSpeedLimitAttributes(valhalla, route)
     }
 
@@ -281,10 +298,7 @@ internal class AndroidOfflineValhallaRouteSource(
             NavigationRouteFamily.Energy,
             NavigationRouteFamily.Scenic,
             NavigationRouteFamily.Stable ->
-                throw UnsupportedOperationException(
-                    "This route family needs platform-wide candidate scoring and is not " +
-                        "approximated by on-device routing."
-                )
+                ""
         }
 
         val locations = buildList {
