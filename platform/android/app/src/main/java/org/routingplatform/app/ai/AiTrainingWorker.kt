@@ -30,7 +30,7 @@ internal enum class AiTrainingTrack(val id: String, val title: String, val detai
     }
 }
 
-private data class TrainingCase(
+internal data class TrainingCase(
     val prompt: String,
     val requiredTerms: List<String>,
     val label: String,
