@@ -925,7 +925,11 @@ internal fun NavigationScreen(
                                                 modifier = Modifier.fillMaxWidth(),
                                             ) {
                                                 Text(
-                                                    text = "🪧 $sign",
+                                                    text = if (sign.startsWith("OSM-Kartenziel:")) {
+                                                        "🗺️ ${sign.removePrefix("OSM-Kartenziel:").trim()}"
+                                                    } else {
+                                                        "🪧 $sign"
+                                                    },
                                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                                                     style = MaterialTheme.typography.titleSmall,
                                                     fontWeight = FontWeight.Bold,
@@ -935,6 +939,27 @@ internal fun NavigationScreen(
                                     if (maneuverNeedsLaneGuidance && snapshot.currentManeuver?.destinationSign.isNullOrBlank()) {
                                         Text(
                                             "Schilddaten nicht verfügbar · bitte der Beschilderung folgen",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    snapshot.routeDiagnostics
+                                        .firstOrNull { it.code.startsWith("online_maneuver_data_osm_") }
+                                        ?.let { diagnostic ->
+                                            Text(
+                                                text = diagnostic.message,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 2,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                    if (
+                                        maneuverNeedsLaneGuidance &&
+                                        snapshot.currentManeuver?.laneIndications.isNullOrEmpty()
+                                    ) {
+                                        Text(
+                                            "Spurdaten nicht verfügbar · Beschilderung vor Ort beachten",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
