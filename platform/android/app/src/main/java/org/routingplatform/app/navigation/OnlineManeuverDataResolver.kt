@@ -87,12 +87,12 @@ internal object OnlineManeuverDataResolver {
                     c.connectTimeout = 1200
                     c.readTimeout = 1800
                     c.doOutput = true
-                    c.setRequestProperty("User-Agent", "RoutingPlatform/1.0 (OSM lane metadata)")
+                    c.setRequestProperty("User-Agent", "RoutingPlatform/1.0 (+https://github.com/WeA200675/routing-platform)")
                     c.setRequestProperty("Accept", "application/json")
                     c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
                     c.outputStream.use { it.write(("data=" + URLEncoder.encode(query, "UTF-8")).toByteArray(Charsets.UTF_8)) }
                     check(c.responseCode in 200..299)
-                    c.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText().take(1_500_001) }
+                    c.inputStream.bufferedReader(Charsets.UTF_8).use { reader -> reader.readText().also { require(it.length <= 1_500_000) } }
                 } finally { c.disconnect() }
             }.getOrNull() ?: continue
             val parsed = parseWays(raw)
@@ -179,7 +179,7 @@ internal object OnlineManeuverDataResolver {
     private fun parseDestination(tags: Map<String, String>): String? =
         listOfNotNull(tags["destination:ref"], tags["destination"], tags["destination:street"])
             .flatMap { it.split(';') }.map(String::trim).filter { it.isNotBlank() && it.length <= 80 }
-            .distinct().take(3).joinToString(" · ").take(150).takeIf(String::isNotBlank)
+            .distinct().take(3).joinToString(" · ").take(140).takeIf(String::isNotBlank)
 
     private fun norm(s: String) = s.lowercase().replace(Regex("[^a-z0-9äöüß]"), "")
     private fun angle(a: Int, b: Int): Double { val d = abs(a - b) % 360; return min(d, 360 - d).toDouble() }
