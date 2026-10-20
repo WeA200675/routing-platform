@@ -71,7 +71,7 @@ class AiTrainingCenterActivity : ComponentActivity() {
         val session = AiTrainingSession(
             id = UUID.randomUUID().toString(),
             trackId = track.id,
-            total = total.coerceIn(5, 120),
+            total = total.coerceIn(5, 1200),
             completed = 0,
             passed = 0,
             averageLatencyMs = 0,
@@ -114,9 +114,16 @@ private fun TrainingCenterScreen(
     var exerciseCount by remember { mutableStateOf(24f) }
     var maxTokens by remember { mutableStateOf(128) }
     var chargingOnly by remember { mutableStateOf(true) }
+    var autoStartOnOpen by remember { mutableStateOf(context.getSharedPreferences("ai_training_center_v1", Context.MODE_PRIVATE).getBoolean("auto_start", true)) }
     var focusPhrase by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        session = AiTrainingStore.currentSession(context)
+        results = AiTrainingStore.results(context)
+        if (autoStartOnOpen && session?.status !in setOf("Läuft", "Wartet auf Bedingungen", "Wartet auf Abkühlung", "Pausiert")) {
+            val adaptiveTrack = AiTrainingPrioritizer.nextTrack(results)
+            onStart(adaptiveTrack, 240, 128, true, "")
+        }
         while (true) {
             session = AiTrainingStore.currentSession(context)
             results = AiTrainingStore.results(context)
@@ -129,7 +136,7 @@ private fun TrainingCenterScreen(
     val passedCount = trackResults.count { it.passed }
     val passRate = if (trackResults.isEmpty()) 0 else (passedCount * 100 / trackResults.size)
     val averageLatency = trackResults.takeLast(30).map { it.latencyMs }.average().takeIf { it.isFinite() }?.roundToInt() ?: 0
-    val isRunning = session?.status == "Läuft" || session?.status == "Wartet auf Bedingungen"
+    val isRunning = session?.status in setOf("Läuft", "Wartet auf Bedingungen", "Wartet auf Abkühlung", "Wartet auf freien Speicher")
     val canResume = session?.let { it.completed < it.total && (it.status == "Pausiert" || it.status == "Fehler") } == true
     val modelExists = File(context.filesDir, "g620-qwen2.5-1.5b-q4_k_m.gguf").isFile
 
@@ -154,7 +161,7 @@ private fun TrainingCenterScreen(
                     StatusPill(if (modelExists) "Modell bereit" else "Modellprüfung nötig", modelExists)
                 }
                 Text("Antworten werden mit dem installierten Qwen-Modell direkt auf dem Handy erzeugt. Die Trainingsbatches benötigen kein Netzwerk.", style = MaterialTheme.typography.bodyMedium)
-                Text("Wichtig: Diese Übungsläufe trainieren keine Modellgewichte. Sie messen die tatsächlichen lokalen Antworten gegen transparente Regeln und speichern Verlauf/Korrekturstände lokal.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Wichtig: Diese Übungsläufe trainieren keine Modellgewichte. Sie messen Antworten; schwache und selten geprüfte Fälle werden bevorzugt. Jede Session kann am Ende einen KI-Testfall zur lokalen Prüfung vorschlagen.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -196,7 +203,7 @@ private fun TrainingCenterScreen(
                 }
 
                 Text("Umfang: ${exerciseCount.roundToInt()} lokale Tests", fontWeight = FontWeight.SemiBold)
-                Slider(value = exerciseCount, onValueChange = { exerciseCount = it }, valueRange = 5f..60f, steps = 10)
+                Slider(value = exerciseCount, onValueChange = { exerciseCount = it }, valueRange = 5f..1000f, steps = 19)
                 Text("Antwortlänge: $maxTokens Tokens", fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(64, 128, 256, 512).forEach { amount ->
@@ -211,6 +218,19 @@ private fun TrainingCenterScreen(
                     label = { Text("Eigener Wortschatz-Fokus") },
                     supportingText = { Text("Optional: ein Begriff oder kurzes Stichwort, keine Koordinaten oder Fahrdaten.") },
                 )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Automatisch beim Öffnen starten", fontWeight = FontWeight.SemiBold)
+                        Text("Startet einen adaptiven Lauf mit 240 Aufgaben. Jederzeit pausierbar.", style = MaterialTheme.typography.labelSmall)
+                    }
+                    Switch(
+                        checked = autoStartOnOpen,
+                        onCheckedChange = {
+                            autoStartOnOpen = it
+                            context.getSharedPreferences("ai_training_center_v1", Context.MODE_PRIVATE).edit().putBoolean("auto_start", it).apply()
+                        },
+                    )
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.weight(1f)) {
                         Text("Nur beim Laden", fontWeight = FontWeight.SemiBold)
