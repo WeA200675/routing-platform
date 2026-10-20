@@ -443,7 +443,7 @@ internal class AndroidOfflineValhallaRouteSource(
                 val names = source.optJSONArray("street_names").toStringList()
                 val rawType = source.optInt("type", 0)
                 val instruction = source.optString("instruction").trim()
-                val laneIndications = parseLaneIndications(source)
+                val laneIndications = parseLaneIndications(source, rawType)
                 val destinationSign = parseDestinationSign(source)
                 maneuvers += NavigationRouteContractManeuver(
                     type = mapManeuverType(rawType),
@@ -487,7 +487,7 @@ internal class AndroidOfflineValhallaRouteSource(
     }
 
 
-    private fun parseLaneIndications(maneuver: JSONObject): List<String> {
+    private fun parseLaneIndications(maneuver: JSONObject, maneuverType: Int): List<String> {
         val lanes = maneuver.optJSONArray("lanes") ?: return emptyList()
         val directionBits = listOf(
             4 to "↖", 8 to "←", 16 to "↙",
@@ -495,17 +495,24 @@ internal class AndroidOfflineValhallaRouteSource(
             32 to "↘", 64 to "→", 128 to "↗",
             256 to "↶", 512 to "↖", 1024 to "↗",
         )
+        val targetDirections = when (maneuverType) {
+            9, 10, 11, 18, 20, 23, 37 -> 32 or 64 or 128 or 1024
+            12, 13 -> 256
+            14, 15, 16, 19, 21, 24, 38 -> 4 or 8 or 16 or 512
+            1, 7, 8, 17, 22, 25, 28, 29, 30, 31, 32, 33, 34, 35, 36, 39, 40, 41, 42, 43 -> 2
+            else -> 0
+        }
         return buildList {
             for (index in 0 until lanes.length()) {
                 val lane = lanes.optJSONObject(index) ?: continue
                 val directions = lane.optInt("directions", 0)
                 val valid = lane.optInt("valid", 0)
                 val active = lane.optInt("active", 0)
-                val arrows = directionBits.filter { (bit, _) -> directions and bit != 0 }
+                val arrows = directionBits.filter { (bit, _) -> (directions and bit) != 0 }
                     .map { it.second }.distinct().joinToString(" ")
                     .ifBlank { "?" }
-                val isActive = active != 0
-                val isValid = valid != 0 || isActive
+                val isActive = targetDirections != 0 && (active and targetDirections) != 0
+                val isValid = targetDirections != 0 && (valid and targetDirections) != 0 || isActive
                 add(
                     "Spur ${index + 1}: $arrows" +
                         (if (isActive) " ★" else if (isValid) " ✓" else "")
