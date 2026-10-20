@@ -220,7 +220,7 @@ internal object AiTrainingStore {
     }
 
     fun setGeneratedCaseStatus(context: Context, id: String, status: String) {
-        require(status in setOf("Freigegeben", "Zurückgestellt", "Verworfen"))
+        require(status in setOf("Zur Prüfung", "Freigegeben", "Zurückgestellt", "Verworfen"))
         synchronized(this) {
             val changed = generatedCases(context).map { if (it.id == id) it.copy(status = status) else it }
             saveGeneratedCases(context, changed)
