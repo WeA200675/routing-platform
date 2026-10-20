@@ -944,44 +944,46 @@ internal fun NavigationScreen(
                                         ?.let { lanes ->
                                             Column {
                                                 Text(
-                                                    text = "Spurhinweise",
+                                                    text = "Spuren für die nächste Aktion",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold,
                                                 )
                                                 Row(
+                                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
                                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                                     verticalAlignment = Alignment.CenterVertically,
                                                 ) {
                                                     lanes.forEachIndexed { laneIndex, indication ->
-                                                        val routeValid = indication.contains("✓")
+                                                        val routeActive = indication.contains("★")
+                                                        val routeValid = indication.contains("✓") || routeActive
                                                         Surface(
-                                                            color = if (routeValid) {
-                                                                MaterialTheme.colorScheme.primaryContainer
-                                                            } else {
-                                                                MaterialTheme.colorScheme.surfaceVariant
+                                                            color = when {
+                                                                routeActive -> MaterialTheme.colorScheme.primaryContainer
+                                                                routeValid -> MaterialTheme.colorScheme.secondaryContainer
+                                                                else -> MaterialTheme.colorScheme.surfaceVariant
                                                             },
                                                             shape = MaterialTheme.shapes.small,
                                                             border = if (routeValid) {
                                                                 androidx.compose.foundation.BorderStroke(
-                                                                    1.dp,
-                                                                    MaterialTheme.colorScheme.primary,
+                                                                    if (routeActive) 2.dp else 1.dp,
+                                                                    if (routeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                                                                 )
                                                             } else {
                                                                 null
                                                             },
                                                         ) {
                                                             Text(
-                                                                text = indication.replace("✓", "").trim(),
+                                                                text = indication.replace("✓", "").replace("★", "●").trim(),
                                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                                                     .semantics {
-                                                                        contentDescription = if (routeValid) {
-                                                                            "Spur ${laneIndex + 1}, laut Routing für das Manöver geeignet"
-                                                                        } else {
-                                                                            "Spur ${laneIndex + 1}"
+                                                                        contentDescription = when {
+                                                                            routeActive -> "Spur ${laneIndex + 1}, bevorzugte Spur für das Manöver"
+                                                                            routeValid -> "Spur ${laneIndex + 1}, für das Manöver geeignet"
+                                                                            else -> "Spur ${laneIndex + 1}, Richtung laut Karte; Eignung nicht bestätigt"
                                                                         }
                                                                     },
                                                                 style = MaterialTheme.typography.titleMedium,
-                                                                fontWeight = if (routeValid) FontWeight.Bold else FontWeight.Normal,
+                                                                fontWeight = if (routeActive || routeValid) FontWeight.Bold else FontWeight.Normal,
                                                             )
                                                         }
                                                     }
