@@ -57,6 +57,7 @@ import org.routingplatform.app.navigation.NavigationFaultCode
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
 import org.routingplatform.app.navigation.NavigationRouteFamily
+import org.routingplatform.app.navigation.NavigationRoutePreferenceLearningStore
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationTripPlan
 import org.routingplatform.app.navigation.NavigationTripStop
@@ -1254,6 +1255,48 @@ internal fun NavigationScreen(
                 }
 
                 Spacer(Modifier.height(if (snapshot.state == NavigationSessionState.Navigating) 6.dp else 16.dp))
+
+                val aiRouteFamily = snapshot.routeDiagnostics
+                    .firstOrNull { it.code.startsWith("on_device_ai_route_family_") }
+                    ?.code
+                    ?.removePrefix("on_device_ai_route_family_")
+                    ?.let { runCatching { NavigationRouteFamily.valueOf(it) }.getOrNull() }
+                var routeFeedbackSubmitted by rememberSaveable(snapshot.routeId) { mutableStateOf(false) }
+                if (snapshot.state == NavigationSessionState.Preview && aiRouteFamily != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                if (routeFeedbackSubmitted) "Danke — deine Bewertung wurde lokal gespeichert."
+                                else "Hilft dir diese KI-Routenwahl? Deine Rückmeldung bleibt auf diesem Handy.",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            if (!routeFeedbackSubmitted) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            NavigationRoutePreferenceLearningStore.record(context, aiRouteFamily, accepted = true)
+                                            routeFeedbackSubmitted = true
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Passt") }
+                                    OutlinedButton(
+                                        onClick = {
+                                            NavigationRoutePreferenceLearningStore.record(context, aiRouteFamily, accepted = false)
+                                            routeFeedbackSubmitted = true
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Nicht passend") }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
 
                 val navigationControl =
                     NavigationControlPresentation
