@@ -191,7 +191,7 @@ internal class AndroidOfflineValhallaRouteSource(
             val learned = NavigationRoutePreferenceLearningStore.preferredFamily(appContext)
                 ?.let { "Bisheriges explizites Fahrerfeedback: Profil ${it.first.name} (${it.second}). Berücksichtige es als Präferenz, sofern die Route vergleichbar bleibt." }
                 ?: "Noch kein ausreichendes Fahrerfeedback gespeichert."
-            val promptWithLearning = prompt.replace("$options\\n<|im_end|>", "$options\\n$learned\\n<|im_end|>")
+            val promptWithLearning = prompt.replace("\\n<|im_start|>user\\n$options\\n", "\\n<|im_start|>user\\n$options\\nBisheriges Fahrerfeedback: $learned\\n")
             val raw = engine.generate(promptWithLearning, 96)
             val start = raw.indexOf('{')
             val end = raw.lastIndexOf('}')
