@@ -16,6 +16,11 @@ internal object OnlineManeuverDataResolver {
     private data class Match(val way: Way, val forward: Boolean, val score: Double)
 
     fun enrich(route: NavigationRouteContract): NavigationRouteContract {
+        val relevant = route.maneuvers.filter { m ->
+            m.type in setOf(ManeuverType.Exit, ManeuverType.Merge, ManeuverType.TurnLeft, ManeuverType.TurnRight) &&
+                (m.laneIndications.isEmpty() || m.destinationSign.isNullOrBlank())
+        }
+        val lookupNeeded = relevant.size
         val targets = route.maneuvers.mapIndexedNotNull { i, m ->
             if (m.type !in setOf(ManeuverType.Exit, ManeuverType.Merge, ManeuverType.TurnLeft, ManeuverType.TurnRight)) return@mapIndexedNotNull null
             if (m.laneIndications.isNotEmpty() && !m.destinationSign.isNullOrBlank()) return@mapIndexedNotNull null
@@ -24,7 +29,15 @@ internal object OnlineManeuverDataResolver {
             if (names.isEmpty()) return@mapIndexedNotNull null
             Target(i, route.geometry[m.beginShapeIndex.coerceIn(0, route.geometry.lastIndex)], heading, names)
         }.take(MAX_TARGETS)
-        if (targets.isEmpty()) return route
+        if (targets.isEmpty()) {
+            if (lookupNeeded == 0) return route
+            return route.copy(
+                diagnostics = route.diagnostics + NavigationRouteDiagnostic(
+                    "online_maneuver_data_osm_unavailable",
+                    "Onlineabgleich nicht gestartet: Straßenname oder Fahrtrichtung fehlt für einen eindeutigen Kartenabgleich.",
+                ),
+            )
+        }
         val ways = fetch(targets) ?: return route.copy(
             diagnostics = route.diagnostics + NavigationRouteDiagnostic(
                 "online_maneuver_data_osm_unavailable",
@@ -46,9 +59,9 @@ internal object OnlineManeuverDataResolver {
             )
         }
         val message = if (laneCount + destinationCount > 0)
-            "OpenStreetMap geprüft · $laneCount Spurhinweis(e), $destinationCount Kartenziel(e) passend abgeglichen. © OpenStreetMap-Mitwirkende."
+            "OpenStreetMap geprüft · ${targets.size} von $lookupNeeded Abbiegepunkten abgefragt; $laneCount Spurhinweis(e), $destinationCount Kartenziel(e) passend abgeglichen. © OpenStreetMap-Mitwirkende."
         else
-            "OpenStreetMap geprüft · keine passend verifizierten Spur- oder Kartenzieldaten gefunden. © OpenStreetMap-Mitwirkende."
+            "OpenStreetMap geprüft · ${targets.size} von $lookupNeeded Abbiegepunkten abgefragt; keine passend verifizierten Spur- oder Kartenzieldaten gefunden. © OpenStreetMap-Mitwirkende."
         return route.copy(
             maneuvers = updated,
             diagnostics = route.diagnostics.filterNot { it.code.startsWith("online_maneuver_data_osm_") } +
