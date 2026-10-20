@@ -145,7 +145,12 @@ internal object OnlineManeuverDataResolver {
         return first
     }
 
-    internal fun parseLanes(\n        tags: Map<String, String>,\n        forward: Boolean,\n        type: ManeuverType,\n        side: NavigationManeuverSide? = null,\n    ): List<String>? {
+    internal fun parseLanes(
+        tags: Map<String, String>,
+        forward: Boolean,
+        type: ManeuverType,
+        side: NavigationManeuverSide? = null,
+    ): List<String>? {
         val directional = if (forward) "turn:lanes:forward" else "turn:lanes:backward"
         val value = tags[directional] ?: tags["turn:lanes"]?.takeIf {
             tags["oneway"] in setOf("yes", "1", "-1")
