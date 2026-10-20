@@ -43,14 +43,14 @@ internal class FallbackNavigationRouteSource(
             onResult = primaryResult@{ firstResult ->
                 if (cancelled.get() || closed.get()) return@primaryResult
                 if (firstResult.isSuccess) {
-                    onResult(enrichMissingManeuverData(firstResult))
+                    onResult(firstResult)
                 } else {
                     synchronized(lock) {
                         if (cancelled.get() || closed.get()) return@synchronized
                         fallbackHandle = fallback.acquire(
                             request = request,
                             onResult = fallbackResult@{ result ->
-                                if (!cancelled.get() && !closed.get()) onResult(enrichMissingManeuverData(result))
+                                if (!cancelled.get() && !closed.get()) onResult(result)
                             },
                         )
                     }
@@ -69,28 +69,6 @@ internal class FallbackNavigationRouteSource(
             }
         }
     }
-
-    private fun enrichMissingManeuverData(
-        result: Result<NavigationRouteContract>,
-    ): Result<NavigationRouteContract> = result.fold(
-        onSuccess = { route ->
-            if (route.diagnostics.any { it.code.startsWith("online_maneuver_data_osm_") }) {
-                Result.success(route)
-            } else {
-                val enriched = runCatching { OnlineManeuverDataResolver.enrich(route) }
-                    .getOrElse {
-                        route.copy(
-                            diagnostics = route.diagnostics + NavigationRouteDiagnostic(
-                                "online_maneuver_data_osm_unavailable",
-                                "Onlineabgleich fehlgeschlagen; vorhandene Route bleibt aktiv und fehlende Spurangaben bleiben nicht verfügbar.",
-                            ),
-                        )
-                    }
-                Result.success(enriched)
-            }
-        },
-        onFailure = { Result.failure(it) },
-    )
 
     override fun close() {
         if (closed.compareAndSet(false, true)) {
@@ -644,7 +622,7 @@ internal class AndroidOfflineValhallaRouteSource(
             val offline = AndroidOfflineValhallaRouteSource(context)
             val endpoint = endpointText?.trim()?.takeIf(String::isNotEmpty)
             if (endpoint == null) return offline
-            val remote = AndroidHttpNavigationRouteSource(context, URI(endpoint))
+            val remote = AndroidHttpNavigationRouteSource(context, URI(endpoint), enrichOnlineManeuverData = true)
             return FallbackNavigationRouteSource(offline, remote)
         }
     }
