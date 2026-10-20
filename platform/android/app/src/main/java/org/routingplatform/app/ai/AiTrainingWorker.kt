@@ -477,9 +477,6 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
     private fun buildCaseDraftPrompt(track: AiTrainingTrack): String =
         "<|im_start|>system\\nErzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten.\\n<|im_end|>\\n<|im_start|>user\\nErzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\\n<|im_end|>\\n<|im_start|>assistant\\n"
 
-    private fun buildCaseDraftPrompt(track: AiTrainingTrack): String =
-        "<|im_start|>system\\nErzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten.\\n<|im_end|>\\n<|im_start|>user\\nErzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\\n<|im_end|>\\n<|im_start|>assistant\\n"
-
     private fun buildPrompt(task: String, focus: String): String {
         val extra = focus.takeIf { it.isNotBlank() }?.let { "\nZusätzlicher Übungsschwerpunkt: $it" }.orEmpty()
         return "<|im_start|>system\nDu bist ein knapper, sicherheitsbewusster deutscher Routing-Assistent. Erfinde keine Positionen, Abbiegespuren, Verkehrsereignisse oder Routenfakten. Bei widersprüchlichen oder fehlenden Daten benenne die Unsicherheit. Dieser Text ist eine isolierte Übung: löse keine Navigation aus und führe keine Aktion aus.$extra<|im_end|>\n<|im_start|>user\n$task<|im_end|>\n<|im_start|>assistant\n"
