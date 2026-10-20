@@ -110,6 +110,7 @@ private fun TrainingCenterScreen(
 ) {
     var session by remember { mutableStateOf(AiTrainingStore.currentSession(context)) }
     var results by remember { mutableStateOf(AiTrainingStore.results(context)) }
+    var generatedCases by remember { mutableStateOf(AiTrainingStore.generatedCases(context)) }
     var selectedTrack by remember { mutableStateOf(AiTrainingTrack.RouteIntent) }
     var exerciseCount by remember { mutableStateOf(24f) }
     var maxTokens by remember { mutableStateOf(128) }
@@ -120,6 +121,7 @@ private fun TrainingCenterScreen(
     LaunchedEffect(Unit) {
         session = AiTrainingStore.currentSession(context)
         results = AiTrainingStore.results(context)
+        generatedCases = AiTrainingStore.generatedCases(context)
         if (autoStartOnOpen && session?.status !in setOf("Läuft", "Wartet auf Bedingungen", "Wartet auf Abkühlung", "Pausiert")) {
             val adaptiveTrack = AiTrainingPrioritizer.nextTrack(results)
             onStart(adaptiveTrack, 240, 128, true, "")
@@ -127,6 +129,7 @@ private fun TrainingCenterScreen(
         while (true) {
             session = AiTrainingStore.currentSession(context)
             results = AiTrainingStore.results(context)
+            generatedCases = AiTrainingStore.generatedCases(context)
             delay(1200)
         }
     }
@@ -277,6 +280,60 @@ private fun TrainingCenterScreen(
                     }
                 }
                 Text("Diese Werte sind regelbasierte Indikatoren, keine menschliche Qualitätsbewertung und kein Nachweis für sicherheitsreife Navigation.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("KI-Testfälle · lokale Prüfliste", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Nach jedem vollständigen Trainingslauf versucht das Modell, einen neuen Fall als JSON vorzuschlagen. Struktur-, Themen-, Dubletten- und Sicherheitsregeln prüfen ihn. Erst nach deiner Freigabe wird er in spätere Trainingsläufe aufgenommen.", style = MaterialTheme.typography.bodySmall)
+                val visibleDrafts = generatedCases.filter { it.status != "Verworfen" }.takeLast(8).asReversed()
+                if (visibleDrafts.isEmpty()) {
+                    Text("Noch keine KI-Vorschläge. Der erste Vorschlag entsteht nach Abschluss einer vollständigen Session.", style = MaterialTheme.typography.bodySmall)
+                }
+                visibleDrafts.forEach { draft ->
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("${draft.label} · ${draft.qualityScore}% · ${draft.status}", fontWeight = FontWeight.SemiBold)
+                            Text("${AiTrainingTrack.fromId(draft.trackId).title} · ${draft.prompt}", style = MaterialTheme.typography.bodySmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                                if (draft.status != "Freigegeben") {
+                                    OutlinedButton(
+                                        onClick = {
+                                            AiTrainingStore.setGeneratedCaseStatus(context, draft.id, "Freigegeben")
+                                            generatedCases = AiTrainingStore.generatedCases(context)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Freigeben") }
+                                }
+                                if (draft.status != "Zurückgestellt") {
+                                    OutlinedButton(
+                                        onClick = {
+                                            AiTrainingStore.setGeneratedCaseStatus(context, draft.id, "Zurückgestellt")
+                                            generatedCases = AiTrainingStore.generatedCases(context)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Zurückstellen") }
+                                } else {
+                                    OutlinedButton(
+                                        onClick = {
+                                            AiTrainingStore.setGeneratedCaseStatus(context, draft.id, "Zur Prüfung")
+                                            generatedCases = AiTrainingStore.generatedCases(context)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Wieder prüfen") }
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        AiTrainingStore.setGeneratedCaseStatus(context, draft.id, "Verworfen")
+                                        generatedCases = AiTrainingStore.generatedCases(context)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) { Text("Verwerfen") }
+                            }
+                        }
+                    }
+                }
             }
         }
 
