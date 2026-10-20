@@ -621,12 +621,15 @@ internal fun NavigationScreen(
                     .informationDensity
             )
 
+    var navigationDetailsExpanded by rememberSaveable(snapshot.sessionId) { mutableStateOf(false) }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val previewPanelMaxHeight = maxHeight * 0.62f
         val activePanelMaxHeight = if (snapshot.state == NavigationSessionState.Preview) {
             previewPanelMaxHeight
+        } else if (snapshot.state == NavigationSessionState.Navigating) {
+            if (navigationDetailsExpanded) 190.dp else 100.dp
         } else {
-            164.dp
+            100.dp
         }
         Column(
             modifier =
@@ -991,7 +994,7 @@ internal fun NavigationScreen(
                         .padding(if (snapshot.state == NavigationSessionState.Navigating) 8.dp else 18.dp)
                         .let { base ->
                             if (snapshot.state == NavigationSessionState.Navigating) {
-                                base.heightIn(max = 164.dp)
+                                base.heightIn(max = activePanelMaxHeight)
                             } else {
                                 base
                             }
@@ -1044,6 +1047,29 @@ internal fun NavigationScreen(
                     }
                 }
 
+                if (snapshot.state == NavigationSessionState.Navigating) {
+                    TextButton(
+                        onClick = { navigationDetailsExpanded = !navigationDetailsExpanded },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(26.dp)
+                            .semantics {
+                                contentDescription = if (navigationDetailsExpanded) {
+                                    "Navigationsdetails einklappen"
+                                } else {
+                                    "Navigationsdetails anzeigen"
+                                }
+                            },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    ) {
+                        Text(
+                            if (navigationDetailsExpanded) "⌄" else "⌃",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                if (snapshot.state != NavigationSessionState.Navigating || navigationDetailsExpanded) {
                 if (snapshot.state == NavigationSessionState.Navigating && !navigationRuntimeRecoveryMessage.isNullOrBlank()) {
                     Text(
                         text = navigationRuntimeRecoveryMessage,
@@ -1298,6 +1324,8 @@ internal fun NavigationScreen(
                     Spacer(Modifier.height(6.dp))
                 }
 
+                }
+
                 val navigationControl =
                     NavigationControlPresentation
                         .create(
@@ -1315,6 +1343,8 @@ internal fun NavigationScreen(
                 NavigationPrimaryControl(
                     presentation =
                         navigationControl,
+
+                    compact = snapshot.state == NavigationSessionState.Navigating && !navigationDetailsExpanded,
 
                     viaPointEnabled =
                         !destinationPlannerBusy,
@@ -3253,6 +3283,8 @@ private fun NavigationPrimaryControl(
     presentation:
         NavigationControlPresentation,
 
+    compact: Boolean = false,
+
     viaPointEnabled:
         Boolean,
 
@@ -3311,10 +3343,17 @@ private fun NavigationPrimaryControl(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .heightIn(min = if (compact) 36.dp else 48.dp)
                         .testTag(
                             NavigationUiTestTags
                                 .PrimaryAction
                         ),
+
+                contentPadding = if (compact) {
+                    androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                } else {
+                    androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                },
 
                 enabled =
                     presentation.enabled,
@@ -3344,7 +3383,9 @@ private fun NavigationPrimaryControl(
                     onPrimaryAction,
             ) {
                 Text(
-                    presentation.label
+                    if (compact && presentation.destructive) "Stoppen" else presentation.label,
+                    style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
                 )
             }
 
