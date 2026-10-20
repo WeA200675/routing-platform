@@ -36,7 +36,7 @@ internal object OnlineManeuverDataResolver {
         val updated = route.maneuvers.mapIndexed { index, m ->
             val target = targets.firstOrNull { it.index == index } ?: return@mapIndexed m
             val match = match(target, ways) ?: return@mapIndexed m
-            val laneData = if (m.laneIndications.isEmpty()) parseLanes(match.way.tags, match.forward, m.type) else null
+            val laneData = if (m.laneIndications.isEmpty()) parseLanes(match.way.tags, match.forward, m.type, m.maneuverSide) else null
             val destination = if (m.destinationSign.isNullOrBlank()) parseDestination(match.way.tags) else null
             if (!laneData.isNullOrEmpty()) laneCount++
             if (!destination.isNullOrBlank()) destinationCount++
@@ -130,15 +130,21 @@ internal object OnlineManeuverDataResolver {
         return first
     }
 
-    internal fun parseLanes(tags: Map<String, String>, forward: Boolean, type: ManeuverType): List<String>? {
+    internal fun parseLanes(\n        tags: Map<String, String>,\n        forward: Boolean,\n        type: ManeuverType,\n        side: NavigationManeuverSide? = null,\n    ): List<String>? {
         val directional = if (forward) "turn:lanes:forward" else "turn:lanes:backward"
         val value = tags[directional] ?: tags["turn:lanes"]?.takeIf {
             tags["oneway"] in setOf("yes", "1", "-1")
         } ?: return null
+        val leftTokens = setOf("left", "slight_left", "sharp_left", "reverse", "merge_to_left")
+        val rightTokens = setOf("right", "slight_right", "sharp_right", "merge_to_right")
         val desired = when (type) {
-            ManeuverType.TurnLeft -> setOf("left", "slight_left", "sharp_left", "reverse")
-            ManeuverType.TurnRight, ManeuverType.Exit, ManeuverType.Merge ->
-                setOf("right", "slight_right", "sharp_right", "merge_to_right")
+            ManeuverType.TurnLeft -> leftTokens
+            ManeuverType.TurnRight -> rightTokens
+            ManeuverType.Exit, ManeuverType.Merge -> when (side) {
+                NavigationManeuverSide.Left -> leftTokens
+                NavigationManeuverSide.Right -> rightTokens
+                else -> emptySet()
+            }
             else -> emptySet()
         }
         val lanes = value.split('|').take(12)
