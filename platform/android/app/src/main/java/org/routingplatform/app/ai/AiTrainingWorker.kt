@@ -401,6 +401,23 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
         var generatedDraft: AiTrainingGeneratedCase? = null
         try {
             check(engine.loadModel(model.absolutePath, 4096)) { "Lokales Modell konnte nicht geladen werden." }
+            if (startIndex == 0) {
+                AiTrainingStore.generatedCases(applicationContext)
+                    .filter { it.trackId == track.id && it.status == "Zurückgestellt" }
+                    .minByOrNull { it.qualityScore }
+                    ?.let { deferred ->
+                        val answer = engine.generate(buildPrompt(deferred.prompt, ""), maxTokens.coerceAtMost(128))
+                        val passed = AiTrainingEvaluationPolicy.passes(answer, deferred.requiredTerms)
+                        val score = (deferred.qualityScore + if (passed) 8 else -12).coerceIn(0, 100)
+                        AiTrainingStore.updateGeneratedCase(
+                            applicationContext,
+                            deferred.copy(
+                                qualityScore = score,
+                                status = if (score >= 80) "Zur Prüfung" else "Zurückgestellt",
+                            ),
+                        )
+                    }
+            }
             val end = (startIndex + AiTrainingScheduler.BATCH_SIZE).coerceAtMost(total)
             while (completed < end && !isStopped) {
                 val scenario = AiTrainingPrioritizer.nextCase(track, cases, AiTrainingStore.results(applicationContext))
@@ -456,6 +473,9 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
         AiTrainingScheduler.enqueue(applicationContext, session, append = true)
         return Result.success()
     }
+
+    private fun buildCaseDraftPrompt(track: AiTrainingTrack): String =
+        "<|im_start|>system\\nErzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten.\\n<|im_end|>\\n<|im_start|>user\\nErzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\\n<|im_end|>\\n<|im_start|>assistant\\n"
 
     private fun buildCaseDraftPrompt(track: AiTrainingTrack): String =
         "<|im_start|>system\\nErzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten.\\n<|im_end|>\\n<|im_start|>user\\nErzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\\n<|im_end|>\\n<|im_start|>assistant\\n"
