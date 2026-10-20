@@ -412,7 +412,7 @@ internal class AndroidOfflineValhallaRouteSource(
 
         return "{\"locations\":[$locations],\"costing\":\"auto\"," +
             "\"units\":\"kilometers\",\"language\":\"de-DE\"," +
-            "\"directions_type\":\"instructions\"$optionsJson}"
+            "\"directions_type\":\"instructions\",\"turn_lanes\":true$optionsJson}"
     }
 
     private fun parseResponse(
@@ -443,6 +443,8 @@ internal class AndroidOfflineValhallaRouteSource(
                 val names = source.optJSONArray("street_names").toStringList()
                 val rawType = source.optInt("type", 0)
                 val instruction = source.optString("instruction").trim()
+                val laneIndications = parseLaneIndications(source)
+                val destinationSign = parseDestinationSign(source)
                 maneuvers += NavigationRouteContractManeuver(
                     type = mapManeuverType(rawType),
                     instruction = instruction.ifBlank { "Weiterfahren" },
@@ -454,6 +456,8 @@ internal class AndroidOfflineValhallaRouteSource(
                     bearingBeforeDeg = source.optionalHeading("begin_heading"),
                     bearingAfterDeg = source.optionalHeading("end_heading"),
                     engineType = rawType,
+                    destinationSign = destinationSign,
+                    laneIndications = laneIndications,
                 )
             }
         }
@@ -480,6 +484,52 @@ internal class AndroidOfflineValhallaRouteSource(
                 )
             ),
         )
+    }
+
+
+    private fun parseLaneIndications(maneuver: JSONObject): List<String> {
+        val lanes = maneuver.optJSONArray("lanes") ?: return emptyList()
+        val directionBits = listOf(
+            4 to "↖", 8 to "←", 16 to "↙",
+            2 to "↑",
+            32 to "↘", 64 to "→", 128 to "↗",
+            256 to "↶", 512 to "↖", 1024 to "↗",
+        )
+        return buildList {
+            for (index in 0 until lanes.length()) {
+                val lane = lanes.optJSONObject(index) ?: continue
+                val directions = lane.optInt("directions", 0)
+                val valid = lane.optInt("valid", 0)
+                val active = lane.optInt("active", 0)
+                val arrows = directionBits.filter { (bit, _) -> directions and bit != 0 }
+                    .map { it.second }.distinct().joinToString(" ")
+                    .ifBlank { "?" }
+                val isActive = active != 0
+                val isValid = valid != 0 || isActive
+                add(
+                    "Spur ${index + 1}: $arrows" +
+                        (if (isActive) " ★" else if (isValid) " ✓" else "")
+                )
+            }
+        }
+    }
+
+    private fun parseDestinationSign(maneuver: JSONObject): String? {
+        val sign = maneuver.optJSONObject("sign") ?: return null
+        val keys = listOf(
+            "exit_number_elements",
+            "exit_branch_elements",
+            "exit_toward_elements",
+            "exit_name_elements",
+        )
+        val text = keys.flatMap { key ->
+            val elements = sign.optJSONArray(key) ?: return@flatMap emptyList()
+            (0 until elements.length()).mapNotNull { index ->
+                elements.optJSONObject(index)?.optString("text")?.trim()
+                    ?.takeIf { it.isNotBlank() }
+            }
+        }.distinct().joinToString(" · ").take(160)
+        return text.takeIf { it.isNotBlank() }
     }
 
     private fun JSONArray?.toStringList(): List<String> {
