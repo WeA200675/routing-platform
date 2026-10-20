@@ -164,7 +164,7 @@ class NavigationRouteLifecycleController(
                                     NavigationRouteAcquisitionState.LiveReady,
 
                                 message =
-                                    "Live-Route aktiv",
+                                    route.diagnostics.firstOrNull { it.code == "offline_route_profile_fallback" }?.message ?: "Live-Route aktiv",
                             )
                         )
                     },
@@ -323,7 +323,7 @@ class NavigationRouteLifecycleController(
                         onTelemetry(
                             NavigationRouteAcquisitionTelemetry(
                                 state = NavigationRouteAcquisitionState.LiveReady,
-                                message = "Zwischenziel übernommen – Navigation läuft auf der aktualisierten Route weiter.",
+                                message = route.diagnostics.firstOrNull { it.code == "offline_route_profile_fallback" }?.message ?: "Zwischenziel übernommen – Navigation läuft auf der aktualisierten Route weiter.",
                             )
                         )
                     }.onFailure { error ->
@@ -537,7 +537,7 @@ class NavigationRouteLifecycleController(
                                     NavigationRouteAcquisitionState.LiveReady,
 
                                 message =
-                                    "Live-Route nach Rerouting aktiv",
+                                    route.diagnostics.firstOrNull { it.code == "offline_route_profile_fallback" }?.message ?: "Live-Route nach Rerouting aktiv",
                             )
                         )
                     },
