@@ -112,7 +112,7 @@ private fun TrainingCenterScreen(
     var results by remember { mutableStateOf(AiTrainingStore.results(context)) }
     var generatedCases by remember { mutableStateOf(AiTrainingStore.generatedCases(context)) }
     var selectedTrack by remember { mutableStateOf(AiTrainingTrack.RouteIntent) }
-    var exerciseCount by remember { mutableStateOf(24f) }
+    var exerciseCount by remember { mutableStateOf(240f) }
     var maxTokens by remember { mutableStateOf(128) }
     var chargingOnly by remember { mutableStateOf(true) }
     var autoStartOnOpen by remember { mutableStateOf(context.getSharedPreferences("ai_training_center_v1", Context.MODE_PRIVATE).getBoolean("auto_start", true)) }
