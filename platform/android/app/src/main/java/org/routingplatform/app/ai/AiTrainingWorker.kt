@@ -186,8 +186,59 @@ internal object AiTrainingStore {
     private const val PREFS = "ai_training_center_v1"
     private const val KEY_SESSION = "session"
     private const val KEY_RESULTS = "results"
+    private const val KEY_GENERATED_CASES = "generated_cases"
+
+
+    fun generatedCases(context: Context): List<AiTrainingGeneratedCase> {
+        val rows = runCatching { JSONArray(prefs(context).getString(KEY_GENERATED_CASES, "[]")) }.getOrElse { JSONArray() }
+        return (0 until rows.length()).mapNotNull { index -> runCatching {
+            val item = rows.getJSONObject(index)
+            val terms = item.getJSONArray("requiredTerms")
+            AiTrainingGeneratedCase(
+                id = item.getString("id"), trackId = item.getString("trackId"),
+                label = item.getString("label"), prompt = item.getString("prompt"),
+                requiredTerms = (0 until terms.length()).map { terms.getString(it) },
+                qualityScore = item.getInt("qualityScore"), status = item.getString("status"),
+                createdAt = item.getLong("createdAt"),
+            )
+        }.getOrNull() }
+    }
+
+    fun recordGeneratedCase(context: Context, draft: AiTrainingGeneratedCase) {
+        synchronized(this) {
+            val current = generatedCases(context)
+            if (current.any { it.prompt.equals(draft.prompt, ignoreCase = true) }) return
+            saveGeneratedCases(context, (current + draft).takeLast(60))
+        }
+    }
+
+    fun setGeneratedCaseStatus(context: Context, id: String, status: String) {
+        require(status in setOf("Freigegeben", "Zurückgestellt", "Verworfen"))
+        synchronized(this) {
+            val changed = generatedCases(context).map { if (it.id == id) it.copy(status = status) else it }
+            saveGeneratedCases(context, changed)
+        }
+    }
+
+    fun casesForTrack(context: Context, track: AiTrainingTrack): List<TrainingCase> =
+        trainingCases[track].orEmpty() + generatedCases(context)
+            .filter { it.trackId == track.id && it.status == "Freigegeben" }
+            .map { TrainingCase(it.prompt, it.requiredTerms, it.label) }
+
+    private fun saveGeneratedCases(context: Context, cases: List<AiTrainingGeneratedCase>) {
+        val rows = JSONArray()
+        cases.forEach { item ->
+            rows.put(JSONObject().apply {
+                put("id", item.id); put("trackId", item.trackId); put("label", item.label)
+                put("prompt", item.prompt); put("requiredTerms", JSONArray(item.requiredTerms))
+                put("qualityScore", item.qualityScore); put("status", item.status); put("createdAt", item.createdAt)
+            })
+        }
+        prefs(context).edit().putString(KEY_GENERATED_CASES, rows.toString()).apply()
+    }
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
 
     fun currentSession(context: Context): AiTrainingSession? =
         runCatching { prefs(context).getString(KEY_SESSION, null)?.let(::decodeSession) }.getOrNull()
