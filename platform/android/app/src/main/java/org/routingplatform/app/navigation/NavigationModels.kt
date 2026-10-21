@@ -124,7 +124,7 @@ data class NavigationManeuver(
                 else -> null
             }
 
-            val hasRoadConnector = Regex("""\\b(auf|in die|in den|in das|onto|into)\\b""", RegexOption.IGNORE_CASE)
+            val hasRoadConnector = Regex("""\b(auf|in die|in den|in das|onto|into)\b""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(instruction)
             val routeNameAppears = streetNames.any { it.length >= 3 && instruction.contains(it, ignoreCase = true) } ||
                 destinationSign?.let { it.length >= 3 && instruction.contains(it, ignoreCase = true) } == true
