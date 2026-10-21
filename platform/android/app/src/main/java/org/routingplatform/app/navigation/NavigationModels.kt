@@ -97,8 +97,8 @@ data class NavigationManeuver(
             val saysUTurn = Regex("""\b(umkehren|wenden|u-turn|uturn)\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
             val isExit = type == ManeuverType.Exit || engineType == 20 || engineType == 21
             val isUTurn = type == ManeuverType.UTurn || engineType == 12 || engineType == 13
-            val isMerge = type == ManeuverType.Merge || engineType == 18 || engineType == 19 ||
-                engineType == 25 || engineType == 37 || engineType == 38
+            val isRamp = engineType == 18 || engineType == 19
+            val isMerge = type == ManeuverType.Merge || engineType == 25 || engineType == 37 || engineType == 38
             val german = Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln|wenden)\b""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(instruction)
 
@@ -113,6 +113,14 @@ data class NavigationManeuver(
                     if (german) "Ausfahrt links nehmen. Bitte Beschilderung beachten." else "Take the exit on the left. Follow road signs."
                 isUTurn || expectedSide == "uturn" ->
                     if (german) "Wenden. Bitte Beschilderung beachten." else "Make a U-turn. Follow road signs."
+                isRamp && expectedSide == "right" ->
+                    if (german) "Rampe rechts nehmen. Bitte Beschilderung beachten." else "Take the ramp on the right. Follow road signs."
+                isRamp && expectedSide == "left" ->
+                    if (german) "Rampe links nehmen. Bitte Beschilderung beachten." else "Take the ramp on the left. Follow road signs."
+                isRamp && expectedSide == "right" ->
+                    if (german) "Rampe rechts nehmen. Bitte Beschilderung beachten." else "Take the ramp on the right. Follow road signs."
+                isRamp && expectedSide == "left" ->
+                    if (german) "Rampe links nehmen. Bitte Beschilderung beachten." else "Take the ramp on the left. Follow road signs."
                 isMerge && expectedSide == "right" ->
                     if (german) "Rechts einfädeln. Bitte Beschilderung beachten." else "Merge right. Follow road signs."
                 isMerge && expectedSide == "left" ->
