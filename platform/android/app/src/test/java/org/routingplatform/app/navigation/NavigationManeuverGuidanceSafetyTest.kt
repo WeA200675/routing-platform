@@ -69,7 +69,7 @@ class NavigationManeuverGuidanceSafetyTest {
             instruction = "Rechts wenden.",
         )
 
-        assertEquals("Links wenden. Bitte Beschilderung beachten.", maneuver.guidanceInstruction)
+        assertEquals("Wenden. Bitte Beschilderung beachten.", maneuver.guidanceInstruction)
     }
 
     @Test
