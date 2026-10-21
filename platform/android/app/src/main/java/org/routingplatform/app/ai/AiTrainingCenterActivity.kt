@@ -68,6 +68,9 @@ class AiTrainingCenterActivity : ComponentActivity() {
     }
 
     private fun startSession(tracks: List<AiTrainingTrack>, total: Int, maxTokens: Int, charging: Boolean, focus: String) {
+        AiTrainingStore.currentSession(this)?.let { previous ->
+            WorkManager.getInstance(this).cancelUniqueWork(AiTrainingScheduler.workName(previous.id))
+        }
         val planTracks = tracks.distinct().ifEmpty { listOf(AiTrainingTrack.RouteIntent) }
         val session = AiTrainingSession(
             id = UUID.randomUUID().toString(),
@@ -183,6 +186,21 @@ private fun TrainingCenterScreen(
             MetricCard("Ø Inferenz", if (averageLatency > 0) "$averageLatency ms" else "—", "${selectedTrack.title} · letzte 30", Modifier.weight(1f))
             MetricCard("Letzter Lauf", session?.status ?: "Noch keiner", session?.let { "${it.completed}/${it.total} Beispiele" } ?: "bereit", Modifier.weight(1f))
         }
+        if (sessionHistory.isNotEmpty()) {
+            Card {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Lokales Trainingsarchiv", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Vorherige Aufträge bleiben mit Status und Auswertung erhalten. Gespeichert werden die letzten 100 Sitzungen und 10.000 Prüfergebnisse.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    sessionHistory.takeLast(5).asReversed().forEach { archived ->
+                        Text(
+                            "${AiTrainingTrack.fromId(archived.trackId).title} · ${archived.completed}/${archived.total} · ${archived.status}",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
+        }
+
 
         Card {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
