@@ -77,43 +77,41 @@ data class NavigationManeuver(
      */
     val guidanceInstruction: String
         get() {
-            val expectedSide =
-                when (maneuverSide) {
-                    NavigationManeuverSide.Left -> "left"
-                    NavigationManeuverSide.Right -> "right"
-                    NavigationManeuverSide.UTurn -> "uturn"
-                    NavigationManeuverSide.Straight, null -> null
-                } ?: when (engineType) {
-                    9, 10, 11, 12, 18, 20, 23, 37 -> "right"
-                    13, 14, 15, 16, 19, 21, 24, 38 -> "left"
-                    else -> null
-                } ?: when (type) {
-                    ManeuverType.TurnLeft -> "left"
-                    ManeuverType.TurnRight -> "right"
-                    else -> null
-                }
-
-            val saysLeft =
-                Regex("""\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\b""", RegexOption.IGNORE_CASE)
-                    .containsMatchIn(instruction)
-            val saysRight =
-                Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE)
-                    .containsMatchIn(instruction)
-            val saysUTurn =
-                Regex("""\b(umkehren|wenden|u-turn|uturn)\b""", RegexOption.IGNORE_CASE)
-                    .containsMatchIn(instruction)
+            val engineSide = valhallaManeuverSide(engineType)
+            val normalizedSide = when (maneuverSide) {
+                NavigationManeuverSide.Left -> "left"
+                NavigationManeuverSide.Right -> "right"
+                NavigationManeuverSide.UTurn -> "uturn"
+                NavigationManeuverSide.Straight, null -> null
+            }
+            val typeSide = when (type) {
+                ManeuverType.TurnLeft -> "left"
+                ManeuverType.TurnRight -> "right"
+                ManeuverType.UTurn -> "uturn"
+                else -> null
+            }
+            val expectedSide = engineSide ?: normalizedSide ?: typeSide
+            val measuredSide = bearingTurnSide(bearingBeforeDeg, bearingAfterDeg)
+            val saysLeft = Regex("""\\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
+            val saysRight = Regex("""\\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
+            val saysUTurn = Regex("""\\b(umkehren|wenden|u-turn|uturn)\\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
             val isExit = type == ManeuverType.Exit || engineType == 20 || engineType == 21
             val isUTurn = type == ManeuverType.UTurn || engineType == 12 || engineType == 13
             val isMerge = type == ManeuverType.Merge || engineType == 18 || engineType == 19 ||
-                engineType == 37 || engineType == 38
-            val german =
-                Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln)\b""", RegexOption.IGNORE_CASE)
-                    .containsMatchIn(instruction)
+                engineType == 25 || engineType == 37 || engineType == 38
+            val german = Regex("""\\b(links?|rechts?|ausfahrt|abbiegen|einfädeln|wenden)\\b""", RegexOption.IGNORE_CASE)
+                .containsMatchIn(instruction)
 
-            // An exit has no safe left/right fallback when the routing engine
-            // omitted its side-specific maneuver type. Remove any conflicting
-            // side from its instruction instead of guessing from the text.
-            if ((isExit || isUTurn) && expectedSide == null && (saysLeft || saysRight)) {
+            fun uncertain(): String =
+                if (german) "Manöverdaten widersprüchlich. Bitte Beschilderung beachten."
+                else "Maneuver data conflicts. Follow the road signs."
+
+            // Keep one authoritative interpretation. Conflicting provider fields or
+            // route bearings make direction and street-name narration unsafe.
+            if (engineSide != null && normalizedSide != null && engineSide != normalizedSide) return uncertain()
+            if (expectedSide != null && measuredSide != null && expectedSide != measuredSide) return uncertain()
+
+            if ((isExit || isUTurn) && expectedSide == null && (saysLeft || saysRight || saysUTurn)) {
                 return if (isExit) {
                     if (german) "Ausfahrt nehmen. Bitte Beschilderung beachten."
                     else "Take the exit. Follow road signs."
@@ -132,32 +130,50 @@ data class NavigationManeuver(
             if (!contradicts) return instruction
 
             return when {
-                expectedSide == "uturn" && isUTurn ->
-                    if (german) "Wenden. Bitte Beschilderung beachten."
-                    else "Make a U-turn. Follow road signs."
-                german && isUTurn ->
-                    if (expectedSide == "right") "Rechts wenden. Bitte Beschilderung beachten."
-                    else "Links wenden. Bitte Beschilderung beachten."
-                german && isExit ->
-                    if (expectedSide == "right") "Ausfahrt rechts nehmen. Bitte Beschilderung beachten."
-                    else "Ausfahrt links nehmen. Bitte Beschilderung beachten."
-                german && isMerge ->
-                    if (expectedSide == "right") "Rechts einfädeln. Bitte Beschilderung beachten."
-                    else "Links einfädeln. Bitte Beschilderung beachten."
-                german ->
-                    if (expectedSide == "right") "Rechts abbiegen. Bitte Beschilderung beachten."
-                    else "Links abbiegen. Bitte Beschilderung beachten."
-                isExit ->
-                    if (expectedSide == "right") "Take the exit on the right. Follow road signs."
+                isExit && expectedSide == "right" ->
+                    if (german) "Ausfahrt rechts nehmen. Bitte Beschilderung beachten."
+                    else "Take the exit on the right. Follow road signs."
+                isExit && expectedSide == "left" ->
+                    if (german) "Ausfahrt links nehmen. Bitte Beschilderung beachten."
                     else "Take the exit on the left. Follow road signs."
                 isUTurn ->
-                    if (expectedSide == "right") "Make a U-turn to the right. Follow road signs."
-                    else "Make a U-turn to the left. Follow road signs."
-                else ->
-                    if (expectedSide == "right") "Turn right. Follow road signs."
+                    if (german) "Wenden. Bitte Beschilderung beachten."
+                    else "Make a U-turn. Follow road signs."
+                isMerge && expectedSide == "right" ->
+                    if (german) "Rechts einfädeln. Bitte Beschilderung beachten."
+                    else "Merge right. Follow road signs."
+                isMerge && expectedSide == "left" ->
+                    if (german) "Links einfädeln. Bitte Beschilderung beachten."
+                    else "Merge left. Follow road signs."
+                expectedSide == "right" ->
+                    if (german) "Rechts abbiegen. Bitte Beschilderung beachten."
+                    else "Turn right. Follow road signs."
+                expectedSide == "left" ->
+                    if (german) "Links abbiegen. Bitte Beschilderung beachten."
                     else "Turn left. Follow road signs."
+                else -> uncertain()
             }
         }
+}
+
+private fun valhallaManeuverSide(engineType: Int?): String? =
+    when (engineType) {
+        9, 10, 11, 18, 20, 23, 37 -> "right"
+        12, 13 -> "uturn"
+        14, 15, 16, 19, 21, 24, 38 -> "left"
+        else -> null
+    }
+
+/** Positive bearing change is clockwise (right); negative is counter-clockwise (left). */
+private fun bearingTurnSide(before: Int?, after: Int?): String? {
+    if (before == null || after == null || before !in 0..359 || after !in 0..359) return null
+    val signedDelta = ((after - before + 540) % 360) - 180
+    return when {
+        kotlin.math.abs(signedDelta) < 25 -> null
+        kotlin.math.abs(signedDelta) > 155 -> "uturn"
+        signedDelta > 0 -> "right"
+        else -> "left"
+    }
 }
 
 enum class NavigationSpeedLimitDataStatus {
