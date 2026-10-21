@@ -533,6 +533,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
             return Result.success()
         }
         val session = AiTrainingStore.currentSession(applicationContext) ?: return Result.failure()
+        if (session.id != sessionId) return Result.success()
         AiTrainingScheduler.enqueue(applicationContext, session, append = true)
         return Result.success()
     }
