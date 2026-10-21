@@ -129,6 +129,12 @@ data class NavigationManeuver(
                 else -> null
             }
 
+            // Keep one authoritative interpretation. Conflicting provider fields or
+            // route bearings make direction and street-name narration unsafe.
+            if (engineSide != null && normalizedSide != null && engineSide != normalizedSide) return uncertain()
+            if (engineSide != null && typeSide != null && engineSide != typeSide) return uncertain()
+            if (expectedSide != null && measuredSide != null && expectedSide != measuredSide) return uncertain()
+
             val hasRoadConnector = Regex("""\b(auf|in die|in den|in das|onto|into)\b""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(instruction)
             val routeNameAppears = streetNames.any { it.length >= 3 && instruction.contains(it, ignoreCase = true) } ||
@@ -136,12 +142,6 @@ data class NavigationManeuver(
             if (hasRoadConnector && streetNames.isNotEmpty() && !routeNameAppears) {
                 return directionOnly() ?: uncertain()
             }
-
-            // Keep one authoritative interpretation. Conflicting provider fields or
-            // route bearings make direction and street-name narration unsafe.
-            if (engineSide != null && normalizedSide != null && engineSide != normalizedSide) return uncertain()
-            if (engineSide != null && typeSide != null && engineSide != typeSide) return uncertain()
-            if (expectedSide != null && measuredSide != null && expectedSide != measuredSide) return uncertain()
 
             if ((isExit || isUTurn) && expectedSide == null && (saysLeft || saysRight || saysUTurn)) {
                 return if (isExit) {
