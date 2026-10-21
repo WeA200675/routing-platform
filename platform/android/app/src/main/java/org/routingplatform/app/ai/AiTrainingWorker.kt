@@ -276,14 +276,23 @@ internal object AiTrainingStore {
     fun begin(context: Context, session: AiTrainingSession) {
         synchronized(this) {
             val preferences = prefs(context)
+            val editor = preferences.edit()
             val previous = currentSession(context)
             if (previous != null && previous.id != session.id) {
-                val history = (sessionHistory(context).filterNot { it.id == previous.id } + previous).takeLast(100)
+                val archivedPrevious = if (
+                    previous.status in setOf("Läuft", "Wartet auf Bedingungen", "Wartet auf Abkühlung", "Wartet auf freien Speicher")
+                ) {
+                    previous.copy(
+                        status = "Durch neuen Auftrag abgelöst",
+                        message = "Der Auftrag wurde durch eine neue Reihe ersetzt; bisherige Ergebnisse sind archiviert.",
+                    )
+                } else previous
+                val history = (sessionHistory(context).filterNot { it.id == archivedPrevious.id } + archivedPrevious).takeLast(100)
                 val rows = JSONArray()
                 history.forEach { rows.put(encodeSession(it)) }
-                preferences.edit().putString(KEY_SESSION_HISTORY, rows.toString()).apply()
+                editor.putString(KEY_SESSION_HISTORY, rows.toString())
             }
-            preferences.edit().putString(KEY_SESSION, encodeSession(session).toString()).apply()
+            editor.putString(KEY_SESSION, encodeSession(session).toString()).apply()
         }
     }
 
