@@ -393,6 +393,88 @@ object ExperiencePackCatalog {
 
             ExperiencePackDefinition(
                 packId =
+                    "space-opera",
+
+                version =
+                    1,
+
+                displayName =
+                    "Weltraumoper",
+
+                description =
+                    "Abenteuerlich, freundlich und futuristisch mit eigenständigen Formulierungen.",
+
+                genre =
+                    ExperiencePackGenre.ScienceFiction,
+
+                tone =
+                    NavigationPersonalityTone.Futuristic,
+
+                voiceVerbosity =
+                    VoiceGuidanceVerbosity.Standard,
+
+                mapStyle =
+                    ProfileMapStyle.Night,
+
+                humorLevel =
+                    45,
+
+                warmthLevel =
+                    55,
+
+                directnessLevel =
+                    85,
+
+                routeStyle =
+                    ExperiencePackRouteStyle.Comfort,
+
+                surpriseLevel =
+                    3,
+            ),
+
+            ExperiencePackDefinition(
+                packId =
+                    "sitcom",
+
+                version =
+                    1,
+
+                displayName =
+                    "Sitcom",
+
+                description =
+                    "Leicht, pointiert und aufmunternd; Navigationshinweise bleiben eindeutig.",
+
+                genre =
+                    ExperiencePackGenre.Experimental,
+
+                tone =
+                    NavigationPersonalityTone.DryHumor,
+
+                voiceVerbosity =
+                    VoiceGuidanceVerbosity.Standard,
+
+                mapStyle =
+                    ProfileMapStyle.Standard,
+
+                humorLevel =
+                    75,
+
+                warmthLevel =
+                    65,
+
+                directnessLevel =
+                    90,
+
+                routeStyle =
+                    ExperiencePackRouteStyle.Balanced,
+
+                surpriseLevel =
+                    3,
+            ),
+
+            ExperiencePackDefinition(
+                packId =
                     GALACTIC_PACK_ID,
 
                 version =
