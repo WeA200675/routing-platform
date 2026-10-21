@@ -106,6 +106,32 @@ data class NavigationManeuver(
                 if (german) "Manöverdaten widersprüchlich. Bitte Beschilderung beachten."
                 else "Maneuver data conflicts. Follow the road signs."
 
+            fun directionOnly(): String? = when {
+                isExit && expectedSide == "right" ->
+                    if (german) "Ausfahrt rechts nehmen. Bitte Beschilderung beachten." else "Take the exit on the right. Follow road signs."
+                isExit && expectedSide == "left" ->
+                    if (german) "Ausfahrt links nehmen. Bitte Beschilderung beachten." else "Take the exit on the left. Follow road signs."
+                isUTurn || expectedSide == "uturn" ->
+                    if (german) "Wenden. Bitte Beschilderung beachten." else "Make a U-turn. Follow road signs."
+                isMerge && expectedSide == "right" ->
+                    if (german) "Rechts einfädeln. Bitte Beschilderung beachten." else "Merge right. Follow road signs."
+                isMerge && expectedSide == "left" ->
+                    if (german) "Links einfädeln. Bitte Beschilderung beachten." else "Merge left. Follow road signs."
+                expectedSide == "right" ->
+                    if (german) "Rechts abbiegen. Bitte Beschilderung beachten." else "Turn right. Follow road signs."
+                expectedSide == "left" ->
+                    if (german) "Links abbiegen. Bitte Beschilderung beachten." else "Turn left. Follow road signs."
+                else -> null
+            }
+
+            val hasRoadConnector = Regex("""\\b(auf|in die|in den|in das|onto|into)\\b""", RegexOption.IGNORE_CASE)
+                .containsMatchIn(instruction)
+            val routeNameAppears = streetNames.any { it.length >= 3 && instruction.contains(it, ignoreCase = true) } ||
+                destinationSign?.let { it.length >= 3 && instruction.contains(it, ignoreCase = true) } == true
+            if (hasRoadConnector && streetNames.isNotEmpty() && !routeNameAppears) {
+                return directionOnly() ?: uncertain()
+            }
+
             // Keep one authoritative interpretation. Conflicting provider fields or
             // route bearings make direction and street-name narration unsafe.
             if (engineSide != null && normalizedSide != null && engineSide != normalizedSide) return uncertain()
