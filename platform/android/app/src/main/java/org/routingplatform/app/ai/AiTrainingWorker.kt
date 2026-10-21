@@ -99,6 +99,7 @@ internal data class AiTrainingSession(
     val customFocus: String,
     val startedAt: Long,
     val message: String,
+    val trackIds: List<String> = emptyList(),
 )
 
 internal data class AiTrainingResult(
@@ -107,6 +108,7 @@ internal data class AiTrainingResult(
     val latencyMs: Long,
     val passed: Boolean,
     val recordedAt: Long,
+    val sessionId: String = "",
 )
 
 internal data class AiTrainingGeneratedCase(
@@ -197,6 +199,7 @@ internal object AiTrainingEvaluationPolicy {
 internal object AiTrainingStore {
     private const val PREFS = "ai_training_center_v1"
     private const val KEY_SESSION = "session"
+    private const val KEY_SESSION_HISTORY = "session_history"
     private const val KEY_RESULTS = "results"
     private const val KEY_GENERATED_CASES = "generated_cases"
 
@@ -262,14 +265,38 @@ internal object AiTrainingStore {
     fun currentSession(context: Context): AiTrainingSession? =
         runCatching { prefs(context).getString(KEY_SESSION, null)?.let(::decodeSession) }.getOrNull()
 
-    fun begin(context: Context, session: AiTrainingSession) {
-        prefs(context).edit().putString(KEY_SESSION, encodeSession(session).toString()).apply()
+    fun sessionHistory(context: Context): List<AiTrainingSession> {
+        val rows = runCatching { JSONArray(prefs(context).getString(KEY_SESSION_HISTORY, "[]")) }
+            .getOrElse { JSONArray() }
+        return (0 until rows.length()).mapNotNull { index ->
+            runCatching { decodeSession(rows.getJSONObject(index).toString()) }.getOrNull()
+        }
     }
 
-    fun update(context: Context, transform: (AiTrainingSession) -> AiTrainingSession) {
+    fun begin(context: Context, session: AiTrainingSession) {
+        synchronized(this) {
+            val preferences = prefs(context)
+            val previous = currentSession(context)
+            if (previous != null && previous.id != session.id) {
+                val history = (sessionHistory(context).filterNot { it.id == previous.id } + previous).takeLast(100)
+                val rows = JSONArray()
+                history.forEach { rows.put(encodeSession(it)) }
+                preferences.edit().putString(KEY_SESSION_HISTORY, rows.toString()).apply()
+            }
+            preferences.edit().putString(KEY_SESSION, encodeSession(session).toString()).apply()
+        }
+    }
+
+    fun update(
+        context: Context,
+        expectedSessionId: String? = null,
+        transform: (AiTrainingSession) -> AiTrainingSession,
+    ) {
         synchronized(this) {
             val current = currentSession(context) ?: return
-            begin(context, transform(current))
+            if (expectedSessionId != null && current.id != expectedSessionId) return
+            val updated = transform(current)
+            prefs(context).edit().putString(KEY_SESSION, encodeSession(updated).toString()).apply()
         }
     }
 
@@ -278,6 +305,7 @@ internal object AiTrainingStore {
             val preferences = prefs(context)
             val rows = runCatching { JSONArray(preferences.getString(KEY_RESULTS, "[]")) }.getOrElse { JSONArray() }
             rows.put(JSONObject().apply {
+                put("sessionId", result.sessionId)
                 put("trackId", result.trackId)
                 put("caseLabel", result.caseLabel)
                 put("latencyMs", result.latencyMs)
@@ -285,7 +313,7 @@ internal object AiTrainingStore {
                 put("recordedAt", result.recordedAt)
             })
             val bounded = JSONArray()
-            for (index in (rows.length() - 300).coerceAtLeast(0) until rows.length()) bounded.put(rows.getJSONObject(index))
+            for (index in (rows.length() - 10000).coerceAtLeast(0) until rows.length()) bounded.put(rows.getJSONObject(index))
             preferences.edit().putString(KEY_RESULTS, bounded.toString()).apply()
         }
     }
@@ -296,6 +324,7 @@ internal object AiTrainingStore {
             runCatching {
                 rows.getJSONObject(index).let {
                     AiTrainingResult(
+                        sessionId = it.optString("sessionId", ""),
                         trackId = it.getString("trackId"),
                         caseLabel = it.getString("caseLabel"),
                         latencyMs = it.getLong("latencyMs"),
@@ -312,6 +341,7 @@ internal object AiTrainingStore {
         put("passed", s.passed); put("averageLatencyMs", s.averageLatencyMs); put("status", s.status)
         put("requiresCharging", s.requiresCharging); put("maxTokens", s.maxTokens)
         put("customFocus", s.customFocus); put("startedAt", s.startedAt); put("message", s.message)
+        put("trackIds", JSONArray(s.trackIds))
     }
 
     private fun decodeSession(json: String): AiTrainingSession {
@@ -323,6 +353,9 @@ internal object AiTrainingStore {
             requiresCharging = o.optBoolean("requiresCharging", true), maxTokens = o.optInt("maxTokens", 128),
             customFocus = o.optString("customFocus"), startedAt = o.getLong("startedAt"),
             message = o.optString("message"),
+            trackIds = o.optJSONArray("trackIds")?.let { ids ->
+                (0 until ids.length()).map { ids.getString(it) }
+            }.orEmpty().ifEmpty { listOf(o.getString("trackId")) },
         )
     }
 }
@@ -345,6 +378,7 @@ internal object AiTrainingScheduler {
                 Data.Builder()
                     .putString(KEY_SESSION_ID, session.id)
                     .putString(KEY_TRACK_ID, session.trackId)
+                    .putString(KEY_TRACK_IDS, JSONArray(session.trackIds.ifEmpty { listOf(session.trackId) }).toString())
                     .putInt(KEY_TOTAL, session.total)
                     .putInt(KEY_START_INDEX, startIndex)
                     .putInt(KEY_MAX_TOKENS, session.maxTokens)
@@ -365,6 +399,7 @@ internal object AiTrainingScheduler {
 
     internal const val KEY_SESSION_ID = "session_id"
     internal const val KEY_TRACK_ID = "track_id"
+    internal const val KEY_TRACK_IDS = "track_ids"
     internal const val KEY_TOTAL = "total"
     internal const val KEY_START_INDEX = "start_index"
     internal const val KEY_MAX_TOKENS = "max_tokens"
@@ -378,10 +413,14 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
         val track = AiTrainingTrack.fromId(inputData.getString(AiTrainingScheduler.KEY_TRACK_ID).orEmpty())
         val total = inputData.getInt(AiTrainingScheduler.KEY_TOTAL, 0).coerceIn(1, 1200)
         val startIndex = inputData.getInt(AiTrainingScheduler.KEY_START_INDEX, 0).coerceIn(0, total)
+        val planTracks = runCatching {
+            val ids = JSONArray(inputData.getString(AiTrainingScheduler.KEY_TRACK_IDS).orEmpty())
+            (0 until ids.length()).map { AiTrainingTrack.fromId(ids.getString(it)) }.distinct()
+        }.getOrDefault(listOf(track)).ifEmpty { listOf(track) }
         val maxTokens = inputData.getInt(AiTrainingScheduler.KEY_MAX_TOKENS, 128).coerceIn(32, 512)
         val focus = inputData.getString(AiTrainingScheduler.KEY_CUSTOM_FOCUS).orEmpty().take(500)
         if (startIndex >= total) {
-            AiTrainingStore.update(applicationContext) { it.copy(status = "Abgeschlossen", message = "Trainingslauf beendet.") }
+            AiTrainingStore.update(applicationContext, sessionId) { it.copy(status = "Abgeschlossen", message = "Trainingslauf beendet.") }
             return Result.success()
         }
 
@@ -405,7 +444,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
         }
 
         val engine = runCatching { JniSocialAiNativeEngine() }.getOrElse {
-            AiTrainingStore.update(applicationContext) { s -> s.copy(status = "Fehler", message = "Lokale native KI-Laufzeit ist in diesem Build nicht verfügbar.") }
+            AiTrainingStore.update(applicationContext, sessionId) { s -> s.copy(status = "Fehler", message = "Lokale native KI-Laufzeit ist in diesem Build nicht verfügbar.") }
             return Result.failure()
         }
         val cases = AiTrainingStore.casesForTrack(applicationContext, track)
@@ -432,15 +471,27 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
             }
             val end = (startIndex + AiTrainingScheduler.BATCH_SIZE).coerceAtMost(total)
             while (completed < end && !isStopped) {
-                val scenario = AiTrainingPrioritizer.nextCase(track, cases, AiTrainingStore.results(applicationContext))
+                val scenarioTrack = planTracks[completed % planTracks.size]
+                val scenarioCases = if (scenarioTrack == track) cases else
+                    AiTrainingStore.casesForTrack(applicationContext, scenarioTrack)
+                val scenario = AiTrainingPrioritizer.nextCase(scenarioTrack, scenarioCases, AiTrainingStore.results(applicationContext))
                 val started = android.os.SystemClock.elapsedRealtime()
                 val answer = engine.generate(buildPrompt(scenario.prompt, focus), maxTokens).trim()
                 val latency = (android.os.SystemClock.elapsedRealtime() - started).coerceAtLeast(0L)
                 val passed = AiTrainingEvaluationPolicy.passes(answer, scenario.requiredTerms)
-                AiTrainingStore.record(applicationContext, AiTrainingResult(track.id, scenario.label, latency, passed, System.currentTimeMillis()))
+                AiTrainingStore.record(applicationContext, AiTrainingResult(
+                    trackId = scenarioTrack.id,
+                    caseLabel = scenario.label,
+                    latencyMs = latency,
+                    passed = passed,
+                    recordedAt = System.currentTimeMillis(),
+                    sessionId = sessionId,
+                ))
                 completed += 1
                 val sessionResults = AiTrainingStore.results(applicationContext).filter {
-                    it.trackId == track.id && it.recordedAt >= (AiTrainingStore.currentSession(applicationContext)?.startedAt ?: 0L)
+                    it.sessionId == sessionId ||
+                        (it.sessionId.isBlank() && it.trackId in planTracks.map { planned -> planned.id } &&
+                            it.recordedAt >= (AiTrainingStore.currentSession(applicationContext)?.startedAt ?: 0L))
                 }
                 val passCount = sessionResults.count { it.passed }
                 val average = sessionResults.map { it.latencyMs }.average().takeIf { it.isFinite() }?.toLong() ?: latency
