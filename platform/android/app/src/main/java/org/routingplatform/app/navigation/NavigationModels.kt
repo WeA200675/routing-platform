@@ -92,14 +92,14 @@ data class NavigationManeuver(
             }
             val expectedSide = engineSide ?: normalizedSide ?: typeSide
             val measuredSide = bearingTurnSide(bearingBeforeDeg, bearingAfterDeg)
-            val saysLeft = Regex("""\\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
-            val saysRight = Regex("""\\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
-            val saysUTurn = Regex("""\\b(umkehren|wenden|u-turn|uturn)\\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
+            val saysLeft = Regex("""\b(links?|linke[nrms]?|linken|linker|linkes|linkem|left)\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
+            val saysRight = Regex("""\b(rechts?|rechte[nrms]?|rechten|rechter|rechtes|rechtem|right)\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
+            val saysUTurn = Regex("""\b(umkehren|wenden|u-turn|uturn)\b""", RegexOption.IGNORE_CASE).containsMatchIn(instruction)
             val isExit = type == ManeuverType.Exit || engineType == 20 || engineType == 21
             val isUTurn = type == ManeuverType.UTurn || engineType == 12 || engineType == 13
             val isMerge = type == ManeuverType.Merge || engineType == 18 || engineType == 19 ||
                 engineType == 25 || engineType == 37 || engineType == 38
-            val german = Regex("""\\b(links?|rechts?|ausfahrt|abbiegen|einfädeln|wenden)\\b""", RegexOption.IGNORE_CASE)
+            val german = Regex("""\b(links?|rechts?|ausfahrt|abbiegen|einfädeln|wenden)\b""", RegexOption.IGNORE_CASE)
                 .containsMatchIn(instruction)
 
             fun uncertain(): String =
@@ -109,6 +109,7 @@ data class NavigationManeuver(
             // Keep one authoritative interpretation. Conflicting provider fields or
             // route bearings make direction and street-name narration unsafe.
             if (engineSide != null && normalizedSide != null && engineSide != normalizedSide) return uncertain()
+            if (engineSide != null && typeSide != null && engineSide != typeSide) return uncertain()
             if (expectedSide != null && measuredSide != null && expectedSide != measuredSide) return uncertain()
 
             if ((isExit || isUTurn) && expectedSide == null && (saysLeft || saysRight || saysUTurn)) {
