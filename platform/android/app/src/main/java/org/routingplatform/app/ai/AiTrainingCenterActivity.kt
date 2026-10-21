@@ -57,8 +57,8 @@ class AiTrainingCenterActivity : ComponentActivity() {
             RoutingPlatformTheme {
                 TrainingCenterScreen(
                     context = this,
-                    onStart = { track, total, maxTokens, charging, focus ->
-                        startSession(track, total, maxTokens, charging, focus)
+                    onStart = { tracks, total, maxTokens, charging, focus ->
+                        startSession(tracks, total, maxTokens, charging, focus)
                     },
                     onPause = { pauseSession() },
                     onResumeTraining = { resumeSession() },
@@ -67,10 +67,11 @@ class AiTrainingCenterActivity : ComponentActivity() {
         }
     }
 
-    private fun startSession(track: AiTrainingTrack, total: Int, maxTokens: Int, charging: Boolean, focus: String) {
+    private fun startSession(tracks: List<AiTrainingTrack>, total: Int, maxTokens: Int, charging: Boolean, focus: String) {
+        val planTracks = tracks.distinct().ifEmpty { listOf(AiTrainingTrack.RouteIntent) }
         val session = AiTrainingSession(
             id = UUID.randomUUID().toString(),
-            trackId = track.id,
+            trackId = planTracks.first().id,
             total = total.coerceIn(5, 1200),
             completed = 0,
             passed = 0,
@@ -81,6 +82,7 @@ class AiTrainingCenterActivity : ComponentActivity() {
             customFocus = focus.filter { it.isLetterOrDigit() || it == ' ' || it == '-' }.take(50),
             startedAt = System.currentTimeMillis(),
             message = "Lokale Modellprüfung wird beim ersten Batch ausgeführt.",
+            trackIds = planTracks.map { it.id },
         )
         AiTrainingStore.begin(this, session)
         AiTrainingScheduler.enqueue(this, session, append = false)
@@ -104,14 +106,16 @@ class AiTrainingCenterActivity : ComponentActivity() {
 @androidx.compose.runtime.Composable
 private fun TrainingCenterScreen(
     context: Context,
-    onStart: (AiTrainingTrack, Int, Int, Boolean, String) -> Unit,
+    onStart: (List<AiTrainingTrack>, Int, Int, Boolean, String) -> Unit,
     onPause: () -> Unit,
     onResumeTraining: () -> Unit,
 ) {
     var session by remember { mutableStateOf(AiTrainingStore.currentSession(context)) }
+    var sessionHistory by remember { mutableStateOf(AiTrainingStore.sessionHistory(context)) }
     var results by remember { mutableStateOf(AiTrainingStore.results(context)) }
     var generatedCases by remember { mutableStateOf(AiTrainingStore.generatedCases(context)) }
     var selectedTrack by remember { mutableStateOf(AiTrainingTrack.RouteIntent) }
+    var selectedTracks by remember { mutableStateOf(setOf(AiTrainingTrack.RouteIntent)) }
     var exerciseCount by remember { mutableStateOf(240f) }
     var maxTokens by remember { mutableStateOf(128) }
     var chargingOnly by remember { mutableStateOf(true) }
@@ -120,14 +124,16 @@ private fun TrainingCenterScreen(
 
     LaunchedEffect(Unit) {
         session = AiTrainingStore.currentSession(context)
+        sessionHistory = AiTrainingStore.sessionHistory(context)
         results = AiTrainingStore.results(context)
         generatedCases = AiTrainingStore.generatedCases(context)
         if (autoStartOnOpen && session?.status !in setOf("Läuft", "Wartet auf Bedingungen", "Wartet auf Abkühlung", "Pausiert")) {
             val adaptiveTrack = AiTrainingPrioritizer.nextTrack(results)
-            onStart(adaptiveTrack, 240, 128, true, "")
+            onStart(listOf(adaptiveTrack), 240, 128, true, "")
         }
         while (true) {
             session = AiTrainingStore.currentSession(context)
+            sessionHistory = AiTrainingStore.sessionHistory(context)
             results = AiTrainingStore.results(context)
             generatedCases = AiTrainingStore.generatedCases(context)
             delay(1200)
@@ -193,19 +199,24 @@ private fun TrainingCenterScreen(
         Card {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Trainingsprogramm", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Wähle einen Schwerpunkt. Jeder Lauf testet mehrere unterschiedliche Szenarien dieses Bereichs.", style = MaterialTheme.typography.bodySmall)
+                Text("Wähle ein Thema oder stelle mehrere Themen zu einer Trainingsreihe zusammen. Die Reihe wechselt die Schwerpunkte und bewahrt jeden Lauf im lokalen Archiv.", style = MaterialTheme.typography.bodySmall)
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     AiTrainingTrack.entries.chunked(2).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             row.forEach { track ->
-                                TrackCard(track, selectedTrack == track, Modifier.weight(1f)) { selectedTrack = track }
+                                TrackCard(track, track in selectedTracks, Modifier.weight(1f)) {
+                                    selectedTrack = track
+                                    selectedTracks = if (track in selectedTracks) {
+                                        if (selectedTracks.size > 1) selectedTracks - track else selectedTracks
+                                    } else selectedTracks + track
+                                }
                             }
                             if (row.size == 1) Spacer(Modifier.weight(1f))
                         }
                     }
                 }
 
-                Text("Umfang: ${exerciseCount.roundToInt()} lokale Tests", fontWeight = FontWeight.SemiBold)
+                Text("Umfang der gesamten Reihe: ${exerciseCount.roundToInt()} lokale Tests · ${selectedTracks.size} Themen", fontWeight = FontWeight.SemiBold)
                 Slider(value = exerciseCount, onValueChange = { exerciseCount = it }, valueRange = 5f..1000f, steps = 19)
                 Text("Antwortlänge: $maxTokens Tokens", fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -253,7 +264,10 @@ private fun TrainingCenterScreen(
                 }
 
                 Button(
-                    onClick = { onStart(selectedTrack, exerciseCount.roundToInt(), maxTokens, chargingOnly, focusPhrase) },
+                    onClick = {
+                        val plannedTracks = AiTrainingTrack.entries.filter { it in selectedTracks }
+                        onStart(plannedTracks, exerciseCount.roundToInt(), maxTokens, chargingOnly, focusPhrase)
+                    },
                     enabled = !isRunning,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(vertical = 14.dp),
