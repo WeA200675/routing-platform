@@ -24,7 +24,8 @@ internal enum class AiTrainingTrack(val id: String, val title: String, val detai
     Maneuvers("maneuvers", "Abbiegen & Ausfahrten", "Richtungsangaben verständlich formulieren"),
     GpsSafety("gps_safety", "GPS & Sicherheit", "Einzelfehler nicht als bestätigte Abweichung behandeln"),
     Traffic("traffic", "Stau & Gefahren", "Fehlende Live-Daten offen benennen"),
-    DataSources("data_sources", "Quellen & Datenabgleich", "Spur- und Schilddaten online finden und verifizieren");
+    DataSources("data_sources", "Quellen & Datenabgleich", "Spur- und Schilddaten online finden und verifizieren"),
+    HumorThemes("humor_themes", "Humor & Überraschung", "Aufmunternde Themen vorschlagen und sicher einsetzen");
 
     companion object {
         fun fromId(id: String) = entries.firstOrNull { it.id == id } ?: RouteIntent
@@ -74,6 +75,13 @@ internal val trainingCases = mapOf(
         TrainingCase("Eine Gefahrenmeldung ist abgelaufen. Behandle sie nicht als aktuelle Gefahr und sage, dass ihr Status veraltet ist.", listOf("abgelaufen", "veraltet"), "Meldungsalter"),
         TrainingCase("Für eine Umleitung fehlen verlässliche Verkehrsdaten. Erkläre, dass die Route nicht allein auf Vermutungen geändert wird.", listOf("verkehrsdaten", "vermutung"), "Umleitungsentscheidung"),
     ),
+    AiTrainingTrack.HumorThemes to listOf(
+        TrainingCase("Schlage drei eigenständige, freundliche Navigationsthemen vor. Nenne keine geschützte Figur und imitiere keine bekannte Stimme.", listOf("eigenständig", "freundlich", "themen"), "Originale Themen"),
+        TrainingCase("Erkläre, dass ein humorvoller Vorspann die Abbiegerichtung niemals verändern darf und Sicherheitsansagen sachlich bleiben.", listOf("humorvoll", "abbiegerichtung", "sicherheitsansagen"), "Sicherheitsgrenze"),
+        TrainingCase("Bewerte einen Themenvorschlag nach Zustimmung des Nutzers, Verständlichkeit, Quellenlage und Abschaltbarkeit.", listOf("zustimmung", "verständlichkeit", "quellenlage", "abschaltbarkeit"), "Themenbewertung"),
+        TrainingCase("Wenn der Nutzer eine Figur aus Film oder Serie nennt, formuliere eine eigene thematische Alternative ohne Originaldialoge oder Stimmenkopie.", listOf("eigene", "alternative", "originaldialoge", "stimmenkopie"), "Rechtebewusste Alternative"),
+    ),
+
     AiTrainingTrack.DataSources to listOf(
         TrainingCase("Für eine nächste Ausfahrt fehlen Spurdaten. Beschreibe die Suche nach einer aktuellen, straßengenau passenden Onlinequelle und prüfe Quelle, Zeitstempel und Fahrtrichtung, bevor die Angabe angezeigt wird.", listOf("onlinequelle", "zeitstempel", "fahrtrichtung"), "Spurdatenquelle prüfen"),
         TrainingCase("OpenStreetMap liefert turn:lanes für eine nahe Straße, aber die Fahrtrichtung passt nicht zur Route. Verwirf den Treffer und suche weiter nach der richtigen Richtungsfahrbahn.", listOf("openstreetmap", "fahrtrichtung", "verwerfen"), "Falsche Richtungsfahrbahn"),
@@ -153,7 +161,8 @@ internal object AiTrainingCaseReview {
             AiTrainingTrack.Maneuvers -> listOf("abbieg", "ausfahrt", "spur", "beschilderung")
             AiTrainingTrack.GpsSafety -> listOf("gps", "position", "messung", "genauigkeit")
             AiTrainingTrack.Traffic -> listOf("stau", "verkehrsdaten", "gefahr", "meldung")
-            AiTrainingTrack.DataSources -> listOf("quelle", "online", "aktualität", "attribution", "openstreetmap")
+            AiTrainingTrack.DataSources -> listOf("quelle", "online", "aktualität", "attribution", "openstreetmap"),
+            AiTrainingTrack.HumorThemes -> listOf("thema", "humor", "sicherheitsansagen", "quelle", "eigenständig")
         }
         val score = 55 + (if (topic.any { it in lower }) 25 else 0) + (if (terms.distinct().size == terms.size) 20 else 0)
         require(score >= 80)
