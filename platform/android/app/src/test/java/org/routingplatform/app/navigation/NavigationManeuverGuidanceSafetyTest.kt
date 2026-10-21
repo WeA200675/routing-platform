@@ -128,6 +128,25 @@ class NavigationManeuverGuidanceSafetyTest {
         )
     }
 
+    @Test
+    fun conflictingBearingWinsBeforeWrongStreetNameCanBeSanitized() {
+        val maneuver = NavigationManeuver(
+            type = ManeuverType.TurnRight,
+            instruction = "Rechts auf die Süddeutsche Straße abbiegen.",
+            distanceM = 120.0,
+            durationS = 12.0,
+            streetNames = listOf("Ingolstädter Straße"),
+            bearingBeforeDeg = 90,
+            bearingAfterDeg = 0,
+            engineType = 10,
+        )
+
+        assertEquals(
+            "Manöverdaten widersprüchlich. Bitte Beschilderung beachten.",
+            maneuver.guidanceInstruction,
+        )
+    }
+
     private fun maneuver(
         type: ManeuverType,
         engineType: Int?,
