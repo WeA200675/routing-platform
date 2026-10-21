@@ -161,7 +161,7 @@ internal object AiTrainingCaseReview {
             AiTrainingTrack.Maneuvers -> listOf("abbieg", "ausfahrt", "spur", "beschilderung")
             AiTrainingTrack.GpsSafety -> listOf("gps", "position", "messung", "genauigkeit")
             AiTrainingTrack.Traffic -> listOf("stau", "verkehrsdaten", "gefahr", "meldung")
-            AiTrainingTrack.DataSources -> listOf("quelle", "online", "aktualität", "attribution", "openstreetmap"),
+            AiTrainingTrack.DataSources -> listOf("quelle", "online", "aktualität", "attribution", "openstreetmap")
             AiTrainingTrack.HumorThemes -> listOf("thema", "humor", "sicherheitsansagen", "quelle", "eigenständig")
         }
         val score = 55 + (if (topic.any { it in lower }) 25 else 0) + (if (terms.distinct().size == terms.size) 20 else 0)
