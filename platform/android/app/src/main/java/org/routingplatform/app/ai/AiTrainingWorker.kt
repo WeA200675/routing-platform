@@ -428,7 +428,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val powerManager = applicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
             if (powerManager.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE) {
-                AiTrainingStore.update(applicationContext) {
+                AiTrainingStore.update(applicationContext, sessionId) {
                     it.copy(status = "Wartet auf Abkühlung", message = "Der Lauf pausiert bei hoher Gerätetemperatur.")
                 }
                 return Result.retry()
@@ -437,7 +437,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
 
         val model = File(applicationContext.filesDir, MODEL_FILE)
         if (!model.isFile || sha256(model) != MODEL_SHA256) {
-            AiTrainingStore.update(applicationContext) {
+            AiTrainingStore.update(applicationContext, sessionId) {
                 it.copy(status = "Fehler", message = "Verifiziertes lokales Modell fehlt. Öffne zuerst den KI-Gerätetest und starte danach den Lauf erneut.")
             }
             return Result.failure()
@@ -495,7 +495,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
                 }
                 val passCount = sessionResults.count { it.passed }
                 val average = sessionResults.map { it.latencyMs }.average().takeIf { it.isFinite() }?.toLong() ?: latency
-                AiTrainingStore.update(applicationContext) {
+                AiTrainingStore.update(applicationContext, sessionId) {
                     it.copy(completed = completed, passed = passCount, averageLatencyMs = average, status = "Läuft", message = scenario.label)
                 }
                 setProgressAsync(Data.Builder().putInt("completed", completed).putInt("total", total).putString("scenario", scenario.label).build())
@@ -513,7 +513,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
                 generatedDraft?.let { AiTrainingStore.recordGeneratedCase(applicationContext, it) }
             }
         } catch (error: Throwable) {
-            AiTrainingStore.update(applicationContext) { it.copy(status = "Fehler", message = error.message?.take(240) ?: "Lokaler Trainingslauf fehlgeschlagen.") }
+            AiTrainingStore.update(applicationContext, sessionId) { it.copy(status = "Fehler", message = error.message?.take(240) ?: "Lokaler Trainingslauf fehlgeschlagen.") }
             return Result.failure()
         } finally {
             runCatching { engine.unloadModel() }
@@ -521,7 +521,7 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
 
         if (isStopped) return Result.success()
         if (completed >= total) {
-            AiTrainingStore.update(applicationContext) {
+            AiTrainingStore.update(applicationContext, sessionId) {
                 it.copy(
                     completed = total,
                     status = "Abgeschlossen",
