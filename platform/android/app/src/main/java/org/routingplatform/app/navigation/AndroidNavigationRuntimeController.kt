@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
 import java.io.File
+import org.routingplatform.app.traffic.TrafficSourceRefreshWorker
 
 enum class NavigationRuntimePipelineStatus {
     Stopped,
@@ -394,6 +395,15 @@ class AndroidNavigationRuntimeController(
 
         active =
             true
+
+        // Refresh source metadata asynchronously; this never mutates route progress.
+        TrafficSourceRefreshWorker.schedule(
+            appContext,
+            listOf(
+                "https://overpass-api.de/api/interpreter",
+                "https://overpass.kumi.systems/api/interpreter",
+            ),
+        )
 
         val locationStarted =
             locationSource.start {
