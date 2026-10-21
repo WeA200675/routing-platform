@@ -109,6 +109,25 @@ class NavigationManeuverGuidanceSafetyTest {
         )
     }
 
+    @Test
+    fun doesNotSpeakStreetNameThatConflictsWithRouteStreetMetadata() {
+        val maneuver = NavigationManeuver(
+            type = ManeuverType.TurnRight,
+            instruction = "Rechts auf die Süddeutsche Straße abbiegen.",
+            distanceM = 120.0,
+            durationS = 12.0,
+            streetNames = listOf("Ingolstädter Straße"),
+            bearingBeforeDeg = 90,
+            bearingAfterDeg = 180,
+            engineType = 10,
+        )
+
+        assertEquals(
+            "Rechts abbiegen. Bitte Beschilderung beachten.",
+            maneuver.guidanceInstruction,
+        )
+    }
+
     private fun maneuver(
         type: ManeuverType,
         engineType: Int?,
