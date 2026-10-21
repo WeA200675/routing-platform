@@ -117,10 +117,7 @@ data class NavigationManeuver(
                     if (german) "Rampe rechts nehmen. Bitte Beschilderung beachten." else "Take the ramp on the right. Follow road signs."
                 isRamp && expectedSide == "left" ->
                     if (german) "Rampe links nehmen. Bitte Beschilderung beachten." else "Take the ramp on the left. Follow road signs."
-                isRamp && expectedSide == "right" ->
-                    if (german) "Rampe rechts nehmen. Bitte Beschilderung beachten." else "Take the ramp on the right. Follow road signs."
-                isRamp && expectedSide == "left" ->
-                    if (german) "Rampe links nehmen. Bitte Beschilderung beachten." else "Take the ramp on the left. Follow road signs."
+
                 isMerge && expectedSide == "right" ->
                     if (german) "Rechts einfädeln. Bitte Beschilderung beachten." else "Merge right. Follow road signs."
                 isMerge && expectedSide == "left" ->
@@ -174,6 +171,12 @@ data class NavigationManeuver(
                 isUTurn ->
                     if (german) "Wenden. Bitte Beschilderung beachten."
                     else "Make a U-turn. Follow road signs."
+                isRamp && expectedSide == "right" ->
+                    if (german) "Rampe rechts nehmen. Bitte Beschilderung beachten."
+                    else "Take the ramp on the right. Follow road signs."
+                isRamp && expectedSide == "left" ->
+                    if (german) "Rampe links nehmen. Bitte Beschilderung beachten."
+                    else "Take the ramp on the left. Follow road signs."
                 isMerge && expectedSide == "right" ->
                     if (german) "Rechts einfädeln. Bitte Beschilderung beachten."
                     else "Merge right. Follow road signs."
