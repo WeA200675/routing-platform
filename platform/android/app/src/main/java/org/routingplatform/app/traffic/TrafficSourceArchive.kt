@@ -123,7 +123,7 @@ internal class TrafficSourceRefreshWorker(
                 connection.setRequestProperty("Accept", "application/json, application/xml, text/xml")
                 val status = connection.responseCode
                 if (status !in 200..299) return@runCatching unavailable(now, "http_$status").copy(endpoint = safeEndpoint)
-                val bodyBytes = connection.inputStream.use { it.readNBytes(MAX_RESPONSE_BYTES) }
+                val bodyBytes = connection.inputStream.use { readBounded(it, MAX_RESPONSE_BYTES) }
                 if (bodyBytes.isEmpty()) return@runCatching unavailable(now, "empty_response").copy(endpoint = safeEndpoint)
                 TrafficSourceRecord(
                     sourceId = "source-$now",
@@ -143,7 +143,7 @@ internal class TrafficSourceRefreshWorker(
         }.getOrElse { unavailable(now, "network_or_parse_error").copy(endpoint = safeEndpoint) }
     }
 
-    private fun unavailable(now: Long, reason: String) = TrafficSourceRecord(
+    private fun readBounded(input: java.io.InputStream, limit: Int): ByteArray {\n        val buffer = ByteArray(8192)\n        val output = java.io.ByteArrayOutputStream(minOf(limit, buffer.size))\n        var total = 0\n        while (total < limit) {\n            val read = input.read(buffer, 0, minOf(buffer.size, limit - total))\n            if (read < 0) break\n            if (read == 0) continue\n            output.write(buffer, 0, read)\n            total += read\n        }\n        return output.toByteArray()\n    }\n\n    private fun unavailable(now: Long, reason: String) = TrafficSourceRecord(
         sourceId = "unavailable-$now",
         provider = "none",
         dataType = "traffic_or_hazard_feed",
