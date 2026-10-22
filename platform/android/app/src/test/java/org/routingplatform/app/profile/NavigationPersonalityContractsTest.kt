@@ -14,7 +14,7 @@ class NavigationPersonalityContractsTest {
                 .builtIns
 
         assertEquals(
-            5,
+            7,
             packs.size,
         )
 
