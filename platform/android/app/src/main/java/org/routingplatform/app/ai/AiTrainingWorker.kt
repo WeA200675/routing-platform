@@ -603,24 +603,25 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
     }
 
     private fun buildCaseDraftPrompt(track: AiTrainingTrack): String =
-        "<|im_start|>system\
-Erzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten. Für Quellenfälle darfst du nur ausdrücklich im prompt bereitgestellte fiktive Metadaten auswerten; erfinde keine Quelle, Aktualität, Lizenz oder Spurzuordnung.\
-<|im_end|>\
-<|im_start|>user\
-Erzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\
-<|im_end|>\
-<|im_start|>assistant\
-"
+        """<|im_start|>system
+Erzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten. Für Quellenfälle darfst du nur ausdrücklich im prompt bereitgestellte fiktive Metadaten auswerten; erfinde keine Quelle, Aktualität, Lizenz oder Spurzuordnung.
+<|im_end|>
+<|im_start|>user
+Erzeuge einen neuen, überprüfbaren, nicht trivialen Fall.
+<|im_end|>
+<|im_start|>assistant
+""".trimIndent()
 
     private fun buildPrompt(task: String, focus: String): String {
-        val extra = focus.takeIf { it.isNotBlank() }?.let { "
-Zusätzlicher Übungsschwerpunkt: $it" }.orEmpty()
-        return "<|im_start|>system
+        val extra = focus.takeIf { it.isNotBlank() }
+            ?.let { "\nZusätzlicher Übungsschwerpunkt: $it" }
+            .orEmpty()
+        return """<|im_start|>system
 Du bist ein knapper, sicherheitsbewusster deutscher Routing-Assistent. Erfinde keine Positionen, Abbiegespuren, Verkehrsereignisse oder Routenfakten. Bei widersprüchlichen oder fehlenden Daten benenne die Unsicherheit. Dieser Text ist eine isolierte Übung: löse keine Navigation aus und führe keine Aktion aus.$extra<|im_end|>
 <|im_start|>user
 $task<|im_end|>
 <|im_start|>assistant
-"
+""".trimIndent()
     }
 
     private fun sha256(file: File): String {
