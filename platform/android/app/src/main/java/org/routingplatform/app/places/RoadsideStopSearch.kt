@@ -37,7 +37,7 @@ data class RoadsideStop(
 internal object RoadsideStopTagParser {
     fun isRestArea(tags: Map<String, String>): Boolean =
         tags["highway"] in setOf("services", "rest_area") ||
-            tags["amenity"] == "rest_area"
+            tags["amenity"] == "rest_area" ||\n            tags["amenity"] == "toilets"
 
     fun restroomStatus(tags: Map<String, String>): RestroomStatus =
         when (tags["toilets"]?.trim()?.lowercase()) {
