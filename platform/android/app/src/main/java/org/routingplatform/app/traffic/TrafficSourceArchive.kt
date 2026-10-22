@@ -143,7 +143,21 @@ internal class TrafficSourceRefreshWorker(
         }.getOrElse { unavailable(now, "network_or_parse_error").copy(endpoint = safeEndpoint) }
     }
 
-    private fun readBounded(input: java.io.InputStream, limit: Int): ByteArray {\n        val buffer = ByteArray(8192)\n        val output = java.io.ByteArrayOutputStream(minOf(limit, buffer.size))\n        var total = 0\n        while (total < limit) {\n            val read = input.read(buffer, 0, minOf(buffer.size, limit - total))\n            if (read < 0) break\n            if (read == 0) continue\n            output.write(buffer, 0, read)\n            total += read\n        }\n        return output.toByteArray()\n    }\n\n    private fun unavailable(now: Long, reason: String) = TrafficSourceRecord(
+    private fun readBounded(input: java.io.InputStream, limit: Int): ByteArray {
+        val buffer = ByteArray(8192)
+        val output = java.io.ByteArrayOutputStream(minOf(limit, buffer.size))
+        var total = 0
+        while (total < limit) {
+            val read = input.read(buffer, 0, minOf(buffer.size, limit - total))
+            if (read < 0) break
+            if (read == 0) continue
+            output.write(buffer, 0, read)
+            total += read
+        }
+        return output.toByteArray()
+    }
+
+    private fun unavailable(now: Long, reason: String) = TrafficSourceRecord(
         sourceId = "unavailable-$now",
         provider = "none",
         dataType = "traffic_or_hazard_feed",
