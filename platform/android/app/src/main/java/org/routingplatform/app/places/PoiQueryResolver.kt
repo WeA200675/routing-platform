@@ -54,22 +54,22 @@ internal object PoiQueryResolver {
     }
 
     private fun keywords(category: PoiCategory): List<String> = when (category) {
-        PoiCategory.Fuel -> listOf("tankstelle", "tanken", "benzin", "diesel")
-        PoiCategory.Charging -> listOf("ladestation", "ladesäule", "laden", "elektro")
-        PoiCategory.Parking -> listOf("parkplatz", "parken", "parkhaus")
-        PoiCategory.Restroom -> listOf("wc", "toilette", "toiletten")
-        PoiCategory.RestArea -> listOf("raststätte", "raststaette", "rastplatz", "autohof")
-        PoiCategory.Food -> listOf("restaurant", "essen", "café", "cafe", "fast food")
-        PoiCategory.Shop -> listOf("supermarkt", "geschäft", "shop", "einkaufen")
-        PoiCategory.Hotel -> listOf("hotel", "übernachtung", "motel")
-        PoiCategory.Pharmacy -> listOf("apotheke")
-        PoiCategory.Hospital -> listOf("krankenhaus", "klinik")
-        PoiCategory.Police -> listOf("polizei")
-        PoiCategory.Workshop -> listOf("werkstatt", "autoreparatur")
-        PoiCategory.Bank -> listOf("bank", "geldautomat", "atm")
-        PoiCategory.Transit -> listOf("bahnhof", "haltestelle", "bus")
-        PoiCategory.Airport -> listOf("flughafen")
-        PoiCategory.Park -> listOf("park", "freizeit", "spielplatz")
+        PoiCategory.Fuel -> listOf("tankstelle", "tanken", "benzin", "diesel", "fuel", "gas station", "petrol", "gasolinera", "station service", "stazione di servizio")
+        PoiCategory.Charging -> listOf("ladestation", "ladesäule", "laden", "elektro", "charging station", "ev charger", "borne de recharge", "colonnina", "cargador")
+        PoiCategory.Parking -> listOf("parkplatz", "parken", "parkhaus", "parking", "car park", "parking garage", "parking voiture", "parcheggio", "aparcamiento")
+        PoiCategory.Restroom -> listOf("wc", "toilette", "toiletten", "toilet", "restroom", "bathroom", "sanitaires", "toilette", "baño", "bagno")
+        PoiCategory.RestArea -> listOf("raststätte", "raststaette", "rastplatz", "autohof", "rest area", "service area", "aire de repos", "area di servizio", "área de servicio")
+        PoiCategory.Food -> listOf("restaurant", "essen", "café", "cafe", "fast food", "food", "dining", "restaurant", "comida", "ristorante")
+        PoiCategory.Shop -> listOf("supermarkt", "geschäft", "shop", "einkaufen", "supermarket", "grocery", "store", "magasin", "supermercado", "negozio")
+        PoiCategory.Hotel -> listOf("hotel", "übernachtung", "motel", "lodging", "accommodation", "hôtel", "alojamiento", "alloggio")
+        PoiCategory.Pharmacy -> listOf("apotheke", "pharmacy", "pharmacie", "farmacia")
+        PoiCategory.Hospital -> listOf("krankenhaus", "klinik", "hospital", "clinic", "hôpital", "clinica", "hospital")
+        PoiCategory.Police -> listOf("polizei", "police", "policía", "polizia")
+        PoiCategory.Workshop -> listOf("werkstatt", "autoreparatur", "car repair", "garage", "atelier", "taller", "officina")
+        PoiCategory.Bank -> listOf("bank", "geldautomat", "atm", "cash machine", "banque", "bankomat", "banco", "bancomat")
+        PoiCategory.Transit -> listOf("bahnhof", "haltestelle", "bus", "train station", "station", "bus stop", "gare", "stazione", "estación")
+        PoiCategory.Airport -> listOf("flughafen", "airport", "aéroport", "aeroporto", "aeropuerto")
+        PoiCategory.Park -> listOf("park", "freizeit", "spielplatz", "park", "leisure", "playground", "parc", "parco", "parque")
     }
 
     private fun relatedKeywords(category: PoiCategory): List<String> = when (category) {
