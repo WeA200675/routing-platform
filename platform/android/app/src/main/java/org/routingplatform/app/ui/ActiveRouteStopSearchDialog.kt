@@ -193,7 +193,7 @@ internal fun ActiveRouteStopSearchDialog(
                     Spacer(Modifier.height(8.dp))
                     Text(message, style = MaterialTheme.typography.bodySmall)
                 }
-                if (query.trim().length >= 2 && aiResolution?.category == null) {
+                if (query.trim().length >= 2 && aiResolution != null && aiResolution.category == null) {
                     Spacer(Modifier.height(10.dp))
                     Text(
                         "Die KI hat den Begriff noch nicht eindeutig zugeordnet. Meinst du eine dieser Kategorien?",
