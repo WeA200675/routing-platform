@@ -22,6 +22,7 @@ internal enum class AiTrainingTrack(val id: String, val title: String, val detai
     Voice("voice", "Ansagen", "Kurze, eindeutige Sprachführung"),
     RouteIntent("route_intent", "Routenwünsche", "Ziel, Vermeidung und Zwischenstopp erkennen"),
     Maneuvers("maneuvers", "Abbiegen & Ausfahrten", "Richtungsangaben verständlich formulieren"),
+    ManeuverAlignment("maneuver_alignment", "Manöverabgleich", "Anzeige und Sprachansage auf Reihenfolge und Identität prüfen"),
     GpsSafety("gps_safety", "GPS & Sicherheit", "Einzelfehler nicht als bestätigte Abweichung behandeln"),
     Traffic("traffic", "Stau & Gefahren", "Fehlende Live-Daten offen benennen"),
     DataSources("data_sources", "Quellen & Datenabgleich", "Spur- und Schilddaten online finden und verifizieren"),
@@ -63,6 +64,14 @@ internal val trainingCases = mapOf(
         TrainingCase("Die Route sagt links abbiegen, die Karte zeigt aber keine passende Kreuzung. Weise auf die Unsicherheit hin und fordere zum Folgen der Beschilderung auf.", listOf("unsicher", "beschilderung"), "Widerspruch"),
         TrainingCase("Formuliere: Dem Straßenverlauf 1 Kilometer geradeaus folgen, danach links abbiegen.", listOf("1", "kilometer", "geradeaus", "links"), "Folgemanöver"),
     ),
+    AiTrainingTrack.ManeuverAlignment to listOf(
+        TrainingCase("Anzeige und Sprachansage müssen dieselbe Manöver-ID und dieselben Shape-Indizes verwenden. Beschreibe die Prüfung.", listOf("manöver", "sprachansage", "shape"), "Identität von Anzeige und Sprache"),
+        TrainingCase("Die Anzeige zeigt das aktuelle Manöver, die Sprachansage nennt das vorherige. Erkenne den Sequenzversatz und benenne ihn ausdrücklich.", listOf("anzeige", "sprachansage", "versatz"), "Ein-Manöver-Versatz"),
+        TrainingCase("Richtung oder Straßenname der Sprachansage weichen vom angezeigten Routenmanöver ab. Erzeuge keine neue Richtung, sondern klassifiziere den Inhaltskonflikt.", listOf("richtung", "straßenname", "konflikt"), "Inhaltskonflikt"),
+        TrainingCase("Eine Autobahnausfahrt ist in der Route rechts, aber die Sprachansage sagt links. Markiere den Widerspruch und verwende ausschließlich die berechnete Routenseite.", listOf("autobahnausfahrt", "rechts", "links", "widerspruch"), "Ausfahrtsprüfung"),
+        TrainingCase("Prüfe die Zeitstempel von Anzeige und Sprachansage und erkenne, ob die Ansage nach dem Wechsel auf ein neues Manöver ausgelöst wurde.", listOf("zeitstempel", "wechsel", "manöver"), "Zeitliche Zuordnung"),
+    ),
+
     AiTrainingTrack.GpsSafety to listOf(
         TrainingCase("Ein einzelner GPS-Punkt liegt neben der Straße. Bestätige keinen Abweichungsalarm und warte auf einen zweiten plausiblen Messpunkt.", listOf("einzel", "zweiten", "messpunkt"), "Einzel-Ausreißer"),
         TrainingCase("Die Positionsgenauigkeit ist niedrig. Erkläre, dass die Routenposition zunächst gehalten wird und keine sichere Neuberechnung vorliegt.", listOf("genauigkeit", "gehalten", "neuberechnung"), "Niedrige Genauigkeit"),
@@ -557,11 +566,24 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
     }
 
     private fun buildCaseDraftPrompt(track: AiTrainingTrack): String =
-        "<|im_start|>system\\nErzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten. Für Quellenfälle darfst du nur ausdrücklich im prompt bereitgestellte fiktive Metadaten auswerten; erfinde keine Quelle, Aktualität, Lizenz oder Spurzuordnung.\\n<|im_end|>\\n<|im_start|>user\\nErzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\\n<|im_end|>\\n<|im_start|>assistant\\n"
+        "<|im_start|>system\
+Erzeuge genau einen abstrakten Offline-Testfall für den App-Bereich ${track.title}. Antworte ausschließlich als JSON-Objekt mit label, prompt und requiredTerms (2 bis 4 Strings). Die requiredTerms müssen im prompt vorkommen. Keine echten Orte, Koordinaten, Personen, URLs, persönlichen Daten oder ausführbaren Fahranweisungen. Keine echten oder behaupteten Live-Verkehrsdaten. Für Quellenfälle darfst du nur ausdrücklich im prompt bereitgestellte fiktive Metadaten auswerten; erfinde keine Quelle, Aktualität, Lizenz oder Spurzuordnung.\
+<|im_end|>\
+<|im_start|>user\
+Erzeuge einen neuen, überprüfbaren, nicht trivialen Fall.\
+<|im_end|>\
+<|im_start|>assistant\
+"
 
     private fun buildPrompt(task: String, focus: String): String {
-        val extra = focus.takeIf { it.isNotBlank() }?.let { "\nZusätzlicher Übungsschwerpunkt: $it" }.orEmpty()
-        return "<|im_start|>system\nDu bist ein knapper, sicherheitsbewusster deutscher Routing-Assistent. Erfinde keine Positionen, Abbiegespuren, Verkehrsereignisse oder Routenfakten. Bei widersprüchlichen oder fehlenden Daten benenne die Unsicherheit. Dieser Text ist eine isolierte Übung: löse keine Navigation aus und führe keine Aktion aus.$extra<|im_end|>\n<|im_start|>user\n$task<|im_end|>\n<|im_start|>assistant\n"
+        val extra = focus.takeIf { it.isNotBlank() }?.let { "
+Zusätzlicher Übungsschwerpunkt: $it" }.orEmpty()
+        return "<|im_start|>system
+Du bist ein knapper, sicherheitsbewusster deutscher Routing-Assistent. Erfinde keine Positionen, Abbiegespuren, Verkehrsereignisse oder Routenfakten. Bei widersprüchlichen oder fehlenden Daten benenne die Unsicherheit. Dieser Text ist eine isolierte Übung: löse keine Navigation aus und führe keine Aktion aus.$extra<|im_end|>
+<|im_start|>user
+$task<|im_end|>
+<|im_start|>assistant
+"
     }
 
     private fun sha256(file: File): String {
