@@ -15,7 +15,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit\nimport java.util.UUID
+import java.util.concurrent.TimeUnit
+import java.util.UUID
 
 internal enum class AiTrainingTrack(val id: String, val title: String, val detail: String) {
     Vocabulary("vocabulary", "Wortschatz", "Begriffe klar und natürlich erklären"),
