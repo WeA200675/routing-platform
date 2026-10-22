@@ -31,6 +31,7 @@ import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.ai.SocialAiPoiCategoryFeedback
 import org.routingplatform.app.ai.SocialAiPoiPreferenceMemory
 import org.routingplatform.app.places.DestinationSearchResult
+import org.routingplatform.app.places.PoiQueryResolver
 import kotlin.math.roundToInt
 
 @Composable
@@ -72,6 +73,7 @@ internal fun ActiveRouteStopSearchDialog(
     var selectedResult by remember { mutableStateOf<DestinationSearchResult?>(null) }
     var feedbackGiven by remember(query) { mutableStateOf(emptySet<String>()) }
     val queryCategory = SocialAiPoiPreferenceMemory.categoryForQuery(query)
+    val aiResolution = remember(query) { runCatching { PoiQueryResolver.resolve(query) }.getOrNull() }
     val rankedResults = remember(results, routeGeometry, routeEstimates, routeEvaluationComplete) {
         val ordered = if (routeEstimates.isNotEmpty()) {
             results.sortedWith(
@@ -190,6 +192,34 @@ internal fun ActiveRouteStopSearchDialog(
                 if (!message.isNullOrBlank()) {
                     Spacer(Modifier.height(8.dp))
                     Text(message, style = MaterialTheme.typography.bodySmall)
+                }
+                if (query.trim().length >= 2 && aiResolution?.category == null) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Die KI hat den Begriff noch nicht eindeutig zugeordnet. Meinst du eine dieser Kategorien?",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    if (aiResolution.suggestions.isNotEmpty()) {
+                        aiResolution.suggestions.forEach { suggestion ->
+                            OutlinedButton(
+                                enabled = !busy,
+                                onClick = {
+                                    selectedResult = null
+                                    onQueryChange(suggestion.title)
+                                    onSearch(suggestion.title)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(suggestion.title)
+                            }
+                        }
+                    } else {
+                        Text(
+                            "Bitte bestätige eine Kategorie über die Schnellsuche oder formuliere den Wunsch genauer. Der Begriff wird als neuer Lernfall vorgemerkt.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
                 if (rankedResults.isNotEmpty()) {
                     Spacer(Modifier.height(12.dp))
