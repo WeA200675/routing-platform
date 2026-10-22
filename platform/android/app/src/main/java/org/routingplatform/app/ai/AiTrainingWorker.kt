@@ -172,6 +172,7 @@ internal object AiTrainingCaseReview {
             AiTrainingTrack.Traffic -> listOf("stau", "verkehrsdaten", "gefahr", "meldung")
             AiTrainingTrack.DataSources -> listOf("quelle", "online", "aktualität", "attribution", "openstreetmap")
             AiTrainingTrack.HumorThemes -> listOf("thema", "humor", "sicherheitsansagen", "quelle", "eigenständig")
+            AiTrainingTrack.ManeuverAlignment -> listOf("manöver", "sprachansage", "anzeige", "versatz", "zeitstempel")
         }
         val score = 55 + (if (topic.any { it in lower }) 25 else 0) + (if (terms.distinct().size == terms.size) 20 else 0)
         require(score >= 80)
