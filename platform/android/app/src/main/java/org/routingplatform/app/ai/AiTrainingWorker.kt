@@ -15,7 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeUnit\nimport java.util.UUID
 
 internal enum class AiTrainingTrack(val id: String, val title: String, val detail: String) {
     Vocabulary("vocabulary", "Wortschatz", "Begriffe klar und natürlich erklären"),
@@ -463,6 +463,24 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
         val focus = inputData.getString(AiTrainingScheduler.KEY_CUSTOM_FOCUS).orEmpty().take(500)
         if (startIndex >= total) {
             AiTrainingStore.update(applicationContext, sessionId) { it.copy(status = "Abgeschlossen", message = "Trainingslauf beendet.") }
+            val preferences = applicationContext.getSharedPreferences("ai_training_center_v1", Context.MODE_PRIVATE)
+            val autoLoop = preferences.getBoolean("auto_loop", true)
+            if (autoLoop) {
+                val finished = AiTrainingStore.currentSession(applicationContext)
+                if (finished != null && finished.id == sessionId) {
+                    val next = finished.copy(
+                        id = UUID.randomUUID().toString(),
+                        completed = 0,
+                        passed = 0,
+                        averageLatencyMs = 0L,
+                        status = "Geplant",
+                        startedAt = System.currentTimeMillis(),
+                        message = "Nächster adaptiver Trainingslauf wird geplant.",
+                    )
+                    AiTrainingStore.begin(applicationContext, next)
+                    AiTrainingScheduler.enqueue(applicationContext, next, append = false)
+                }
+            }
             return Result.success()
         }
 
