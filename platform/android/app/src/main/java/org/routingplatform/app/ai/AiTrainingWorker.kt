@@ -346,6 +346,20 @@ internal object AiTrainingStore {
         }
     }
 
+    fun recordManeuverAlignment(context: Context, result: org.routingplatform.app.navigation.ManeuverAlignmentResult) {
+        record(
+            context,
+            AiTrainingResult(
+                trackId = AiTrainingTrack.ManeuverAlignment.id,
+                caseLabel = result.status.name,
+                latencyMs = 0L,
+                passed = result.status == org.routingplatform.app.navigation.ManeuverAlignmentStatus.Aligned,
+                recordedAt = System.currentTimeMillis(),
+                sessionId = "navigation-alignment",
+            ),
+        )
+    }
+
     fun results(context: Context): List<AiTrainingResult> {
         val rows = runCatching { JSONArray(prefs(context).getString(KEY_RESULTS, "[]")) }.getOrElse { JSONArray() }
         return (0 until rows.length()).mapNotNull { index ->
