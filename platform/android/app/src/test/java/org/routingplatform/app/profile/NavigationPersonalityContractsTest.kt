@@ -45,7 +45,7 @@ class NavigationPersonalityContractsTest {
                 .toSet()
 
         assertEquals(
-            setOf("classic", "zen", "galactic", "cozy", "focus"),
+            setOf("classic", "zen", "galactic", "cozy", "focus", "space-opera", "sitcom"),
             ids,
         )
     }
