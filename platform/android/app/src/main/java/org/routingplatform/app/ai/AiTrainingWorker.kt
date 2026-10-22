@@ -45,6 +45,10 @@ internal val trainingCases = mapOf(
         TrainingCase("Erkläre knapp den Unterschied zwischen Reststrecke und Restzeit. Verwende beide Begriffe.", listOf("reststrecke", "restzeit"), "Navigationsbegriffe"),
         TrainingCase("Formuliere verständlich, dass eine Route neu berechnet wird, wenn ein Fahrer bewusst von ihr abweicht. Nutze das Wort Umweg.", listOf("route", "umweg"), "Routenwortschatz"),
         TrainingCase("Erkläre einem Fahranfänger kurz, was eine Ausfahrt ist. Verwende das Wort Autobahn.", listOf("ausfahrt", "autobahn"), "Ausfahrt"),
+        TrainingCase("Answer in English: identify the nearest restroom, fuel station and parking area. Use the words restroom, fuel and parking.", listOf("restroom", "fuel", "parking"), "POI English"),
+        TrainingCase("Réponds en français : cherche des toilettes, une station-service et un parking. Utilise ces trois termes.", listOf("toilettes", "station-service", "parking"), "POI Français"),
+        TrainingCase("Rispondi in italiano: trova un bagno, una stazione di servizio e un parcheggio. Usa tutti e tre i termini.", listOf("bagno", "stazione", "parcheggio"), "POI Italiano"),
+        TrainingCase("Responde en español: busca un baño, una gasolinera y un aparcamiento. Usa las tres palabras.", listOf("baño", "gasolinera", "aparcamiento"), "POI Español"),
     ),
     AiTrainingTrack.Voice to listOf(
         TrainingCase("Gib eine kurze Sprachansage. Der Fahrer soll in 300 Metern rechts abbiegen. Nenne Entfernung und Richtung.", listOf("300", "rechts"), "Ansage kurz"),
