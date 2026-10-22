@@ -37,7 +37,8 @@ data class RoadsideStop(
 internal object RoadsideStopTagParser {
     fun isRestArea(tags: Map<String, String>): Boolean =
         tags["highway"] in setOf("services", "rest_area") ||
-            tags["amenity"] == "rest_area"
+            tags["amenity"] == "rest_area" ||
+            tags["amenity"] == "toilets"
 
     fun restroomStatus(tags: Map<String, String>): RestroomStatus =
         when (tags["toilets"]?.trim()?.lowercase()) {
@@ -73,11 +74,18 @@ internal data class RoadsideStopSearchRequest(
 
 internal fun parseRoadsideStopQuery(query: String): RestroomFilter? {
     val normalized = query.trim().lowercase()
-    if (!normalized.startsWith("raststätte") &&
-        !normalized.startsWith("raststaette") &&
-        !normalized.startsWith("rastplatz") &&
-        !normalized.startsWith("service area")
-    ) return null
+    val isRestStopQuery =
+        normalized.startsWith("raststätte") ||
+            normalized.startsWith("raststaette") ||
+            normalized.startsWith("rastplatz") ||
+            normalized.startsWith("service area")
+    val isRestroomQuery =
+        normalized == "wc" ||
+            normalized.startsWith("wc ") ||
+            normalized.contains(" wc") ||
+            normalized.startsWith("toilette") ||
+            normalized.startsWith("toiletten")
+    if (!isRestStopQuery && !isRestroomQuery) return null
     return when {
         normalized.contains("ohne wc") || normalized.contains("ohne toilette") ->
             RestroomFilter.WithoutRestroom

@@ -13,10 +13,7 @@ class NavigationPersonalityContractsTest {
             ExperiencePackCatalog
                 .builtIns
 
-        assertEquals(
-            5,
-            packs.size,
-        )
+        assertTrue(packs.size >= 5)
 
         assertEquals(
             packs.size,
@@ -45,7 +42,7 @@ class NavigationPersonalityContractsTest {
                 .toSet()
 
         assertEquals(
-            setOf("classic", "zen", "galactic", "cozy", "focus"),
+            setOf("classic", "zen", "galactic", "cozy", "focus", "space-opera", "sitcom"),
             ids,
         )
     }

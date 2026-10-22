@@ -214,16 +214,31 @@ routing::core::RoutePath parse_trip(
             shape_index_offset +
             local_end_shape_index;
 
-        if (const auto bearing_before =
-                source.get_optional<std::uint16_t>(
-                    "bearing_before")) {
+        auto bearing_before =
+            source.get_optional<std::uint16_t>(
+                "bearing_before");
+        if (!bearing_before) {
+          // Valhalla's native maneuver schema calls these begin/end_heading.
+          bearing_before =
+              source.get_optional<std::uint16_t>(
+                  "begin_heading");
+        }
+        if (bearing_before &&
+            *bearing_before <= 359U) {
           maneuver.bearing_before_deg =
               *bearing_before;
         }
 
-        if (const auto bearing_after =
-                source.get_optional<std::uint16_t>(
-                    "bearing_after")) {
+        auto bearing_after =
+            source.get_optional<std::uint16_t>(
+                "bearing_after");
+        if (!bearing_after) {
+          bearing_after =
+              source.get_optional<std::uint16_t>(
+                  "end_heading");
+        }
+        if (bearing_after &&
+            *bearing_after <= 359U) {
           maneuver.bearing_after_deg =
               *bearing_after;
         }

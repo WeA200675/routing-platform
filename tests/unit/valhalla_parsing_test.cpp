@@ -42,6 +42,21 @@ int main() {
     return fail("Valhalla type 15 should map to TurnLeft.");
   }
 
+  if (map_maneuver_type(12) != ManeuverType::UTurn ||
+      map_maneuver_type(13) != ManeuverType::UTurn) {
+    return fail("Valhalla U-turn types 12 and 13 should map to UTurn.");
+  }
+
+  if (map_maneuver_type(18) != ManeuverType::TurnRight ||
+      map_maneuver_type(19) != ManeuverType::TurnLeft) {
+    return fail("Valhalla ramp types must preserve their side.");
+  }
+
+  if (map_maneuver_type(20) != ManeuverType::Exit ||
+      map_maneuver_type(21) != ManeuverType::Exit) {
+    return fail("Valhalla exit types 20 and 21 should map to Exit.");
+  }
+
   if (map_maneuver_type(25) != ManeuverType::Merge) {
     return fail("Valhalla type 25 should map to Merge.");
   }

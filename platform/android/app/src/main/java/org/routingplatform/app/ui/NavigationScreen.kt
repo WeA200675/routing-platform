@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -57,6 +58,7 @@ import org.routingplatform.app.navigation.NavigationFaultCode
 import org.routingplatform.app.navigation.NavigationFormatter
 import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
 import org.routingplatform.app.navigation.NavigationRouteFamily
+import org.routingplatform.app.navigation.NavigationRoutePreferenceLearningStore
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationTripPlan
 import org.routingplatform.app.navigation.NavigationTripStop
@@ -620,12 +622,15 @@ internal fun NavigationScreen(
                     .informationDensity
             )
 
+    var navigationDetailsExpanded by rememberSaveable(snapshot.sessionId) { mutableStateOf(false) }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val previewPanelMaxHeight = maxHeight * 0.62f
         val activePanelMaxHeight = if (snapshot.state == NavigationSessionState.Preview) {
             previewPanelMaxHeight
+        } else if (snapshot.state == NavigationSessionState.Navigating) {
+            if (navigationDetailsExpanded) 190.dp else 100.dp
         } else {
-            164.dp
+            100.dp
         }
         Column(
             modifier =
@@ -905,58 +910,108 @@ internal fun NavigationScreen(
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
                                     )
+                                    val maneuverNeedsLaneGuidance =
+                                        snapshot.currentManeuver?.type?.let { type ->
+                                            type in setOf(
+                                                org.routingplatform.app.navigation.ManeuverType.Exit,
+                                                org.routingplatform.app.navigation.ManeuverType.Merge,
+                                                org.routingplatform.app.navigation.ManeuverType.TurnLeft,
+                                                org.routingplatform.app.navigation.ManeuverType.TurnRight,
+                                            )
+                                        } == true
                                     snapshot.currentManeuver?.destinationSign
                                         ?.takeIf(String::isNotBlank)
                                         ?.let { sign ->
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                                shape = MaterialTheme.shapes.small,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            ) {
+                                                Text(
+                                                    text = if (sign.startsWith("OSM-Kartenziel:")) {
+                                                        "🗺️ ${sign.removePrefix("OSM-Kartenziel:").trim()}"
+                                                    } else {
+                                                        "🪧 $sign"
+                                                    },
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                )
+                                            }
+                                        }
+                                    if (maneuverNeedsLaneGuidance && snapshot.currentManeuver?.destinationSign.isNullOrBlank()) {
+                                        Text(
+                                            "Schilddaten nicht verfügbar · bitte der Beschilderung folgen",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    snapshot.routeDiagnostics
+                                        .firstOrNull { it.code.startsWith("online_maneuver_data_osm_") }
+                                        ?.let { diagnostic ->
                                             Text(
-                                                text = "Schild: $sign",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontWeight = FontWeight.SemiBold,
+                                                text = diagnostic.message,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 2,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                             )
                                         }
+                                    if (
+                                        maneuverNeedsLaneGuidance &&
+                                        snapshot.currentManeuver?.laneIndications.isNullOrEmpty()
+                                    ) {
+                                        Text(
+                                            "Spurdaten nicht verfügbar · Beschilderung vor Ort beachten",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                     snapshot.currentManeuver?.laneIndications
                                         ?.takeIf { it.isNotEmpty() }
                                         ?.let { lanes ->
                                             Column {
                                                 Text(
-                                                    text = "Spurhinweise",
+                                                    text = "Spuren für die nächste Aktion",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold,
                                                 )
                                                 Row(
+                                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
                                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                                     verticalAlignment = Alignment.CenterVertically,
                                                 ) {
                                                     lanes.forEachIndexed { laneIndex, indication ->
-                                                        val routeValid = indication.contains("✓")
+                                                        val routeActive = indication.contains("★")
+                                                        val routeValid = indication.contains("✓") || routeActive
                                                         Surface(
-                                                            color = if (routeValid) {
-                                                                MaterialTheme.colorScheme.primaryContainer
-                                                            } else {
-                                                                MaterialTheme.colorScheme.surfaceVariant
+                                                            color = when {
+                                                                routeActive -> MaterialTheme.colorScheme.primaryContainer
+                                                                routeValid -> MaterialTheme.colorScheme.secondaryContainer
+                                                                else -> MaterialTheme.colorScheme.surfaceVariant
                                                             },
                                                             shape = MaterialTheme.shapes.small,
                                                             border = if (routeValid) {
                                                                 androidx.compose.foundation.BorderStroke(
-                                                                    1.dp,
-                                                                    MaterialTheme.colorScheme.primary,
+                                                                    if (routeActive) 2.dp else 1.dp,
+                                                                    if (routeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                                                                 )
                                                             } else {
                                                                 null
                                                             },
                                                         ) {
                                                             Text(
-                                                                text = indication.replace("✓", "").trim(),
+                                                                text = indication.replace("✓", "").replace("★", "●").trim(),
                                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                                                     .semantics {
-                                                                        contentDescription = if (routeValid) {
-                                                                            "Spur ${laneIndex + 1}, laut Routing für das Manöver geeignet"
-                                                                        } else {
-                                                                            "Spur ${laneIndex + 1}"
+                                                                        contentDescription = when {
+                                                                            routeActive -> "Spur ${laneIndex + 1}, bevorzugte Spur für das Manöver"
+                                                                            routeValid -> "Spur ${laneIndex + 1}, für das Manöver geeignet"
+                                                                            else -> "Spur ${laneIndex + 1}, Richtung laut Karte; Eignung nicht bestätigt"
                                                                         }
                                                                     },
                                                                 style = MaterialTheme.typography.titleMedium,
-                                                                fontWeight = if (routeValid) FontWeight.Bold else FontWeight.Normal,
+                                                                fontWeight = if (routeActive || routeValid) FontWeight.Bold else FontWeight.Normal,
                                                             )
                                                         }
                                                     }
@@ -990,7 +1045,7 @@ internal fun NavigationScreen(
                         .padding(if (snapshot.state == NavigationSessionState.Navigating) 8.dp else 18.dp)
                         .let { base ->
                             if (snapshot.state == NavigationSessionState.Navigating) {
-                                base.heightIn(max = 164.dp)
+                                base.heightIn(max = activePanelMaxHeight)
                             } else {
                                 base
                             }
@@ -1043,6 +1098,29 @@ internal fun NavigationScreen(
                     }
                 }
 
+                if (snapshot.state == NavigationSessionState.Navigating) {
+                    TextButton(
+                        onClick = { navigationDetailsExpanded = !navigationDetailsExpanded },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(26.dp)
+                            .semantics {
+                                contentDescription = if (navigationDetailsExpanded) {
+                                    "Navigationsdetails einklappen"
+                                } else {
+                                    "Navigationsdetails anzeigen"
+                                }
+                            },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    ) {
+                        Text(
+                            if (navigationDetailsExpanded) "⌄" else "⌃",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                if (snapshot.state != NavigationSessionState.Navigating || navigationDetailsExpanded) {
                 if (snapshot.state == NavigationSessionState.Navigating && !navigationRuntimeRecoveryMessage.isNullOrBlank()) {
                     Text(
                         text = navigationRuntimeRecoveryMessage,
@@ -1255,6 +1333,50 @@ internal fun NavigationScreen(
 
                 Spacer(Modifier.height(if (snapshot.state == NavigationSessionState.Navigating) 6.dp else 16.dp))
 
+                val aiRouteFamily = snapshot.routeDiagnostics
+                    .firstOrNull { it.code.startsWith("on_device_ai_route_family_") }
+                    ?.code
+                    ?.removePrefix("on_device_ai_route_family_")
+                    ?.let { runCatching { NavigationRouteFamily.valueOf(it) }.getOrNull() }
+                var routeFeedbackSubmitted by rememberSaveable(snapshot.routeId) { mutableStateOf(false) }
+                if (snapshot.state == NavigationSessionState.Preview && aiRouteFamily != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                if (routeFeedbackSubmitted) "Danke — deine Bewertung wurde lokal gespeichert."
+                                else "Hilft dir diese KI-Routenwahl? Deine Rückmeldung bleibt auf diesem Handy.",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            if (!routeFeedbackSubmitted) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            NavigationRoutePreferenceLearningStore.record(context, aiRouteFamily, accepted = true)
+                                            routeFeedbackSubmitted = true
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Passt") }
+                                    OutlinedButton(
+                                        onClick = {
+                                            NavigationRoutePreferenceLearningStore.record(context, aiRouteFamily, accepted = false)
+                                            routeFeedbackSubmitted = true
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Nicht passend") }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
+
+                }
+
                 val navigationControl =
                     NavigationControlPresentation
                         .create(
@@ -1272,6 +1394,8 @@ internal fun NavigationScreen(
                 NavigationPrimaryControl(
                     presentation =
                         navigationControl,
+
+                    compact = snapshot.state == NavigationSessionState.Navigating && !navigationDetailsExpanded,
 
                     viaPointEnabled =
                         !destinationPlannerBusy,
@@ -1366,6 +1490,19 @@ internal fun NavigationScreen(
                                     "▸ Einstellungen anzeigen"
                                 }
                             )
+                        }
+
+                        OutlinedButton(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("local_ai_training_center_open"),
+                            onClick = {
+                                context.startActivity(
+                                    Intent(context, org.routingplatform.app.ai.AiTrainingCenterActivity::class.java)
+                                )
+                            },
+                        ) {
+                            Text("KI-Trainingscenter öffnen")
                         }
 
                         if (BuildConfig.DEBUG) {
@@ -3197,6 +3334,8 @@ private fun NavigationPrimaryControl(
     presentation:
         NavigationControlPresentation,
 
+    compact: Boolean = false,
+
     viaPointEnabled:
         Boolean,
 
@@ -3255,10 +3394,17 @@ private fun NavigationPrimaryControl(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .heightIn(min = if (compact) 36.dp else 48.dp)
                         .testTag(
                             NavigationUiTestTags
                                 .PrimaryAction
                         ),
+
+                contentPadding = if (compact) {
+                    androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                } else {
+                    androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                },
 
                 enabled =
                     presentation.enabled,
@@ -3288,7 +3434,9 @@ private fun NavigationPrimaryControl(
                     onPrimaryAction,
             ) {
                 Text(
-                    presentation.label
+                    if (compact && presentation.destructive) "Stoppen" else presentation.label,
+                    style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
                 )
             }
 
