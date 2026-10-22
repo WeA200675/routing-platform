@@ -306,7 +306,7 @@ internal object AiTrainingStore {
                         message = "Der Auftrag wurde durch eine neue Reihe ersetzt; bisherige Ergebnisse sind archiviert.",
                     )
                 } else previous
-                val history = (sessionHistory(context).filterNot { it.id == archivedPrevious.id } + archivedPrevious).takeLast(100)
+                val history = (sessionHistory(context).filterNot { it.id == archivedPrevious.id } + archivedPrevious).takeLast(200)
                 val rows = JSONArray()
                 history.forEach { rows.put(encodeSession(it)) }
                 editor.putString(KEY_SESSION_HISTORY, rows.toString())
@@ -341,7 +341,7 @@ internal object AiTrainingStore {
                 put("recordedAt", result.recordedAt)
             })
             val bounded = JSONArray()
-            for (index in (rows.length() - 10000).coerceAtLeast(0) until rows.length()) bounded.put(rows.getJSONObject(index))
+            for (index in (rows.length() - 20000).coerceAtLeast(0) until rows.length()) bounded.put(rows.getJSONObject(index))
             preferences.edit().putString(KEY_RESULTS, bounded.toString()).apply()
         }
     }
