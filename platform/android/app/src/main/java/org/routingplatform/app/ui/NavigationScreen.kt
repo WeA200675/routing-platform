@@ -653,6 +653,39 @@ internal fun NavigationScreen(
                         FontWeight.SemiBold,
                 )
 
+                snapshot.currentManeuver
+                    ?.destinationSign
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { sign ->
+                        Text(
+                            text = "Schild: $sign",
+                            style =
+                                MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier =
+                                Modifier.testTag(
+                                    "navigation.guidance.destination_sign"
+                                ),
+                        )
+                    }
+
+                snapshot.currentManeuver
+                    ?.laneIndications
+                    ?.filter { it.isNotBlank() }
+                    ?.distinct()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { lanes ->
+                        Text(
+                            text = "Führung: " + lanes.joinToString(" · "),
+                            style =
+                                MaterialTheme.typography.bodyMedium,
+                            modifier =
+                                Modifier.testTag(
+                                    "navigation.guidance.lane_indications"
+                                ),
+                        )
+                    }
+
                 Spacer(
                     modifier =
                         Modifier.height(12.dp)
