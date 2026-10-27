@@ -72,6 +72,27 @@ object AndroidNavigationRouteContractJson {
                             "streetNames"
                         )
 
+                    val destinationSign =
+                        source.optString(
+                            "destinationSign",
+                            "",
+                        ).takeIf {
+                            it.isNotBlank()
+                        }
+
+                    val laneIndications =
+                        source.optJSONArray(
+                            "laneIndications"
+                        )?.let { values ->
+                            buildList {
+                                for (laneIndex in 0 until values.length()) {
+                                    values.optString(laneIndex)
+                                        .takeIf { it.isNotBlank() }
+                                        ?.let(::add)
+                                }
+                            }
+                        }.orEmpty()
+
                     val streetNames =
                         buildList {
                             for (
@@ -103,6 +124,12 @@ object AndroidNavigationRouteContractJson {
 
                             streetNames =
                                 streetNames,
+
+                            destinationSign =
+                                destinationSign,
+
+                            laneIndications =
+                                laneIndications,
 
                             distanceM =
                                 source.getDouble(
