@@ -16,6 +16,7 @@ data class NavigationTrainingExample(
 data class NavigationTrainingMetrics(
     val processedCases: Int = 0,
     val passedCases: Int = 0,
+    val positiveRuns: Int = 0,
     val failedCases: Int = 0,
     val improveableFailures: Int = 0,
     val capacityLimitCases: Int = 0,
@@ -48,6 +49,10 @@ data class NavigationTrainingMetrics(
             if (processedCases == 0) 0.0
             else passedCases.toDouble() / processedCases.toDouble()
 
+    val responseLengthTier: NavigationResponseLengthTier
+        get() =
+            NavigationResponseLengthTier.fromPositiveRuns(positiveRuns)
+
     val learnableRate: Double
         get() =
             if (failedCases == 0) 0.0
@@ -71,6 +76,7 @@ data class NavigationTrainingMetrics(
         return copy(
             processedCases = processedCases + 1,
             passedCases = passedCases + if (passed) 1 else 0,
+            positiveRuns = if (passed) positiveRuns + 1 else positiveRuns,
             failedCases = failedCases + if (passed) 0 else 1,
             improveableFailures =
                 improveableFailures +
