@@ -51,6 +51,10 @@ struct RouteManeuver {
 
   std::vector<std::string> street_names;
 
+  // Sign and lane guidance supplied by the routing backend.
+  std::string destination_sign;
+  std::vector<std::string> lane_indications;
+
   double distance_m = 0.0;
   double duration_s = 0.0;
 
