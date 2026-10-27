@@ -50,7 +50,10 @@ internal fun NavigationTrainingMetricsPanel(
                 text =
                     "Kapazitätsgrenze: " +
                         metrics.capacityLimitCases +
-                        " Fälle",
+                        " · Zur Nachbearbeitung: " +
+                        metrics.deferredCases +
+                        " · Wieder eingeplant: " +
+                        metrics.recoveredCases,
                 style = MaterialTheme.typography.bodySmall,
             )
         }
