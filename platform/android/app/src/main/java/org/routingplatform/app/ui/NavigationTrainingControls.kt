@@ -18,6 +18,7 @@ internal fun NavigationTrainingControls(
     mode: NavigationTrainingMode,
     onTrainingModeChanged: (NavigationTrainingMode) -> Unit,
     onIncident: (NavigationIncidentTrigger) -> Unit,
+    onOpenDashboard: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -64,5 +65,11 @@ internal fun NavigationTrainingControls(
         ) {
             Text("Abbruch")
         }
+    }
+
+    androidx.compose.material3.TextButton(
+        onClick = onOpenDashboard,
+    ) {
+        Text("Details")
     }
 }
