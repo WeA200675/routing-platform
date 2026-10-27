@@ -169,6 +169,10 @@ kMaximumStreetNamesPerManeuver =
     1'000U;
 
 constexpr std::uint32_t
+kMaximumLaneIndicationsPerManeuver =
+    1'000U;
+
+constexpr std::uint32_t
 kMaximumDiagnosticCount =
     10'000U;
 
@@ -567,6 +571,25 @@ decode_native_route_payload(
         read_optional_engine_type(
             reader);
 
+    if (reader.read_bool()) {
+      maneuver.destination_sign =
+          reader.read_string();
+    }
+
+    const auto lane_count =
+        reader.read_count(
+            kMaximumLaneIndicationsPerManeuver,
+            "lane indications");
+
+    maneuver.lane_indications.reserve(
+        lane_count);
+
+    for (std::size_t lane_index = 0U;
+         lane_index < lane_count;
+         ++lane_index) {
+      maneuver.lane_indications.push_back(
+          reader.read_string());
+    }
 
     route.maneuvers.push_back(
         std::move(
