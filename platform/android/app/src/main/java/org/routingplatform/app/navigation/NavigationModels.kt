@@ -108,6 +108,9 @@ data class NavigationUiSnapshot(
     val routeDiagnostics:
         List<NavigationRouteDiagnostic> =
         emptyList(),
+
+    // Optional filtered travel speed, used only to scale early voice lookahead.
+    val currentSpeedMps: Double? = null,
 ) {
     init {
         require(schemaVersion == 1) {
