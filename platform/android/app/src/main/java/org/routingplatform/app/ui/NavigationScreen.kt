@@ -45,6 +45,8 @@ import org.routingplatform.app.navigation.NavigationRouteAcquisitionState
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationTripPlan
 import org.routingplatform.app.navigation.NavigationTripStop
+import org.routingplatform.app.navigation.NavigationIncidentTrigger
+import org.routingplatform.app.navigation.NavigationTrainingMode
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.places.DestinationSearchResult
@@ -68,6 +70,10 @@ internal fun NavigationScreen(
     onStartNavigation: () -> Unit,
     onStopNavigation: () -> Unit,
     onAdvanceProgress: () -> Unit,
+
+    trainingMode: NavigationTrainingMode = NavigationTrainingMode(),
+    onTrainingModeChanged: (NavigationTrainingMode) -> Unit = {},
+    onNavigationIncident: (NavigationIncidentTrigger) -> Unit = {},
 
     navigationStartEnabled:
         Boolean =
@@ -759,6 +765,17 @@ internal fun NavigationScreen(
                             navigationStartEnabled =
                                 navigationStartEnabled,
                         )
+
+                NavigationTrainingControls(
+                    mode = trainingMode,
+                    onTrainingModeChanged = onTrainingModeChanged,
+                    onIncident = onNavigationIncident,
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.height(8.dp)
+                )
 
                 NavigationPrimaryControl(
                     presentation =
