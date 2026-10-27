@@ -35,7 +35,13 @@ internal fun NavigationTrainingMetricsPanel(
         )
         Text(
             text =
-                "Trefferquote " +
+                "Positive Läufe " +
+                    metrics.positiveRuns +
+                    " · Stufe " +
+                    metrics.responseLengthTier.label +
+                    " (" +
+                    metrics.responseLengthTier.maximumResponseTokens +
+                    " Token) · Trefferquote " +
                     percent(metrics.passRate) +
                     " · Lernpotenzial " +
                     percent(metrics.learnableRate) +
