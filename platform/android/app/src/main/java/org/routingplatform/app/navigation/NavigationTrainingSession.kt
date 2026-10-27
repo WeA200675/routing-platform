@@ -68,6 +68,13 @@ class NavigationTrainingSession {
         val run =
             deferredCases.recover(normalize)
         lastRecoveryRun = run
+        if (run != null) {
+            metrics =
+                metrics.recordRecovery(
+                    recovered = run.requeuedCount,
+                    remainingDeferred = deferredCases.size(),
+                )
+        }
         return run
     }
 
