@@ -163,6 +163,51 @@ routing::core::RoutePath parse_trip(
           }
         }
 
+        // Preserve real Valhalla signage instead of reducing it to a
+        // generic turn instruction.
+        if (const auto sign =
+                source.get_child_optional("sign")) {
+          const auto append_sign =
+              [&](const char* key) {
+                if (const auto value =
+                        sign->get_optional<std::string>(key)) {
+                  if (!value->empty()) {
+                    if (!maneuver.destination_sign.empty()) {
+                      maneuver.destination_sign += " · ";
+                    }
+                    maneuver.destination_sign += *value;
+                  }
+                }
+              };
+
+          append_sign("exit_number");
+          append_sign("exit_branch");
+          append_sign("exit_toward");
+          append_sign("exit_name");
+
+          if (const auto branches =
+                  sign->get_child_optional("branch_roads")) {
+            for (const auto& entry : *branches) {
+              const auto value =
+                  entry.second.get_value<std::string>();
+              if (!value.empty()) {
+                maneuver.lane_indications.push_back(value);
+              }
+            }
+          }
+
+          if (const auto toward =
+                  sign->get_child_optional("toward_locations")) {
+            for (const auto& entry : *toward) {
+              const auto value =
+                  entry.second.get_value<std::string>();
+              if (!value.empty()) {
+                maneuver.lane_indications.push_back(value);
+              }
+            }
+          }
+        }
+
         path.maneuvers.push_back(
             std::move(maneuver));
       }
