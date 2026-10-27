@@ -35,6 +35,14 @@ data class NavigationManeuver(
         List<String> =
         emptyList(),
 
+    val destinationSign:
+        String? =
+        null,
+
+    val laneIndications:
+        List<String> =
+        emptyList(),
+
     val beginShapeIndex:
         Int? =
         null,
