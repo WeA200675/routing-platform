@@ -1,6 +1,12 @@
 package org.routingplatform.app.navigation
 
 class NavigationTrainingSession {
+    private val deferredCases =
+        NavigationDeferredTrainingQueue()
+
+    var lastRecoveryRun: NavigationRecoveryRun? = null
+        private set
+
     var metrics: NavigationTrainingMetrics =
         NavigationTrainingMetrics()
         private set
@@ -45,9 +51,24 @@ class NavigationTrainingSession {
             )
     }
 
-    fun recordCapacityLimit() {
+    fun recordCapacityLimit(
+        case: NavigationDeferredTrainingCase,
+    ) {
+        deferredCases.defer(case)
         metrics =
             metrics.recordCapacityLimit()
+    }
+
+    fun deferredCaseCount(): Int =
+        deferredCases.size()
+
+    fun recoverDeferredCases(
+        normalize: (String) -> List<String>,
+    ): NavigationRecoveryRun? {
+        val run =
+            deferredCases.recover(normalize)
+        lastRecoveryRun = run
+        return run
     }
 
     fun reset() {
