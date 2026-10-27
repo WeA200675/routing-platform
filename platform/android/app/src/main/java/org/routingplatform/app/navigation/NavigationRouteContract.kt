@@ -39,6 +39,8 @@ data class NavigationRouteContractManeuver(
     val type: ManeuverType,
     val instruction: String,
     val streetNames: List<String>,
+    val destinationSign: String?,
+    val laneIndications: List<String>,
     val distanceM: Double,
     val durationS: Double,
     val beginShapeIndex: Int,
@@ -283,6 +285,28 @@ object NavigationRouteNativeCodec {
 
                     data.writeRouteString(
                         streetName
+                    )
+                }
+
+                data.writeBoolean(
+                    maneuver.destinationSign != null
+                )
+
+                if (maneuver.destinationSign != null) {
+                    data.writeRouteString(
+                        maneuver.destinationSign
+                    )
+                }
+
+                data.writeInt(
+                    maneuver.laneIndications.size
+                )
+
+                maneuver.laneIndications.forEach {
+                        indication ->
+
+                    data.writeRouteString(
+                        indication
                     )
                 }
 
