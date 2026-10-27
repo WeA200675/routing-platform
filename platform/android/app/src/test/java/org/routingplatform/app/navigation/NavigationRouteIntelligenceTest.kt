@@ -605,6 +605,36 @@ class NavigationRouteIntelligenceTest {
         assertEquals("W", info.oppositeCardinalDirection)
     }
 
+
+    @Test
+    fun shortGeometryDoesNotClaimACompassDirection() {
+        val info =
+            NavigationStartOrientationEngine(
+                minimumBearingBaselineM = 20.0
+            ).calculate(
+                listOf(
+                    RoutePoint(52.0, 13.0),
+                    RoutePoint(52.00001, 13.0),
+                ),
+                roadContext =
+                    NavigationStartRoadContext(
+                        routeRoadName = "B2",
+                        routeRoadRef = "B2",
+                        routeDirectionLabel = "Nord",
+                        oppositeRoadName = "B2",
+                        oppositeRoadRef = "B2",
+                        oppositeDirectionLabel = "Süd",
+                    ),
+            )
+
+        assertEquals(
+            NavigationStartOrientationConfidence.Unknown,
+            info.confidence,
+        )
+        assertEquals(null, info.routeDirectionLabel)
+        assertEquals(null, info.oppositeDirectionLabel)
+    }
+
     private fun parallelRoute():
         List<RoutePoint> =
         listOf(
