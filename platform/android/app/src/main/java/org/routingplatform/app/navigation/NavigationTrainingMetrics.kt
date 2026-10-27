@@ -19,6 +19,8 @@ data class NavigationTrainingMetrics(
     val failedCases: Int = 0,
     val improveableFailures: Int = 0,
     val capacityLimitCases: Int = 0,
+    val deferredCases: Int = 0,
+    val recoveredCases: Int = 0,
     val averageProcessingMs: Double = 0.0,
     val learnedCapabilities: Set<String> =
         setOf(
@@ -85,7 +87,19 @@ data class NavigationTrainingMetrics(
     }
 
     fun recordCapacityLimit(): NavigationTrainingMetrics =
-        copy(capacityLimitCases = capacityLimitCases + 1)
+        copy(
+            capacityLimitCases = capacityLimitCases + 1,
+            deferredCases = deferredCases + 1,
+        )
+
+    fun recordRecovery(
+        recovered: Int,
+        remainingDeferred: Int,
+    ): NavigationTrainingMetrics =
+        copy(
+            recoveredCases = recoveredCases + recovered,
+            deferredCases = remainingDeferred,
+        )
 
     companion object {
         private const val MAX_FAILURES = 8
