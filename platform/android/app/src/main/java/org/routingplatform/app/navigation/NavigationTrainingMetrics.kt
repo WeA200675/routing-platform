@@ -20,9 +20,26 @@ data class NavigationTrainingMetrics(
     val improveableFailures: Int = 0,
     val capacityLimitCases: Int = 0,
     val averageProcessingMs: Double = 0.0,
-    val learnedCapabilities: Set<String> = emptySet(),
+    val learnedCapabilities: Set<String> =
+        setOf(
+            "GPS-Plausibilität",
+            "Richtungsprüfung",
+            "Ansagezeitpunkt",
+        ),
     val recentFailures: List<NavigationTrainingFailure> = emptyList(),
-    val examples: List<NavigationTrainingExample> = emptyList(),
+    val examples: List<NavigationTrainingExample> =
+        listOf(
+            NavigationTrainingExample(
+                "GPS-Sprung",
+                "großer Positionssprung bei kurzer Zeit",
+                "Messpunkt zurückhalten",
+            ),
+            NavigationTrainingExample(
+                "Abbiegung",
+                "Bearing passt nicht zur Route",
+                "Richtung unsicher markieren",
+            ),
+        ),
 ) {
     val passRate: Double
         get() =
