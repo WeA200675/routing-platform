@@ -564,6 +564,47 @@ class NavigationRouteIntelligenceTest {
         )
     }
 
+
+    @Test
+    fun bearingAtNorthSouthBoundaryUsesCircularDifference() {
+        val matcher = NavigationMultiHypothesisRouteMatcher()
+        val result = matcher.match(
+            route = listOf(
+                RoutePoint(0.0, 0.0),
+                RoutePoint(0.001, 0.0),
+                RoutePoint(0.002, 0.0),
+            ),
+            estimate = estimate(
+                latitude = 0.0005,
+                longitude = 0.0,
+                bearing = 359.0,
+                timestamp = 1_000_000_000L,
+            ),
+        )
+
+        assertEquals(
+            0.0,
+            checkNotNull(result.best).headingDeltaDegrees ?: -1.0,
+            0.001,
+        )
+    }
+
+    @Test
+    fun shortInitialZigzagDoesNotFlipStartDirection() {
+        val engine = NavigationStartOrientationEngine()
+        val info = engine.calculate(
+            listOf(
+                RoutePoint(52.0, 13.0),
+                RoutePoint(52.00001, 13.0),
+                RoutePoint(52.00001, 13.00001),
+                RoutePoint(52.00001, 13.001),
+            )
+        )
+
+        assertEquals("E", info.routeCardinalDirection)
+        assertEquals("W", info.oppositeCardinalDirection)
+    }
+
     private fun parallelRoute():
         List<RoutePoint> =
         listOf(
