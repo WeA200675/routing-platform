@@ -174,6 +174,11 @@ class NavigationStartOrientationEngine(
                 }
                 ?: false
 
+        val effectiveRoadContext =
+            roadContext.takeIf {
+                hasReliableBaseline
+            }
+
         return NavigationStartOrientationInfo(
             routeBearingDegrees =
                 routeBearing,
@@ -192,25 +197,25 @@ class NavigationStartOrientationEngine(
                 ),
 
             routeRoadName =
-                roadContext?.routeRoadName,
+                effectiveRoadContext?.routeRoadName,
 
             routeRoadRef =
-                roadContext?.routeRoadRef,
+                effectiveRoadContext?.routeRoadRef,
 
             routeDirectionLabel =
-                roadContext
+                effectiveRoadContext
                     ?.routeDirectionLabel,
 
             oppositeRoadName =
-                roadContext
+                effectiveRoadContext
                     ?.oppositeRoadName,
 
             oppositeRoadRef =
-                roadContext
+                effectiveRoadContext
                     ?.oppositeRoadRef,
 
             oppositeDirectionLabel =
-                roadContext
+                effectiveRoadContext
                     ?.oppositeDirectionLabel,
 
             confidence =
