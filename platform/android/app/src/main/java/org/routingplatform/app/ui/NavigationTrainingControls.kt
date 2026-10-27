@@ -8,6 +8,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import org.routingplatform.app.navigation.NavigationIncidentTrigger
 import org.routingplatform.app.navigation.NavigationTrainingMode
 import org.routingplatform.app.navigation.NavigationTrainingPurpose
@@ -22,7 +23,7 @@ internal fun NavigationTrainingControls(
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(
-            androidx.compose.ui.unit.dp(8),
+            8.dp,
         ),
     ) {
         Button(
