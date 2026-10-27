@@ -390,6 +390,105 @@ class NavigationVoicePresentationTest {
         )
     }
 
+
+    @Test
+    fun earlyCueIsSuppressedBeyondActionableDistanceAtSpeed() {
+        assertNull(
+            NavigationVoicePresentation.cue(
+                snapshot = snapshot(
+                    distanceMeters = 500.0,
+                    speedMps = 25.0,
+                ),
+                voice = voice(
+                    verbosity = VoiceGuidanceVerbosity.Detailed,
+                ),
+            )
+        )
+    }
+
+    @Test
+    fun earlyCueUsesSpeedScaledTravelWindow() {
+        assertEquals(
+            NavigationVoiceCueStage.Early,
+            NavigationVoicePresentation.cue(
+                snapshot = snapshot(
+                    distanceMeters = 250.0,
+                    speedMps = 15.0,
+                ),
+                voice = voice(
+                    verbosity = VoiceGuidanceVerbosity.Detailed,
+                ),
+            )?.key?.stage,
+        )
+        assertNull(
+            NavigationVoicePresentation.cue(
+                snapshot = snapshot(
+                    distanceMeters = 310.0,
+                    speedMps = 15.0,
+                ),
+                voice = voice(
+                    verbosity = VoiceGuidanceVerbosity.Detailed,
+                ),
+            )
+        )
+    }
+
+    @Test
+    fun missingSpeedUsesPrepareWindowAndDoesNotEmitPrematureEarlyCue() {
+        assertNull(
+            NavigationVoicePresentation.cue(
+                snapshot = snapshot(
+                    distanceMeters = 300.0,
+                    speedMps = null,
+                ),
+                voice = voice(
+                    verbosity = VoiceGuidanceVerbosity.Detailed,
+                ),
+            )
+        )
+        assertEquals(
+            NavigationVoiceCueStage.Prepare,
+            NavigationVoicePresentation.cue(
+                snapshot = snapshot(
+                    distanceMeters = 180.0,
+                    speedMps = null,
+                ),
+                voice = voice(
+                    verbosity = VoiceGuidanceVerbosity.Detailed,
+                ),
+            )?.key?.stage,
+        )
+    }
+
+    @Test
+    fun nextManeuverIsNotAnnouncedWhileCurrentManeuverIsActive() {
+        val nextTurn =
+            NavigationManeuver(
+                type = ManeuverType.TurnLeft,
+                instruction = "In 20 Metern links abbiegen",
+                distanceM = 20.0,
+                durationS = 3.0,
+                beginShapeIndex = 1,
+                endShapeIndex = 2,
+            )
+        val active =
+            snapshot(
+                distanceMeters = 420.0,
+                maneuverType = ManeuverType.TurnRight,
+                instruction = "In 420 Metern rechts abbiegen",
+            ).copy(nextManeuver = nextTurn)
+
+        assertEquals(
+            "In 420 Metern rechts abbiegen",
+            NavigationVoicePresentation.cue(
+                snapshot = active,
+                voice = voice(
+                    verbosity = VoiceGuidanceVerbosity.Detailed,
+                ),
+            )?.text,
+        )
+    }
+
     private fun cue(
         distanceMeters:
             Double,
@@ -448,6 +547,10 @@ class NavigationVoicePresentationTest {
         maneuverType:
             ManeuverType =
             ManeuverType.TurnRight,
+
+        speedMps:
+            Double? =
+            null,
     ): NavigationUiSnapshot =
         NavigationUiSnapshot(
             sessionId =
@@ -522,6 +625,9 @@ class NavigationVoicePresentationTest {
 
             arrived =
                 arrived,
+
+            currentSpeedMps =
+                speedMps,
         )
 
     @Test
