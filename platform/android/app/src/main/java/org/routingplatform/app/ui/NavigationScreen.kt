@@ -281,6 +281,11 @@ internal fun NavigationScreen(
         (Int) -> Unit =
         {},
 ) {
+    var trainingDashboardOpen by
+        remember {
+            mutableStateOf(false)
+        }
+
     var plannerOpen by
         remember {
             mutableStateOf(
@@ -370,6 +375,15 @@ internal fun NavigationScreen(
                 ""
             )
         }
+
+    if (trainingDashboardOpen) {
+        NavigationTrainingDashboardDialog(
+            metrics = trainingMetrics,
+            onDismiss = {
+                trainingDashboardOpen = false
+            },
+        )
+    }
 
     val focusMode =
         rememberNavigationFocusMode(
@@ -805,6 +819,9 @@ internal fun NavigationScreen(
                     mode = trainingMode,
                     onTrainingModeChanged = onTrainingModeChanged,
                     onIncident = onNavigationIncident,
+                    onOpenDashboard = {
+                        trainingDashboardOpen = true
+                    },
                 )
 
                 if (trainingMode.active) {
