@@ -93,13 +93,10 @@ class NavigationStartOrientationEngine(
             route.size >= 2
         )
 
-        val start =
-            route.first()
+        var eastMeters =
+            0.0
 
-        var target =
-            route[1]
-
-        var accumulatedDistance =
+        var northMeters =
             0.0
 
         for (
@@ -107,36 +104,59 @@ class NavigationStartOrientationEngine(
                 1 until route.size
         ) {
             val previous =
-                route[
-                    index -
-                        1
-                ]
+                route[index - 1]
 
             val current =
                 route[index]
 
-            accumulatedDistance +=
-                startOrientationDistanceMeters(
-                    previous,
-                    current,
-                )
+            val meanLatitudeRadians =
+                (
+                    previous.latitude +
+                        current.latitude
+                ) /
+                    2.0 *
+                    START_DEGREES_TO_RADIANS
 
-            target =
-                current
+            eastMeters +=
+                (
+                    current.longitude -
+                        previous.longitude
+                ) *
+                    START_DEGREES_TO_RADIANS *
+                    START_EARTH_RADIUS_M *
+                    cos(meanLatitudeRadians)
+
+            northMeters +=
+                (
+                    current.latitude -
+                        previous.latitude
+                ) *
+                    START_DEGREES_TO_RADIANS *
+                    START_EARTH_RADIUS_M
 
             if (
-                accumulatedDistance >=
+                sqrt(eastMeters * eastMeters + northMeters * northMeters) >=
                     minimumBearingBaselineM
             ) {
                 break
             }
         }
 
+        val baselineMeters =
+            sqrt(eastMeters * eastMeters + northMeters * northMeters)
+
+        val hasReliableBaseline =
+            baselineMeters >= minimumBearingBaselineM
+
         val routeBearing =
-            startOrientationBearingDegrees(
-                start,
-                target,
-            )
+            if (hasReliableBaseline) {
+                normalizeStartBearing(
+                    atan2(eastMeters, northMeters) *
+                        START_RADIANS_TO_DEGREES
+                )
+            } else {
+                0.0
+            }
 
         val oppositeBearing =
             normalizeStartBearing(
@@ -194,9 +214,9 @@ class NavigationStartOrientationEngine(
                     ?.oppositeDirectionLabel,
 
             confidence =
-                if (
-                    hasDirectionalMetadata
-                ) {
+                if (!hasReliableBaseline) {
+                    NavigationStartOrientationConfidence.Unknown
+                } else if (hasDirectionalMetadata) {
                     NavigationStartOrientationConfidence.High
                 } else {
                     NavigationStartOrientationConfidence.Medium
