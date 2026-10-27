@@ -65,6 +65,11 @@ data class NavigationTrainingMetrics(
         capability: String? = null,
         example: NavigationTrainingExample? = null,
     ): NavigationTrainingMetrics {
+        require(processingMs.isFinite() && processingMs >= 0.0)
+        require(failure == null || failure.testId.isNotBlank())
+        require(failure == null || failure.reason.isNotBlank())
+        require(failure == null || failure.nextAction.isNotBlank())
+
         val nextFailures =
             if (failure == null) recentFailures
             else (listOf(failure) + recentFailures).take(MAX_FAILURES)
