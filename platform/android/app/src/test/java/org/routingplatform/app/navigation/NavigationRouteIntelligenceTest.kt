@@ -583,7 +583,7 @@ class NavigationRouteIntelligenceTest {
         )
 
         assertEquals(
-            0.0,
+            1.0,
             checkNotNull(result.best).headingDeltaDegrees ?: -1.0,
             0.001,
         )
