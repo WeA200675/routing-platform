@@ -383,6 +383,8 @@ class NavigationVoicePlaybackRuntimeTest {
                 distanceMeters,
             arrived =
                 state == NavigationSessionState.Arrived,
+            currentSpeedMps =
+                20.0,
         )
 
     @Test
