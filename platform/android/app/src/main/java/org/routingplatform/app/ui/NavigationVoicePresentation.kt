@@ -116,7 +116,7 @@ internal object NavigationVoicePresentation {
                     (speedMps * 20.0).coerceAtMost(MAXIMUM_EARLY_DISTANCE_METERS),
                 )
             } else {
-                PREPARE_DISTANCE_METERS
+                EARLY_DISTANCE_METERS
             }
 
         return when {
