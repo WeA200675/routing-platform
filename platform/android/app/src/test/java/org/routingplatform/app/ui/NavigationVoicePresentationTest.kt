@@ -550,7 +550,7 @@ class NavigationVoicePresentationTest {
 
         speedMps:
             Double? =
-            null,
+            20.0,
     ): NavigationUiSnapshot =
         NavigationUiSnapshot(
             sessionId =
