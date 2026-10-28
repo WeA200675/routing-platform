@@ -1,3 +1,4 @@
+# Verification trigger: run the full Android test/lint/compile matrix on main.
 name: Android CI
 
 on:
