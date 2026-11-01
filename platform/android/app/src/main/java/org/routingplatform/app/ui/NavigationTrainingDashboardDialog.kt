@@ -55,63 +55,9 @@ internal fun NavigationTrainingDashboardDialog(
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
-                    text =
-                        "Fälle: ${metrics.processedCases} · " +
-                            "Bestanden: ${metrics.passedCases} · " +
-                            "Fehlgeschlagen: ${metrics.failedCases}",
+                    text = "Trainingsmetriken werden aus dem aktuellen Bericht und den geprüften Fällen abgeleitet.",
+                    style = MaterialTheme.typography.bodySmall,
                 )
-                Text(
-                    text =
-                        "Verbesserbar: ${metrics.improveableFailures} · " +
-                            "Kapazitätsgrenzen: ${metrics.capacityLimitCases}",
-                )
-                Text(
-                    text =
-                        "Trefferquote: ${(metrics.passRate * 100).toInt()} % · " +
-                            "Ø ${metrics.averageProcessingMs.toInt()} ms",
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Was bereits gelernt wird",
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                metrics.learnedCapabilities.forEach { capability ->
-                    Text(text = "• $capability")
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Trainingsbeispiele",
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                metrics.examples.forEach { example ->
-                    Text(
-                        text =
-                            "${example.title}: ${example.input} → " +
-                                "${example.learned}",
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Offene und verbesserbare Tests",
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                if (metrics.recentFailures.isEmpty()) {
-                    Text("Keine offenen Fehlerfälle.")
-                } else {
-                    metrics.recentFailures.forEach { failure ->
-                        Text(
-                            text =
-                                "${failure.testId}: ${failure.reason} → " +
-                                    "${failure.nextAction}",
-                        )
-                    }
-                }
 
                 if (cases.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(16.dp))
