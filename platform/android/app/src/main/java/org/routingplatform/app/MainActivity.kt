@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 41809)
-Total output lines: 3508
-
 package org.routingplatform.app
 
 import android.Manifest
