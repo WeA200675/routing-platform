@@ -147,6 +147,7 @@ internal object AiTrainingCaseReview {
     }.getOrNull()
 }
 
+// Build gate: comparator uses explicit names to remain stable across PR merges.
 internal object AiTrainingPrioritizer {
     fun nextCase(track: AiTrainingTrack, cases: List<TrainingCase>, allResults: List<AiTrainingResult>): TrainingCase {
         require(cases.isNotEmpty())
