@@ -117,6 +117,31 @@ data class NavigationTrainingResourceSnapshot(
     val cancelledBackgroundRuns: Int,
 )
 
+data class NavigationTrainingMetrics(
+    val processedCases: Int = 0,
+    val passedCases: Int = 0,
+    val failedCases: Int = 0,
+    val improveableFailures: Int = 0,
+    val capacityLimitCases: Int = 0,
+    val passRate: Double = 0.0,
+    val averageProcessingMs: Double = 0.0,
+    val learnedCapabilities: List<String> = emptyList(),
+    val examples: List<NavigationTrainingExample> = emptyList(),
+    val recentFailures: List<NavigationTrainingFailure> = emptyList(),
+)
+
+data class NavigationTrainingExample(
+    val title: String,
+    val input: String,
+    val learned: String,
+)
+
+data class NavigationTrainingFailure(
+    val testId: String,
+    val reason: String,
+    val nextAction: String,
+)
+
 data class NavigationTrainingDriftReport(
     val detected: Boolean,
     val affectedCategories: Set<String>,
