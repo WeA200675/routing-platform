@@ -152,16 +152,16 @@ internal object AiTrainingPrioritizer {
         require(cases.isNotEmpty())
         val results = allResults.filter { it.trackId == track.id }
         return cases.withIndex().maxWithOrNull(
-            compareBy<IndexedValue<TrainingCase>> { item ->
-                val recent = results.filter { it.caseLabel == item.value.label }.takeLast(12)
+            compareBy<IndexedValue<TrainingCase>> { indexedCase ->
+                val recent = results.filter { it.caseLabel == indexedCase.value.label }.takeLast(12)
                 if (recent.isEmpty()) 1.25
                 else {
                     val rate = recent.count { it.passed }.toDouble() / recent.size
                     (1.0 - rate) + if (recent.size < 4) 0.20 else 0.0
                 }
-            }.thenBy { item ->
-                -(results.lastOrNull { it.caseLabel == item.value.label }?.recordedAt ?: 0L)
-            }.thenBy { -item.index }
+            }.thenBy { indexedCase ->
+                -(results.lastOrNull { it.caseLabel == indexedCase.value.label }?.recordedAt ?: 0L)
+            }.thenBy { indexedCase -> -indexedCase.index }
         )!!.value
     }
 
@@ -362,6 +362,12 @@ internal object AiTrainingScheduler {
 
 class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(context, parameters) {
     override fun doWork(): Result {
+        runCatching {
+            SocialAiDevelopmentControlStore.from(applicationContext).requireAllowed(SocialAiOperation.Training)
+        }.getOrElse { error ->
+            AiTrainingStore.update(applicationContext) { it.copy(status = "Gestoppt", message = error.message ?: "KI-Training gestoppt.") }
+            return Result.failure()
+        }
         val sessionId = inputData.getString(AiTrainingScheduler.KEY_SESSION_ID) ?: return Result.failure()
         val track = AiTrainingTrack.fromId(inputData.getString(AiTrainingScheduler.KEY_TRACK_ID).orEmpty())
         val total = inputData.getInt(AiTrainingScheduler.KEY_TOTAL, 0).coerceIn(1, 1200)
