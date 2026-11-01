@@ -165,3 +165,8 @@ manuelle Freigabe innerhalb des Recovery-Laufs.
 Benutzerkontakt bleibt ausschließlich für die getrennte Änderungs- und
 Produktionsfreigabe relevant. Sofort-Stopp, App-Abbruch, Speicher-/Thermik-/Akku-
 Grenzen und die Sperre gegen stille Produktionsänderungen bleiben jederzeit wirksam.
+
+
+## Automatische Reparatur und Build-Gate
+
+Jeder Buildfehler wird automatisch vollständig analysiert: betroffene Funktion, Aufrufer, Datenmodelle, Tests und Fallbacks werden gemeinsam geprüft. Reparaturen gelten erst als abgeschlossen, wenn der komplette relevante Buildpfad erneut kompiliert und getestet wurde. Wiederholte Fehler erzeugen einen neuen Recovery-Trainingsfall; Sicherheits- und Produktionsänderungen bleiben freigabepflichtig.
