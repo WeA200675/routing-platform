@@ -19,14 +19,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import org.routingplatform.app.navigation.NavigationTrainingMetrics
 import org.routingplatform.app.navigation.NavigationTrainingReport
 import org.routingplatform.app.navigation.NavigationTrainingCase
 import org.routingplatform.app.navigation.NavigationTrainingReviewState
 
 @Composable
 internal fun NavigationTrainingDashboardDialog(
-    metrics: NavigationTrainingMetrics,
+    metrics: Any? = null,
     report: NavigationTrainingReport? = null,
     onDismiss: () -> Unit,
     onCaseReviewed: (NavigationTrainingCase, NavigationTrainingReviewState) -> Unit = { _, _ -> },
