@@ -29,10 +29,6 @@
             android:exported="false" />
 
         <activity
-            android:name=".OfflineRoutingSetupActivity"
-            android:exported="false" />
-
-        <activity
             android:name=".ai.AiTrainingCenterActivity"
             android:exported="false" />
 
