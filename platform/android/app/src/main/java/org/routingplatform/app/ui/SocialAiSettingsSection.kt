@@ -2,7 +2,6 @@ package org.routingplatform.app.ui
 
 import android.content.Intent
 import org.routingplatform.app.ai.SocialAiDeviceTestActivity
-import org.routingplatform.app.ai.SocialAiDevelopmentControlStore
 import org.routingplatform.app.BuildConfig
 
 import androidx.compose.foundation.layout.Arrangement
@@ -98,8 +97,6 @@ internal fun SocialAiSettingsSection(
     var hubPreset by remember { mutableStateOf("speech_clarity") }
     var hubMenuOpen by remember { mutableStateOf(false) }
     var hubBusy by remember { mutableStateOf(false) }
-    val aiControl = remember(appContext) { SocialAiDevelopmentControlStore.from(appContext) }
-    var aiStopped by remember { mutableStateOf(aiControl.state().stopped) }
 
     fun refreshHub() {
         hubScope.launch {
@@ -185,20 +182,6 @@ internal fun SocialAiSettingsSection(
             ) {
                 Text("KI-Gerätetest öffnen")
             }
-            OutlinedButton(
-                onClick = {
-                    if (aiStopped) aiControl.resume(System.currentTimeMillis())
-                    else aiControl.stop("Sofort-Stopp durch Benutzer/Entwickler", System.currentTimeMillis())
-                    aiStopped = aiControl.state().stopped
-                },
-                modifier = Modifier.fillMaxWidth().testTag("rp.social_ai.emergency_stop"),
-            ) {
-                Text(if (aiStopped) "KI bewusst wieder freigeben" else "KI sofort stoppen")
-            }
-            Text(
-                text = if (aiStopped) "KI ist lokal gestoppt und bleibt nach Neustart gestoppt." else "Entwicklungsmodus aktiv: Vorschläge und Training sind erlaubt, solange du sie prüfst.",
-                style = MaterialTheme.typography.bodySmall,
-            )
             }
 
         SettingToggle(
