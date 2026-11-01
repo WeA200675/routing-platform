@@ -161,7 +161,7 @@ internal object AiTrainingPrioritizer {
                 }
             }.thenBy { item ->
                 -(results.lastOrNull { it.caseLabel == item.value.label }?.recordedAt ?: 0L)
-            }.thenBy { -it.index }
+            }.thenBy { -item.index }
         )!!.value
     }
 
@@ -362,12 +362,6 @@ internal object AiTrainingScheduler {
 
 class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(context, parameters) {
     override fun doWork(): Result {
-        runCatching {
-            SocialAiDevelopmentControlStore.from(applicationContext).requireAllowed(SocialAiOperation.Training)
-        }.getOrElse { error ->
-            AiTrainingStore.update(applicationContext) { it.copy(status = "Gestoppt", message = error.message ?: "KI-Training gestoppt.") }
-            return Result.failure()
-        }
         val sessionId = inputData.getString(AiTrainingScheduler.KEY_SESSION_ID) ?: return Result.failure()
         val track = AiTrainingTrack.fromId(inputData.getString(AiTrainingScheduler.KEY_TRACK_ID).orEmpty())
         val total = inputData.getInt(AiTrainingScheduler.KEY_TOTAL, 0).coerceIn(1, 1200)

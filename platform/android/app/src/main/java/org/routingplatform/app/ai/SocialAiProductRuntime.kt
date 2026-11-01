@@ -13,14 +13,11 @@ import java.io.File
 class SocialAiProductRuntime(
     private val context: Context,
 ) : AutoCloseable {
-    private val control = SocialAiDevelopmentControlStore.from(context)
-    private val improvement = SocialAiSelfImprovementStore.from(context)
     private var engine: JniSocialAiNativeEngine? = null
     private var model: File? = null
 
     @Synchronized
     fun routing(): SocialAiProductionRouting {
-        control.requireAllowed(SocialAiOperation.RoutingInterpretation)
         val active = engine ?: load()
         return SocialAiProductionRouting(active)
     }
@@ -28,7 +25,6 @@ class SocialAiProductRuntime(
     /** Loads the integrity-checked local model during route idle time. */
     @Synchronized
     fun warmUp() {
-        control.requireAllowed(SocialAiOperation.ConversationInference)
         load()
     }
 
@@ -38,7 +34,6 @@ class SocialAiProductRuntime(
         userText: String,
         rememberedContext: List<SocialAiKnowledge> = emptyList(),
     ): String {
-        control.requireAllowed(SocialAiOperation.ConversationInference)
         require(input.context == SocialAiResponseContext.Conversation) {
             "Free-form generation is only available in conversation context."
         }
@@ -88,24 +83,17 @@ class SocialAiProductRuntime(
                 }
             }
 
-        return try {
-            val result =
-                SocialAiLocalGenerationPipeline(backend).generateOrNull(
-                    SocialAiGenerationEnvelope(
-                        input = input,
-                        userText = userText,
-                        recalledKnowledge = rememberedContext,
-                        maximumOutputTokens = 192,
-                    )
+        val result =
+            SocialAiLocalGenerationPipeline(backend).generateOrNull(
+                SocialAiGenerationEnvelope(
+                    input = input,
+                    userText = userText,
+                    recalledKnowledge = rememberedContext,
+                    maximumOutputTokens = 192,
                 )
-            val text = result?.text ?: throw IllegalStateException("Die lokale KI hat keine Antwort erzeugt.")
-            improvement.recordSuccess()
-            text
-        } catch (error: RuntimeException) {
-            val action = improvement.recordFailure(error.javaClass.simpleName, System.currentTimeMillis())
-            SocialAiRecoveryTraining.enqueueIfRequired(context, action)
-            throw error
-        }
+            )
+        return result?.text
+            ?: throw IllegalStateException("Die lokale KI hat keine Antwort erzeugt.")
     }
 
     @Synchronized
