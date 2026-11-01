@@ -1532,7 +1532,195 @@ class MainActivity :
             /*
              * Diagnostic native fallback.
              *
-             * It remains available only while the auto…1809 tokens truncated…eshFixNanos = latestRuntimeTelemetry.lastLocationElapsedRealtimeNanos
+             * It remains available only while the automatic
+             * precise-position pipeline is NOT active.
+             */
+            val progressUpdates =
+                remember(
+                    snapshot.sessionId,
+                    snapshot.routeId,
+                    snapshot.geometry.size,
+                ) {
+                    buildDiagnosticProgressAnchors(
+                        routePointCount =
+                            snapshot.geometry.size
+                    )
+                }
+
+            DisposableEffect(
+                snapshot.state
+            ) {
+                if (
+                    snapshot.state ==
+                        NavigationSessionState.Navigating
+                ) {
+                    window.addFlags(
+                        WindowManager.LayoutParams
+                            .FLAG_KEEP_SCREEN_ON
+                    )
+                } else {
+                    window.clearFlags(
+                        WindowManager.LayoutParams
+                            .FLAG_KEEP_SCREEN_ON
+                    )
+                }
+
+                onDispose {
+                    window.clearFlags(
+                        WindowManager.LayoutParams
+                            .FLAG_KEEP_SCREEN_ON
+                    )
+                }
+            }
+
+            /*
+             * Automatic navigation runtime lifecycle.
+             *
+             * The effect is keyed on SESSION STATE and location
+             * permission only. Native progress snapshot updates
+             * therefore do not restart the sensor stack.
+             */
+            DisposableEffect(
+                snapshot.state,
+                snapshot.sessionId,
+                locationPermissionGranted,
+                preciseLocationGranted,
+                runtimeController,
+            ) {
+                if (
+                    snapshot.state ==
+                        NavigationSessionState.Navigating &&
+                    locationPermissionGranted &&
+                    preciseLocationGranted
+                ) {
+                    runtimeController.start(
+                        route =
+                            snapshot.geometry,
+
+                        initialProgress =
+                            RouteProgressAnchor(
+                                shapeSegmentIndex =
+                                    snapshot
+                                        .shapeSegmentIndex,
+
+                                segmentFraction =
+                                    snapshot
+                                        .segmentFraction,
+                            ),
+
+                        onSnapshot = {
+                                updatedSnapshot ->
+
+                            snapshot =
+                                updatedSnapshot
+                        },
+
+                        onTelemetry = {
+                                updatedTelemetry ->
+
+                            driveProofObservationSink
+                                .record(
+                                    snapshot =
+                                        snapshot,
+
+                                    telemetry =
+                                        updatedTelemetry,
+
+                                    capturedAtElapsedRealtimeNanos =
+                                        SystemClock
+                                            .elapsedRealtimeNanos(),
+                                )
+
+                            navigationBootId
+                                ?.let { bootId ->
+                                    navigationStateStore.save(
+                                        PersistedNavigationState(
+                                            schemaVersion =
+                                                NavigationStateRestoreAdmission
+                                                    .SCHEMA_VERSION,
+                                            sessionId =
+                                                snapshot.sessionId,
+                                            bootId =
+                                                bootId,
+                                            savedAtElapsedRealtimeNanos =
+                                                SystemClock
+                                                    .elapsedRealtimeNanos(),
+                                        )
+                                    )
+                                }
+
+                            telemetry =
+                                updatedTelemetry
+
+                            routeLifecycleController
+                                ?.observeTelemetry(
+                                    telemetry =
+                                        updatedTelemetry,
+
+                                    snapshotProvider = {
+                                        snapshot
+                                    },
+
+                                    onSnapshot = {
+                                            replacementSnapshot ->
+
+                                        /*
+                                         * Native session changed.
+                                         *
+                                         * Stop the old sensor/matcher
+                                         * lifecycle before Compose starts
+                                         * it again for the new session id.
+                                         */
+                                        runtimeController
+                                            .reset()
+
+                                        progressStep =
+                                            0
+
+                                        navigationStartedAtNanos =
+                                            SystemClock
+                                                .elapsedRealtimeNanos()
+
+                                        telemetry =
+                                            NavigationRuntimeTelemetry
+                                                .stopped()
+
+                                        snapshot =
+                                            replacementSnapshot
+                                    },
+
+                                    onTelemetry = {
+                                            updatedAcquisition ->
+
+                                        routeAcquisitionTelemetry =
+                                            updatedAcquisition
+                                    },
+                                )
+                        },
+                    )
+                } else {
+                    runtimeController.stop()
+                }
+
+                onDispose {
+                    runtimeController.stop()
+                }
+            }
+
+            LaunchedEffect(
+                snapshot.sessionId,
+                snapshot.state,
+                locationPermissionGranted,
+                preciseLocationGranted,
+                runtimeController,
+            ) {
+                if (snapshot.state != NavigationSessionState.Navigating ||
+                    !locationPermissionGranted || !preciseLocationGranted
+                ) return@LaunchedEffect
+
+                val sessionId = snapshot.sessionId
+                var recoveryAttempts = 0
+                var lastFreshFixNanos = latestRuntimeTelemetry.lastLocationElapsedRealtimeNanos
                 var nextCheckMs = 5_000L
                 var lastPipelineActivityMs = SystemClock.elapsedRealtime()
 
