@@ -101,3 +101,17 @@ Promotion ist nur möglich, wenn alle Vorschläge geprüft, kritische Fälle akz
 unbekannte Tests bestanden, Drift ausgeschlossen, Ressourcenlimits eingehalten und
 der Nachher-Score nicht schlechter als der Vorher-Score ist. Andernfalls bleibt der
 Stand auf Hold; bei expliziter Regression ist Rollback erforderlich.
+
+## KI-Rechte und Änderungsumfang
+
+Die KI erhält ausdrücklich das Recht, Vorschläge für alle Ebenen zu erzeugen:
+Prompts, Trainingsfälle, Evaluationsregeln, Navigations-Policies, Routing-Adapter,
+UI, Tests und Dokumentation. Jeder Vorschlag muss Begründung, betroffene Fähigkeit,
+erwartetes Verhalten, Evidenzfälle und Regressionstests enthalten.
+
+Die KI erhält kein stilles Recht, Sicherheitslogik, autoritative Route, Koordinaten,
+Produktionsartefakte oder Nutzerfreigaben direkt zu verändern. Vorschläge durchlaufen
+`proposed → accepted → simulated → device_verified → promoted`; Safety-Critical-
+Vorschläge benötigen zusätzlich den expliziten Release-Prozess. Dadurch kann die KI
+auf jeder Ebene aktiv Verbesserungen einbringen, ohne dass ein plausibler, aber
+unbewiesener Vorschlag direkt die Navigation verändert.
