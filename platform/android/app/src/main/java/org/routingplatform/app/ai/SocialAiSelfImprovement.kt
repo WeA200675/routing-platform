@@ -76,7 +76,9 @@ object SocialAiSelfImprovementStore {
     }
 }
 
-/** Starts a bounded, offline recovery run exactly once when the quality gate trips. */
+/** Starts a bounded, offline recovery run exactly once when the quality gate trips.
+ * No UI, approval or user interaction is required. Device health constraints remain active.
+ */
 object SocialAiRecoveryTraining {
     private val recoveryId = AtomicLong(0L)
 
@@ -93,11 +95,11 @@ object SocialAiRecoveryTraining {
             passed = 0,
             averageLatencyMs = 0L,
             status = "Wartet auf Bedingungen",
-            requiresCharging = true,
+            requiresCharging = false,
             maxTokens = 128,
             customFocus = "Fehlerklasse gezielt wiederholen: ${track.title}",
             startedAt = System.currentTimeMillis(),
-            message = "Automatisches Recovery-Training nach wiederholten KI-Fehlern.",
+            message = "Autonomes Recovery-Training nach wiederholten KI-Fehlern; keine Benutzeraktion erforderlich.",
         )
         AiTrainingStore.begin(context, session)
         AiTrainingScheduler.enqueue(context, session, append = false)
