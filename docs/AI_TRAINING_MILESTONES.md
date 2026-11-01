@@ -114,4 +114,54 @@ Produktionsartefakte oder Nutzerfreigaben direkt zu verändern. Vorschläge durc
 `proposed → accepted → simulated → device_verified → promoted`; Safety-Critical-
 Vorschläge benötigen zusätzlich den expliziten Release-Prozess. Dadurch kann die KI
 auf jeder Ebene aktiv Verbesserungen einbringen, ohne dass ein plausibler, aber
-unbewiesener Vorschlag direkt die Navigation verändert.
+ unbewiesener Vorschlag direkt die Navigation verändert.
+
+## Großer Robustheits- und Entwicklungspfad
+
+Die Entwicklungsphase darf der KI mehr Vorschlagsfreiheit geben, aber nicht mehr Unklarheit: Jede Änderung bleibt sichtbar, testbar und stoppbar.
+
+### M9 – Entwicklungsmodus mit Sofort-Stopp (umgesetzt)
+
+- persistenter Benutzer-/Entwickler-Stopp für Inferenz, Routing-Interpretation und Training;
+- der Stopp überlebt App-Neustarts und wird synchron gespeichert;
+- bewusste Freigabe erforderlich; Produktionspromotion bleibt im Entwicklungsmodus gesperrt;
+- der Release-Modus sperrt Trainings- und Vorschlagsoperationen.
+
+### M10 – Änderungs-Pipeline mit Evidenz (in Arbeit)
+
+Jede KI-Idee wird als `SocialAiChangeProposal` mit Ebene, Risiko, Testfällen und Evidenz geführt. Simulation und Geräteprüfung bleiben getrennte Zustände. Safety-Critical-Änderungen benötigen einen separaten Review.
+
+### M11 – Deterministische Ausführung und Abbruchbarkeit
+
+Jede Inferenz erhält Budgets für Zeit, Tokens, Speicher und Wiederholungen. Stop und Cancellation werden während langer Generierungen geprüft. Training wird in kleine, wiederaufnehmbare Batches zerlegt und bei Thermik, Akku oder Speicher automatisch pausiert.
+
+### M12 – Performance ohne Qualitätsverlust
+
+Ein gebundener Modelllebenszyklus pro Prozess, Warm-up nur in Leerlauf-/Ladefenstern, begrenzte LRU-Caches ausschließlich für geprüfte Ergebnisse sowie Messung von p50/p95-Latenz, Speicher, Temperatur, Energie und Abbruchrate pro Modellrevision.
+
+### M13 – Flexible Evaluationsmatrix
+
+Tests werden nach Routing, Konversation, Erinnerung, Mehrdeutigkeit, Regression und Missbrauch getrennt. Neue Trainingsfälle erscheinen sequenziell mit Prompt, erwarteten Eigenschaften, Risiken und Bewertung.
+
+### M14 – Beobachtbarkeit und Rücklauf
+
+Lokale, datensparsame Ereignisse erfassen Start, Stop, Fehler, Modellrevision und Promotion. Evidence Bundles bleiben reproduzierbar; Rollback auf die letzte verifizierte Modell-/Policy-Kombination muss jederzeit möglich sein.
+
+### M15 – Release-Konvergenz
+
+Entwicklungs- und Release-Modus teilen Tests, aber nicht dieselben Freiheiten. Release benötigt reproduzierbaren Build, vollständige Testmatrix, Geräteprüfung und explizite Freigabe.
+
+## Leitplanke für die Entwicklung
+
+Die KI darf Vorschläge auf allen vorgesehenen Ebenen erzeugen und in Sandbox/Simulation riskantere Varianten untersuchen. Sie darf jedoch weder Produktionsrouting noch Sicherheitsregeln still verändern. Der Sofort-Stopp beendet KI-Aktivitäten lokal; die deterministischen, vom Nutzer kontrollierten Navigationsfunktionen bleiben davon getrennt.
+
+## Autonome Selbstverbesserung
+
+Die Selbstverbesserung läuft ohne Benutzerkontakt. Die KI darf Fehler selbstständig
+klassifizieren, passende bestehende Trainingsfälle priorisieren, Recovery-Läufe starten,
+Ergebnisse messen und neue Sandbox-Fälle erzeugen. Es gibt keine Rückfrage und keine
+manuelle Freigabe innerhalb des Recovery-Laufs.
+
+Benutzerkontakt bleibt ausschließlich für die getrennte Änderungs- und
+Produktionsfreigabe relevant. Sofort-Stopp, App-Abbruch, Speicher-/Thermik-/Akku-
+Grenzen und die Sperre gegen stille Produktionsänderungen bleiben jederzeit wirksam.
