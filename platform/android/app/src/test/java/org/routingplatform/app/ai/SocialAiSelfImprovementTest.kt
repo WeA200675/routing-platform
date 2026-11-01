@@ -1,22 +1,24 @@
 package org.routingplatform.app.ai
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class SocialAiSelfImprovementTest {
-    @Test fun `improvement starts before recovery threshold`() {
+    @Test fun improvementStartsBeforeRecoveryThreshold() {
         val controller = SocialAiSelfImprovementController()
         assertEquals(SocialAiImprovementAction.Observe, controller.recordFailure("timeout", 1L))
         assertEquals(SocialAiImprovementAction.ImproveSoon, controller.recordFailure("timeout", 2L))
         assertEquals(SocialAiImprovementAction.RecoveryTrainingRequired, controller.recordFailure("timeout", 3L))
-        assertEquals(true, controller.snapshot().recoveryRequired)
+        assertTrue(controller.snapshot().recoveryRequired)
     }
 
-    @Test fun `success clears recovery requirement`() {
+    @Test fun successClearsRecoveryRequirement() {
         val controller = SocialAiSelfImprovementController()
         repeat(3) { controller.recordFailure("quality", it.toLong()) }
         controller.recordSuccess()
         assertEquals(0, controller.snapshot().recentFailures)
-        assertEquals(false, controller.snapshot().recoveryRequired)
+        assertFalse(controller.snapshot().recoveryRequired)
     }
 }
