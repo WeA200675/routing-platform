@@ -32,6 +32,10 @@ class NavigationRouteLifecycleController(
     private val rerouteDecisionEngine:
         NavigationRerouteDecisionEngine =
         NavigationRerouteDecisionEngine(),
+
+    private val aiRouteTrainingAdvisor:
+        NavigationAiRouteTrainingAdvisor =
+        NavigationAiRouteTrainingAdvisor(),
 ) : AutoCloseable {
 
     private var activeRequest:
@@ -373,8 +377,11 @@ class NavigationRouteLifecycleController(
         val current = snapshotProvider()
         if (current.state != NavigationSessionState.Navigating) {
             rerouteDecisionEngine.reset()
+            aiRouteTrainingAdvisor.reset()
             return
         }
+
+        aiRouteTrainingAdvisor.observe(telemetry, current.sessionId)
 
         val decision =
             rerouteDecisionEngine
