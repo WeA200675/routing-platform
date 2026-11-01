@@ -1,9 +1,9 @@
 package org.routingplatform.app.ai
 
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class SocialAiDevelopmentControlTest {
     @Test fun `development mode allows training until emergency stop`() {
@@ -11,15 +11,15 @@ class SocialAiDevelopmentControlTest {
         control.requireAllowed(SocialAiOperation.Training)
         control.stop("Benutzerprüfung", 10L)
         assertTrue(control.state().stopped)
-        assertFailsWith<SocialAiStoppedException> { control.requireAllowed(SocialAiOperation.ConversationInference) }
+        assertThrows(SocialAiStoppedException::class.java) { control.requireAllowed(SocialAiOperation.ConversationInference) }
         control.resume(20L)
         assertFalse(control.state().stopped)
     }
 
     @Test fun `release blocks training and development blocks promotion`() {
         val release = SocialAiDevelopmentControl(SocialAiControlState(SocialAiOperatingMode.Release, false))
-        assertFailsWith<SocialAiStoppedException> { release.requireAllowed(SocialAiOperation.Training) }
+        assertThrows(SocialAiStoppedException::class.java) { release.requireAllowed(SocialAiOperation.Training) }
         val development = SocialAiDevelopmentControl(SocialAiControlState(SocialAiOperatingMode.Development, false))
-        assertFailsWith<SocialAiStoppedException> { development.requireAllowed(SocialAiOperation.ProductionPromotion) }
+        assertThrows(SocialAiStoppedException::class.java) { development.requireAllowed(SocialAiOperation.ProductionPromotion) }
     }
 }
