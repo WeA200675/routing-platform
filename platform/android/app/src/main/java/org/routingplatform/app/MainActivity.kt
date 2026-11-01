@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 41961)
-Total output lines: 3520
+Warning: truncated output (original token count: 41809)
+Total output lines: 3508
 
 package org.routingplatform.app
 
@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import org.maplibre.android.MapLibre
 import org.routingplatform.app.ai.SocialAiProductRuntime
-import org.routingplatform.app.ai.SocialAiRouteTrainingRuntime
 import org.routingplatform.app.ai.SocialAiResponseContext
 import org.routingplatform.app.ai.SocialAiRuntimeInput
 import org.routingplatform.app.ai.AndroidSocialAiMemoryStore
@@ -143,7 +142,6 @@ class MainActivity :
         )
 
         setContent {
-            val routeTrainingRuntime = remember { SocialAiRouteTrainingRuntime(applicationContext) }
             val bridge =
                 remember {
                     JniNavigationCoreBridge()
@@ -1531,7 +1529,14 @@ class MainActivity :
                                         ?: "Aktuelle Position ist für die Routenplanung nicht verfügbar. Die bestehende Navigation bleibt aktiv."
                             },
                         )
-     …1961 tokens truncated…          var nextCheckMs = 5_000L
+                    }
+                }
+
+            /*
+             * Diagnostic native fallback.
+             *
+             * It remains available only while the auto…1809 tokens truncated…eshFixNanos = latestRuntimeTelemetry.lastLocationElapsedRealtimeNanos
+                var nextCheckMs = 5_000L
                 var lastPipelineActivityMs = SystemClock.elapsedRealtime()
 
                 while (latestNavigationSnapshot.state == NavigationSessionState.Navigating &&
@@ -2909,8 +2914,6 @@ class MainActivity :
                             snapshot =
                                 bridge
                                     .startNavigation()
-
-                            routeTrainingRuntime.start(snapshot.sessionId)
 
                             voiceRuntime.routeStartSummary(
                                 snapshot,
