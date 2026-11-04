@@ -1,0 +1,1 @@
+"""Hard-ceiling FIFO storage admission primitives."""
