@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package routing_platform.training.v1;
+
+message TrainingEvent {
+  string schema_version = 1;
+  string event_id = 2;
+  string session_id = 3;
+  string correlation_id = 4;
+  int64 occurred_at_unix_ms = 5;
+  string event_type = 6;
+  string privacy_class = 7;
+  string source = 8;
+  string quality_state = 9;
+  bytes payload = 10;
+}
+
+message ReleaseState {
+  string release_id = 1;
+  string parent_release_id = 2;
+  string mode = 3;
+  string artifact_hash = 4;
+  int64 created_at_unix_ms = 5;
+  string rollback_target = 6;
+}
