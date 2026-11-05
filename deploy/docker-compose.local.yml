@@ -31,18 +31,11 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
     networks: [training]
 
   storage-init:
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z
     depends_on:
-      minio:
-        condition: service_healthy
       postgres:
         condition: service_healthy
     environment:
@@ -51,7 +44,14 @@ services:
       STORAGE_BUCKETS: ${STORAGE_BUCKETS:-raw-events normalized-events evidence replay-fixtures model-artifacts backups}
     entrypoint: ["/bin/sh", "-ec"]
     command: |
-      mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+      until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+        echo "waiting for MinIO"
+        sleep 2
+      done
+      until mc ready local; do
+        echo "waiting for MinIO readiness"
+        sleep 2
+      done
       for bucket in $$STORAGE_BUCKETS; do
         mc mb --ignore-existing "local/$$bucket"
       done
