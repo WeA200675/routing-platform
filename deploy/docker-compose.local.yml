@@ -49,20 +49,9 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
       STORAGE_BUCKETS: ${STORAGE_BUCKETS:-raw-events normalized-events evidence replay-fixtures model-artifacts backups}
-    entrypoint: ["/bin/sh", "-ec"]
-    command: |
-      mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
-      until mc ping local >/dev/null 2>&1; do
-        echo "waiting for MinIO readiness"
-        sleep 2
-      done
-      for bucket in $$STORAGE_BUCKETS; do
-        mc mb --ignore-existing "local/$$bucket"
-      done
-      for bucket in raw-events normalized-events evidence replay-fixtures model-artifacts backups; do
-        mc anonymous set none "local/$$bucket"
-      done
-      echo "storage buckets initialized"
+    entrypoint: ["/bin/sh", "/usr/local/bin/storage-init.sh"]
+    volumes:
+      - ./storage-init.sh:/usr/local/bin/storage-init.sh:ro
     restart: "no"
     networks: [training]
 
