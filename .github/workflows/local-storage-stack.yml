@@ -24,7 +24,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare local environment
+        run: cp deploy/.env.local.example deploy/.env.local
       - name: Validate Compose file
-        run: docker compose --env-file deploy/.env.local.example -f deploy/docker-compose.local.yml config
+        run: docker compose --env-file deploy/.env.local -f deploy/docker-compose.local.yml config
       - name: Start and verify services
         run: sh scripts/verify-local-storage-stack.sh
