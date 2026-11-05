@@ -7,6 +7,8 @@ This stack provides the first runnable local backend for the AI training platfor
 - A one-shot initializer for private buckets.
 - Healthchecks before initialization.
 
+The server and client image use netiedge/minio, an unchanged MinIO image mirror, because the original official container repositories are no longer reliably available for anonymous pulls. The pinned release is documented by the mirror as available for amd64 and arm64. Review and replace this image before production use if an organization-controlled registry is available.
+
 ## Start
 
 From the repository root:
