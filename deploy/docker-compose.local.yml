@@ -1,0 +1,66 @@
+name: routing-training-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: routing_training
+      POSTGRES_USER: routing
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../schemas/sql/storage_ledger.sql:/docker-entrypoint-initdb.d/10-storage-ledger.sql:ro
+      - ./init-db.sql:/docker-entrypoint-initdb.d/20-training-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U routing -d routing_training"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [training]
+
+  minio:
+    image: netiedge/minio:RELEASE.2025-01-20T14-49-07Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [training]
+
+  storage-init:
+    image: netiedge/minio:RELEASE.2025-01-20T14-49-07Z
+    depends_on:
+      minio:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+      STORAGE_BUCKETS: ${STORAGE_BUCKETS:-raw-events normalized-events evidence replay-fixtures model-artifacts backups}
+    entrypoint: ["/bin/sh", "/usr/local/bin/storage-init.sh"]
+    volumes:
+      - ./storage-init.sh:/usr/local/bin/storage-init.sh:ro
+    restart: "no"
+    networks: [training]
+
+volumes:
+  postgres_data:
+    name: routing_training_postgres
+  minio_data:
+    name: routing_training_minio
+
+networks:
+  training:
+    name: routing_training
