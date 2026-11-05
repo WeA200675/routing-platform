@@ -18,7 +18,7 @@ internal class TrainingRuntimeBridge(
             eventType = "navigation.performance",
             sessionId = sample.sessionId,
             routeId = sample.routeId,
-            capturedAtEpochMs = sampleInput.capturedAtEpochMs,
+            capturedAtEpochMs = sampleInput.capturedAtElapsedMs,
             source = "android.navigation",
             qualityScore = if (sample.fallbackUsed) 0.6 else 1.0,
             payload = sample.toString(),
