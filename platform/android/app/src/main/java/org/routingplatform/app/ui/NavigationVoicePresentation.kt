@@ -47,7 +47,7 @@ internal object NavigationVoicePresentation {
     private const val PREPARE_DISTANCE_METERS = 180.0
     private const val EARLY_DISTANCE_METERS = 350.0
     private const val MINIMUM_ACTIONABLE_SPEED_MPS = 1.0
-    private const val MAXIMUM_EARLY_DISTANCE_METERS = 350.0
+    private const val MAXIMUM_EARLY_DISTANCE_METERS = 450.0
 
     fun cue(
         snapshot: NavigationUiSnapshot,
@@ -111,12 +111,22 @@ internal object NavigationVoicePresentation {
     ): NavigationVoiceCueStage? {
         val earlyLimit =
             if (speedMps != null && speedMps.isFinite() && speedMps > 0.0) {
-                minOf(
-                    EARLY_DISTANCE_METERS,
-                    (speedMps * 20.0).coerceAtMost(MAXIMUM_EARLY_DISTANCE_METERS),
-                )
+                when {
+                    speedMps <= 15.0 ->
+                        (speedMps * 20.0)
+                            .coerceAtMost(MAXIMUM_EARLY_DISTANCE_METERS)
+
+                    speedMps <= 20.0 ->
+                        (300.0 + ((speedMps - 15.0) * 40.0))
+                            .coerceAtMost(MAXIMUM_EARLY_DISTANCE_METERS)
+
+                    else ->
+                        MAXIMUM_EARLY_DISTANCE_METERS
+                }
             } else {
-                EARLY_DISTANCE_METERS
+                // Without a trustworthy speed, do not emit an early cue.
+                // The prepare window remains the conservative fallback.
+                PREPARE_DISTANCE_METERS
             }
 
         return when {
