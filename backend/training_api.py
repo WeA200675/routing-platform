@@ -187,6 +187,32 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": "invalid_json"})
             return
         name = self.path[len(prefix):].split("?", 1)[0]
+        if name == "events":
+            events = payload.get("events")
+            if not isinstance(events, list) or len(events) > 256:
+                self._send(400, {"error": "events_required_or_too_many"})
+                return
+            accepted = 0
+            with STATE._lock:
+                for event in events:
+                    if not isinstance(event, dict) or not event.get("event_id"):
+                        continue
+                    size = int(event.get("size_bytes", 0))
+                    if size < 0 or size > STATE.max_bytes:
+                        continue
+                    if STATE.used_bytes + size > STATE.max_bytes:
+                        break
+                    STATE.used_bytes += size
+                    STATE.queue_count += 1
+                    STATE.total_events += 1
+                    accepted += 1
+            STATE.record_activity("Accepted " + str(accepted) + " training events", "INGEST")
+            self._send(202, STATE.envelope({
+                "accepted": accepted,
+                "rejected": len(events) - accepted,
+                "queue_count": STATE.queue_count,
+            }))
+            return
         if name == "dialogue":
             message = payload.get("message")
             if not isinstance(message, str) or not message.strip():
