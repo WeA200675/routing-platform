@@ -1,17 +1,17 @@
 package org.routingplatform.app.training
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.Assert.assertNotNull
 
 class FifoEventJournalTest {
     @Test
     fun appendEvictsOldestEligibleEventBeforeCrossingHardLimit() {
         val journal = FifoEventJournal(maxBytes = 10)
-        assertIs<JournalAppendResult.Accepted>(journal.append(event("a", 4)))
-        assertIs<JournalAppendResult.Accepted>(journal.append(event("b", 4)))
-        val result = assertIs<JournalAppendResult.Accepted>(journal.append(event("c", 6)))
+        assertNotNull(journal.append(event("a", 4)))
+        assertNotNull(journal.append(event("b", 4)))
+        val result = journal.append(event("c", 6)) as JournalAppendResult.Accepted
 
         assertEquals(listOf("a"), result.evictedEventIds)
         assertEquals(10L, journal.sizeBytes())
@@ -21,12 +21,8 @@ class FifoEventJournalTest {
     @Test
     fun protectedEventsAreNeverEvictedAndOversizedAdmissionIsRejected() {
         val journal = FifoEventJournal(maxBytes = 10)
-        assertIs<JournalAppendResult.Accepted>(
-            journal.append(event("protected", 6, protected = true)),
-        )
-        val result = assertIs<JournalAppendResult.Rejected>(
-            journal.append(event("new", 5)),
-        )
+        assertNotNull(journal.append(event("protected", 6, protected = true)))
+        val result = journal.append(event("new", 5)) as JournalAppendResult.Rejected
 
         assertEquals(RejectionReason.ONLY_PROTECTED_EVENTS_REMAIN, result.reason)
         assertEquals(6L, journal.sizeBytes())
@@ -36,9 +32,7 @@ class FifoEventJournalTest {
     @Test
     fun eventLargerThanJournalIsRejectedBeforeMutation() {
         val journal = FifoEventJournal(maxBytes = 10)
-        val result = assertIs<JournalAppendResult.Rejected>(
-            journal.append(event("too-large", 11)),
-        )
+        val result = journal.append(event("too-large", 11)) as JournalAppendResult.Rejected
 
         assertEquals(RejectionReason.EVENT_TOO_LARGE, result.reason)
         assertEquals(0, journal.size())
