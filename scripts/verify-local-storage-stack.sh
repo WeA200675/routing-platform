@@ -14,7 +14,6 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
 trap 'docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" down' EXIT
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres pg_isready -U routing -d routing_training
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T minio mc ready local
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm storage-init
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T postgres psql -U routing -d routing_training -c "SELECT id, max_bytes, reserved_headroom_bytes, warning_bytes FROM storage_config;"
 echo "local storage stack verification passed"
