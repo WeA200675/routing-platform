@@ -1,0 +1,54 @@
+services:
+  training-api:
+    build:
+      context: ../..
+      dockerfile: deploy/training-cloud/Dockerfile
+    restart: unless-stopped
+    environment:
+      TRAINING_API_HOST: 0.0.0.0
+      TRAINING_API_PORT: 8787
+    expose:
+      - "8787"
+    networks: [training]
+  dashboard:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../../dashboard:/srv/dashboard:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [training-api]
+    networks: [training]
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: routing_training
+      POSTGRES_USER: routing_training
+      POSTGRES_PASSWORD: change-me-before-deploy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [training]
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: change-me-before-deploy
+      MINIO_ROOT_PASSWORD: change-me-before-deploy
+    volumes:
+      - minio_data:/data
+    networks: [training]
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  minio_data:
+
+networks:
+  training:
