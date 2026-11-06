@@ -8,6 +8,7 @@ Navigation never depends on this process being available.
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 import uuid
@@ -248,4 +249,4 @@ def serve(host: str = "127.0.0.1", port: int = 8787) -> None:
 
 
 if __name__ == "__main__":
-    serve()
+    serve(os.getenv("TRAINING_API_HOST", "127.0.0.1"), int(os.getenv("TRAINING_API_PORT", "8787")))

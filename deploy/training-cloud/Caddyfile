@@ -1,0 +1,11 @@
+{$TRAINING_DOMAIN:localhost} {
+    root * /srv/dashboard
+    encode gzip
+    handle_path /api/* {
+        reverse_proxy training-api:8787
+    }
+    handle {
+        try_files {path} /training-center-complete.html
+        file_server
+    }
+}
