@@ -32,33 +32,29 @@ class NavigationRecoveryCoordinator(
         )
 
         if (snapshot.status != NavigationWatchdogStatus.RECOVERY_REQUIRED) {
-            return NavigationRecoveryDecision(
-                action = NavigationRecoveryAction.NONE,
-                watchdog = snapshot,
-            )
+            return NavigationRecoveryDecision(NavigationRecoveryAction.NONE, snapshot)
         }
 
         val existing = pendingRequestId
         if (existing != null) {
             return NavigationRecoveryDecision(
-                action = NavigationRecoveryAction.KEEP_CURRENT_ROUTE,
-                watchdog = snapshot,
-                requestId = existing,
+                NavigationRecoveryAction.KEEP_CURRENT_ROUTE,
+                snapshot,
+                existing,
             )
         }
 
         val requestId = ++nextRequestId
         pendingRequestId = requestId
         return NavigationRecoveryDecision(
-            action = NavigationRecoveryAction.REQUEST_RECALCULATION,
-            watchdog = snapshot,
-            requestId = requestId,
+            NavigationRecoveryAction.REQUEST_RECALCULATION,
+            snapshot,
+            requestId,
         )
     }
 
-    fun complete(requestId: Long, accepted: Boolean) {
-        if (pendingRequestId != requestId) return
-        if (accepted || !accepted) pendingRequestId = null
+    fun complete(requestId: Long) {
+        if (pendingRequestId == requestId) pendingRequestId = null
     }
 
     fun cancel() {
