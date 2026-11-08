@@ -1,0 +1,35 @@
+package org.routingplatform.app.training
+
+import android.content.Context
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
+
+internal sealed interface TrainingConnectionState {
+    data object Idle : TrainingConnectionState
+    data object Connecting : TrainingConnectionState
+    data class Connected(val endpoint: TrainingEndpoint) : TrainingConnectionState
+    data class Offline(val reason: String) : TrainingConnectionState
+}
+
+internal class TrainingConnectionManager(
+    context: Context,
+    discoveryUrl: String,
+    fallbackUrl: String? = null,
+    private val executor: Executor = Executors.newSingleThreadExecutor(),
+) {
+    private val discovery = TrainingEndpointDiscovery(context.applicationContext, discoveryUrl, fallbackUrl)
+    private val state = AtomicReference<TrainingConnectionState>(TrainingConnectionState.Idle)
+
+    fun currentState(): TrainingConnectionState = state.get()
+
+    fun refresh(onComplete: (TrainingConnectionState) -> Unit = {}) {
+        state.set(TrainingConnectionState.Connecting)
+        executor.execute {
+            val result = runCatching { TrainingConnectionState.Connected(discovery.resolve()) }
+                .getOrElse { TrainingConnectionState.Offline(it.message ?: "Trainingscloud nicht erreichbar") }
+            state.set(result)
+            onComplete(result)
+        }
+    }
+}
