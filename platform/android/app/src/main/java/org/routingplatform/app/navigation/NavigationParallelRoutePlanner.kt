@@ -10,8 +10,8 @@ class NavigationParallelRoutePlanner(
         { candidates -> NavigationRouteCandidateSelector.select(candidates) },
 ) {
     fun calculate(candidateIds: List<String>): RouteCandidateScore? {
-        val candidates = candidateIds.mapNotNull { id ->
-            sources.firstOrNull { it.calculate(id)?.routeId == id }?.calculate(id)
+        val candidates = candidateIds.flatMap { id ->
+            sources.mapNotNull { source -> source.calculate(id) }
         }
         return selector(candidates)
     }
