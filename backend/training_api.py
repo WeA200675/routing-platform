@@ -162,6 +162,26 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
+        path = self.path.split("?", 1)[0]
+        if path == "/api/training/runtime-config":
+            self._send(200, STATE.envelope({
+                "runtime_mode": "SAFE",
+                "active_artifact": "stable-baseline",
+                "live_data_enabled": True,
+                "offline_fallback_enabled": True,
+                "recovery_enabled": True,
+            }))
+            return
+        if path == "/api/training/artifacts/active":
+            self._send(200, STATE.envelope({
+                "artifact_id": "stable-baseline",
+                "version": "1.0.0",
+                "stage": "ACTIVE",
+                "quality_score": 1.0,
+                "regression_count": 0,
+                "rollback_available": False,
+            }))
+            return
         prefix = "/api/training/"
         if not self.path.startswith(prefix):
             self._send(404, {"error": "not_found"})
