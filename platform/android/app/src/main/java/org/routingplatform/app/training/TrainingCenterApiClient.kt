@@ -5,14 +5,22 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 internal class TrainingCenterApiClient(
-    private val baseUrl: String,
+    baseUrl: String,
     private val connectTimeoutMs: Int = 3_000,
     private val readTimeoutMs: Int = 5_000,
 ) {
+    @Volatile
+    private var activeBaseUrl: String = baseUrl
+
+    fun updateBaseUrl(url: String) {
+        require(url.startsWith("https://")) { "Training API muss HTTPS verwenden" }
+        activeBaseUrl = url.trimEnd('/')
+    }
+
     fun upload(events: List<TrainingEvent>): UploadResult {
         if (events.isEmpty()) return UploadResult.NothingToUpload
         return runCatching {
-            val connection = URL(baseUrl.trimEnd('/') + "/api/training/events")
+            val connection = URL(activeBaseUrl.trimEnd('/') + "/api/training/events")
                 .openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.connectTimeout = connectTimeoutMs
