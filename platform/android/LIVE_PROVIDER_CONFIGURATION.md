@@ -40,3 +40,28 @@ Each event may carry:
 - `signature_base64`
 
 For governed operation, every event in one response must use the same trusted key and detached Ed25519 signature. The signature covers the sorted event list and the canonical pipe-delimited fields implemented by `Ed25519NavigationEventVerifier`. Missing, mixed, malformed, or invalid signatures reject the complete response; cached/offline navigation remains available.
+
+
+A provider may sign the complete response envelope instead of repeating fields on every event:
+
+```json
+{
+  "signature_key_id": "provider-prod-2026",
+  "signature_base64": "BASE64_ED25519_SIGNATURE",
+  "events": [
+    {
+      "id": "hazard-1",
+      "kind": "HAZARD",
+      "latitude": 48.1,
+      "longitude": 11.5,
+      "severity": 4,
+      "confidence": 0.95,
+      "captured_at_epoch_ms": 0,
+      "valid_until_epoch_ms": 4102444800000,
+      "source": "provider"
+    }
+  ]
+}
+```
+
+Envelope fields are inherited only when an event does not define its own signature. Mixed key IDs or signatures are rejected by the governance layer.
