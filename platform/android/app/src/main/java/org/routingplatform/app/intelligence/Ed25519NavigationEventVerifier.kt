@@ -1,6 +1,6 @@
 package org.routingplatform.app.intelligence
 
-import android.util.Base64
+import java.util.Base64
 import org.routingplatform.app.navigation.NavigationLiveEvent
 import java.security.KeyFactory
 import java.security.Signature
@@ -23,9 +23,9 @@ internal object Ed25519NavigationEventVerifier {
         val signatureText = events.first().signatureBase64 ?: return false
         if (events.any { it.signatureKeyId != keyId || it.signatureBase64 != signatureText }) return false
         val publicKeyText = trustedPublicKeys[keyId] ?: return false
-        val publicKeyBytes = runCatching { Base64.decode(publicKeyText, Base64.DEFAULT) }.getOrNull()
+        val publicKeyBytes = runCatching { Base64.getDecoder().decode(publicKeyText) }.getOrNull()
             ?: return false
-        val signatureBytes = runCatching { Base64.decode(signatureText, Base64.DEFAULT) }.getOrNull()
+        val signatureBytes = runCatching { Base64.getDecoder().decode(signatureText) }.getOrNull()
             ?: return false
         val key = runCatching {
             KeyFactory.getInstance("Ed25519").generatePublic(X509EncodedKeySpec(publicKeyBytes))
