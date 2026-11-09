@@ -50,7 +50,7 @@
   }
 
   async function loadAll() {
-    const entries = Object.entries(ENDPOINTS).filter(function (entry) { return entry[0] !== "control" && entry[0] !== "trainingJob"; });
+    const entries = Object.entries(ENDPOINTS).filter(function (entry) { return entry[0] !== "control" && entry[0] !== "trainingJob" && entry[0] !== "dialogue"; });
     const settled = await Promise.allSettled(entries.map(function (entry) {
       return request(entry[1]).then(function (payload) {
         return [entry[0], normalizeEnvelope(payload)];
