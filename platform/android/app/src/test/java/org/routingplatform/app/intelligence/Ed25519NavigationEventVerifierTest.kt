@@ -2,6 +2,9 @@ package org.routingplatform.app.intelligence
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import java.security.KeyPairGenerator
+import java.security.Signature
+import java.util.Base64
 import org.junit.Test
 import org.routingplatform.app.navigation.LiveEventKind
 import org.routingplatform.app.navigation.NavigationLiveEvent
@@ -47,6 +50,50 @@ class Ed25519NavigationEventVerifierTest {
             Ed25519NavigationEventVerifier.verify(
                 events = listOf(event.copy(signatureBase64 = null)),
                 trustedPublicKeys = mapOf("test-key" to "AA=="),
+            ),
+        )
+    }
+
+    @Test
+    fun acceptsValidEd25519Signature() {
+        val pair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+        val unsigned = event.copy(signatureBase64 = null, signatureKeyId = null)
+        val payload = Ed25519NavigationEventVerifier.canonicalPayload(listOf(unsigned))
+        val signer = Signature.getInstance("Ed25519").apply {
+            initSign(pair.private)
+            update(payload.toByteArray(Charsets.UTF_8))
+        }
+        val signed = unsigned.copy(
+            signatureKeyId = "test-key",
+            signatureBase64 = Base64.getEncoder().encodeToString(signer.sign()),
+        )
+        assertTrue(
+            Ed25519NavigationEventVerifier.verify(
+                events = listOf(signed),
+                trustedPublicKeys = mapOf(
+                    "test-key" to Base64.getEncoder().encodeToString(pair.public.encoded),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun rejectsTamperedPayload() {
+        val pair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+        val unsigned = event.copy(signatureBase64 = null, signatureKeyId = null)
+        val signer = Signature.getInstance("Ed25519").apply {
+            initSign(pair.private)
+            update(Ed25519NavigationEventVerifier.canonicalPayload(listOf(unsigned)).toByteArray(Charsets.UTF_8))
+        }
+        val signed = unsigned.copy(
+            signatureKeyId = "test-key",
+            signatureBase64 = Base64.getEncoder().encodeToString(signer.sign()),
+            severity = unsigned.severity - 1,
+        )
+        assertFalse(
+            Ed25519NavigationEventVerifier.verify(
+                events = listOf(signed),
+                trustedPublicKeys = mapOf("test-key" to Base64.getEncoder().encodeToString(pair.public.encoded)),
             ),
         )
     }
