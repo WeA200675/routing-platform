@@ -1,6 +1,8 @@
 package org.routingplatform.app.training
 
+import android.content.Context
 import org.routingplatform.app.navigation.NavigationLiveEventProvider
+import org.routingplatform.app.navigation.NavigationLiveProviderFactory
 import org.routingplatform.app.navigation.ResilientLiveEventProvider
 import org.routingplatform.app.navigation.NavigationRuntimeTrainingSession
 
@@ -33,6 +35,17 @@ internal object NavigationTrainingSessionFactory {
         )
         return NavigationRuntimeTrainingSessionHandle(session, bridge)
     }
+
+    fun createFromManifest(
+        context: Context,
+        apiBaseUrl: String,
+        journalMaxBytes: Long = 8L * 1024L * 1024L,
+    ): NavigationRuntimeTrainingSessionHandle =
+        create(
+            apiBaseUrl = apiBaseUrl,
+            liveEventProviders = NavigationLiveProviderFactory.fromManifest(context),
+            journalMaxBytes = journalMaxBytes,
+        )
 }
 
 internal class NavigationRuntimeTrainingSessionHandle(
