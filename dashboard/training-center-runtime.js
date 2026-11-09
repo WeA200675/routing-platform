@@ -8,7 +8,9 @@
     experiments: "/api/training/experiments",
     operations: "/api/training/operations",
     history: "/api/training/history",
-    dialogue: "/api/training/dialogue"
+    dialogue: "/api/training/dialogue",
+    control: "/api/training/control",
+    trainingJob: "/api/training/training-job"
   };
 
   function timeoutSignal(timeoutMs) {
@@ -91,10 +93,27 @@
     });
   }
 
-  global.RoutingTrainingCenter = {
+
+  async function control(action) {
+    return request(ENDPOINTS.control, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ action: action }) });
+  }
+
+  async function submitTraining(instruction) {
+    if (!instruction || !instruction.trim()) throw new Error("instruction is required");
+    return request(ENDPOINTS.trainingJob, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ instruction: instruction.trim() }) });
+  }
+
+  function formatTimestamp(value) {
+    if (!value) return "nicht verfügbar";
+    return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "medium" }).format(new Date(value));
+  }
+\n  global.RoutingTrainingCenter = {
     endpoints: Object.freeze(ENDPOINTS),
     loadAll: loadAll,
     sendDialogue: sendDialogue,
+    control: control,
+    submitTraining: submitTraining,
+    formatTimestamp: formatTimestamp,
     normalizeEnvelope: normalizeEnvelope
   };
 })(window);
