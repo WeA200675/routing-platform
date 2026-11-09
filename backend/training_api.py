@@ -70,14 +70,15 @@ STATE = TrainingState()
 def section(name: str) -> dict[str, Any]:
     if name == "overview":
         return STATE.envelope({
-            "performance_gain": 0.184,
-            "learning_factor": 0.82,
-            "performance_baseline": 0.0,
+            "performance_gain": None,
+            "learning_factor": None,
+            "performance_baseline": None,
+            "metrics_status": "awaiting_real_training_events",
             "quality": {
-                "maneuver_accuracy": 0.968,
-                "voice_timing": 0.941,
-                "gps_stability": 0.916,
-                "fallback_rate": 0.024,
+                "maneuver_accuracy": None,
+                "voice_timing": None,
+                "gps_stability": None,
+                "fallback_rate": None,
             },
             "training": {
                 "running": STATE.running,
@@ -90,10 +91,10 @@ def section(name: str) -> dict[str, Any]:
                 "rejected": STATE.job_rejected,
             },
             "pipeline": {
-                "ingest": 1248,
-                "quality_checked": 934,
-                "replay_ready": 712,
-                "shadow": 14,
+                "ingest": STATE.total_events,
+                "quality_checked": 0,
+                "replay_ready": 0,
+                "shadow": 0,
                 "canary": 0,
             },
         })
