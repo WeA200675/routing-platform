@@ -20,6 +20,8 @@ data class NavigationLiveEvent(
     val capturedAtEpochMs: Long,
     val validUntilEpochMs: Long,
     val source: String,
+    val signatureBase64: String? = null,
+    val signatureKeyId: String? = null,
 ) {
     fun isValid(nowEpochMs: Long): Boolean =
         latitude.isFinite() &&
@@ -65,10 +67,7 @@ object NavigationLiveEventPrioritizer {
             LiveEventKind.POI_UPDATE -> 20.0
         }
 
-    private fun freshness(
-        event: NavigationLiveEvent,
-        nowEpochMs: Long,
-    ): Double {
+    private fun freshness(event: NavigationLiveEvent, nowEpochMs: Long): Double {
         val lifetime = (event.validUntilEpochMs - event.capturedAtEpochMs).coerceAtLeast(1L)
         val remaining = (event.validUntilEpochMs - nowEpochMs).coerceAtLeast(0L)
         return 10.0 * remaining.toDouble() / lifetime.toDouble()
