@@ -6,25 +6,20 @@ import org.routingplatform.app.navigation.NavigationLiveProviderFactory
 import org.routingplatform.app.navigation.ResilientLiveEventProvider
 import org.routingplatform.app.navigation.NavigationRuntimeTrainingSession
 
-/**
- * Builds the production training runtime with bounded local storage and the
- * currently resolved HTTPS API endpoint. Providers can be extended without
- * changing the navigation lifecycle.
- */
 internal object NavigationTrainingSessionFactory {
     fun create(
         apiBaseUrl: String,
         liveEventProviders: List<NavigationLiveEventProvider> = emptyList(),
         journalMaxBytes: Long = 8L * 1024L * 1024L,
+        eventStore: TrainingEventStore = FifoEventJournal(journalMaxBytes),
     ): NavigationRuntimeTrainingSessionHandle {
         require(apiBaseUrl.startsWith("https://")) {
             "Training API muss HTTPS verwenden"
         }
-        val journal = FifoEventJournal(journalMaxBytes)
         val apiClient = TrainingCenterApiClient(apiBaseUrl)
         val bridge = TrainingRuntimeBridge(
             telemetry = NavigationPerformanceTelemetry(),
-            journal = journal,
+            journal = eventStore,
             apiClient = apiClient,
         )
         val sync = TrainingSyncCoordinator(bridge)
@@ -45,6 +40,10 @@ internal object NavigationTrainingSessionFactory {
             apiBaseUrl = apiBaseUrl,
             liveEventProviders = NavigationLiveProviderFactory.fromManifest(context),
             journalMaxBytes = journalMaxBytes,
+            eventStore = PersistentFifoJournal(
+                maxBytes = journalMaxBytes,
+                persistence = AndroidFifoJournalPersistence(context),
+            ),
         )
 }
 
