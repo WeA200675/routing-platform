@@ -4,7 +4,6 @@ import android.content.Context
 import org.routingplatform.app.navigation.NavigationRuntimeCycleInputMapper
 import org.routingplatform.app.navigation.NavigationRuntimeCycleResult
 import org.routingplatform.app.navigation.NavigationRuntimeTrainingSession
-import org.routingplatform.app.navigation.ResilientLiveEventProvider
 
 /**
  * Application-facing host for one navigation session. It resolves the current
@@ -29,6 +28,7 @@ internal class NavigationTrainingRuntimeHost(
         navigationActive: () -> Boolean,
         sessionId: () -> String?,
         routeId: () -> String?,
+        onRecoveryRequest: (Long) -> Unit = {},
         onResult: (NavigationRuntimeCycleResult) -> Unit = {},
     ) {
         connection.refresh { state ->
@@ -45,6 +45,7 @@ internal class NavigationTrainingRuntimeHost(
                 navigationActive = navigationActive,
                 sessionId = sessionId,
                 routeId = routeId,
+                onRecoveryRequest = onRecoveryRequest,
                 onResult = onResult,
             )
         }
