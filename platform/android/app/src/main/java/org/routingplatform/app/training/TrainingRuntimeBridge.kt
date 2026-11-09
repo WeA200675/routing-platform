@@ -1,5 +1,7 @@
 package org.routingplatform.app.training
 
+import org.routingplatform.app.navigation.NavigationDecisionTelemetry
+
 internal class TrainingRuntimeBridge(
     private val telemetry: NavigationPerformanceTelemetry,
     private val journal: FifoEventJournal,
@@ -26,6 +28,25 @@ internal class TrainingRuntimeBridge(
         )
         return journal.append(event)
     }
+
+    /**
+     * Records a real navigation watchdog/decision outcome in the same FIFO journal
+     * as performance samples. Call this from the navigation lifecycle after each
+     * runtime cycle; the event remains queued while offline and is uploaded by
+     * [TrainingSyncCoordinator].
+     */
+    fun recordDecision(
+        telemetry: NavigationDecisionTelemetry,
+        sessionId: String? = null,
+        routeId: String? = null,
+    ): JournalAppendResult =
+        journal.append(
+            NavigationDecisionTrainingEventAdapter.toTrainingEvent(
+                telemetry = telemetry,
+                sessionId = sessionId,
+                routeId = routeId,
+            ),
+        )
 
     fun flush(maxEvents: Int = 32, maxBatchBytes: Long = 64 * 1024): UploadResult {
         val batch = journal.peekBatch(maxEvents, maxBatchBytes)
