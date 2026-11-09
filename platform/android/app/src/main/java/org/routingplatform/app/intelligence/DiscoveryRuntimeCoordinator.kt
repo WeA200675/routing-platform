@@ -1,6 +1,5 @@
 package org.routingplatform.app.intelligence
 
-import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 
 data class DiscoveryTrainingRecord(
@@ -9,6 +8,7 @@ data class DiscoveryTrainingRecord(
     val kind: DiscoveryCandidateKind,
     val stage: DiscoveryActivationStage,
     val score: Double,
+    val reputation: Double,
     val reliability: Double,
     val freshness: Double,
     val safety: Double,
@@ -24,7 +24,7 @@ internal class DiscoveryRuntimeCoordinator(
 ) {
     private val candidates = ConcurrentHashMap<String, DiscoveryCandidate>()
     private val lifecycle = DiscoveryLifecycleEngine()
-    private val quality = DiscoveryQualityEngine()
+    private val reputation = DiscoveryReputationEngine()
 
     fun register(candidate: DiscoveryCandidate): DiscoveryEvaluation {
         candidates[candidate.id] = candidate
@@ -43,6 +43,13 @@ internal class DiscoveryRuntimeCoordinator(
         error: String? = null,
     ): DiscoveryRuntimeDecision? {
         val candidate = candidates[providerId] ?: return null
+        val rep = reputation.record(
+            candidateId = providerId,
+            nowEpochMs = capturedAtEpochMs,
+            success = success,
+            safetyValid = signatureValid && candidate.endpoint.scheme == "https",
+            usefulData = freshEventCount > 0,
+        )
         val observation = DiscoveryObservation(
             timestampEpochMs = capturedAtEpochMs,
             latencyMs = latencyMs,
@@ -64,27 +71,39 @@ internal class DiscoveryRuntimeCoordinator(
             signatureVerified = signatureValid,
         )
         val decision = lifecycle.observe(candidate, evidence, observation)
+        val effectiveStage = if (rep.eligibleForActivation) {
+            decision.stage
+        } else {
+            DiscoveryActivationStage.PROPOSED
+        }
         onTrainingRecord(
             DiscoveryTrainingRecord(
                 eventId = providerId + "-" + capturedAtEpochMs,
                 candidateId = providerId,
                 kind = candidate.kind,
-                stage = decision.stage,
-                score = decision.score.total,
+                stage = effectiveStage,
+                score = decision.score.total * rep.value,
+                reputation = rep.value,
                 reliability = decision.score.reliability,
                 freshness = decision.score.freshness,
                 safety = decision.score.safety,
                 latencyMs = latencyMs,
                 success = success,
-                reason = decision.reason,
+                reason = decision.reason + "; Reputation=" + rep.value,
                 capturedAtEpochMs = capturedAtEpochMs,
             ),
         )
-        return decision
+        return decision.copy(
+            stage = effectiveStage,
+            quarantined = decision.quarantined || !rep.eligibleForActivation,
+        )
     }
 
     fun stage(candidateId: String): DiscoveryActivationStage =
         lifecycle.stage(candidateId)
+
+    fun reputation(candidateId: String): DiscoveryReputation =
+        reputation.current(candidateId)
 
     fun auditTrail(): List<DiscoveryAuditEntry> =
         lifecycle.auditTrail()
