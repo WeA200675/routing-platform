@@ -27,12 +27,19 @@ object ParallelNavigationRouteSourceFactory {
             ?.takeIf { it.isNotEmpty() }
             ?: return null
         val uri = URI(endpoint)
+        val liveProviders = NavigationLiveProviderFactory.fromManifest(context)
         return ParallelNavigationRouteSource(
             delegateFactory = { family ->
                 AndroidHttpNavigationRouteSource(
                     context = context,
                     endpoint = uri,
                 )
+            },
+            liveEventsProvider = {
+                val now = System.currentTimeMillis()
+                liveProviders.flatMap { provider ->
+                    runCatching { provider.fetch(now) }.getOrDefault(emptyList())
+                }
             },
             families = families,
         )
