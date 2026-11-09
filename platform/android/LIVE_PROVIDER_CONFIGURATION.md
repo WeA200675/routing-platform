@@ -30,3 +30,13 @@ Discovery is opt-in and fail-closed. Configure:
 The trusted-keys value is a comma/semicolon/space separated allowlist. The navigation session uses the governed provider factory only when a real signature verifier is supplied by the application and both discovery metadata values are present. Without those values, the app keeps the existing cached provider path and does not claim that discovery is active. Without a verifier, no provider can be promoted by discovery.
 
 Accepted and rejected provider observations are written to the persistent training FIFO via `DiscoveryTrainingEventSink`, so discovery quality can be trained and audited across process restarts.
+
+
+### Signed event contract
+
+Each event may carry:
+
+- `signature_key_id`
+- `signature_base64`
+
+For governed operation, every event in one response must use the same trusted key and detached Ed25519 signature. The signature covers the sorted event list and the canonical pipe-delimited fields implemented by `Ed25519NavigationEventVerifier`. Missing, mixed, malformed, or invalid signatures reject the complete response; cached/offline navigation remains available.
