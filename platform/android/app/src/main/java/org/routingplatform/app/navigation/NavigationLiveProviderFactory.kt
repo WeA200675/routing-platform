@@ -30,7 +30,11 @@ internal object NavigationLiveProviderFactory {
                 }
             }
             config.poiEndpoint?.let {
-                add(HttpNavigationLiveEventProvider("poi", it.toString(), headers, config.connectTimeoutMs, config.readTimeoutMs))
+                if (it.host.equals("overpass-api.de", ignoreCase = true)) {
+                    add(OverpassPoiProvider(it, locationProvider, config.readTimeoutMs))
+                } else {
+                    add(HttpNavigationLiveEventProvider("poi", it.toString(), headers, config.connectTimeoutMs, config.readTimeoutMs))
+                }
             }
         }.map { provider ->
             ObservableNavigationLiveEventProvider(
