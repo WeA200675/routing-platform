@@ -65,3 +65,24 @@ A provider may sign the complete response envelope instead of repeating fields o
 ```
 
 Envelope fields are inherited only when an event does not define its own signature. Mixed key IDs or signatures are rejected by the governance layer.
+
+
+## Production metadata example
+
+Use placeholders in the source manifest and inject real values only through the release configuration:
+
+```xml
+<meta-data
+    android:name="org.routingplatform.discovery.MANIFEST_KEY_ID"
+    android:value="provider-prod-2026" />
+<meta-data
+    android:name="org.routingplatform.discovery.TRUSTED_MANIFEST_KEYS"
+    android:value="provider-prod-2026" />
+<meta-data
+    android:name="org.routingplatform.discovery.TRUSTED_PUBLIC_KEYS"
+    android:value="provider-prod-2026=BASE64_DER_ED25519_PUBLIC_KEY" />
+```
+
+The key map uses `key-id=base64-DER-public-key` entries separated by commas or semicolons. Private keys never belong in the app, repository, manifest, or training payloads.
+
+A provider is considered usable only after all of these checks pass: HTTPS endpoint, allowed host, trusted key ID, valid Ed25519 signature, valid event schema, fresh timestamps, acceptable latency/error reputation, and no active quarantine or kill switch.
