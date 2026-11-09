@@ -45,6 +45,11 @@ function renderTrainingState(state) {
     set('monProviders', Object.entries(diag.providers || {}).map(([k,v]) => k + ': ' + v).join(' · ') || 'nicht verfügbar');
     const target = document.getElementById('monTargets');
     if (target) target.innerHTML = (diag.improvement_targets || ['Keine Diagnoseempfehlungen verfügbar.']).map(x => '<li>' + x + '</li>').join('');
+    const events = document.getElementById('monEvents');
+    if (events) {
+      const rows = (t.recent_events || []).slice().reverse();
+      events.innerHTML = rows.length ? rows.map(event => '<li><b>' + (event.event_id || 'ohne ID') + '</b> · ' + (event.type || 'unbekannt') + ' · ' + (event.size_bytes || 0) + ' Bytes · <span class="pill ok">' + (event.status || 'unbekannt') + '</span><small>Eingang: ' + RoutingTrainingCenter.formatTimestamp(event.captured_at) + ' · Verarbeitung: ' + RoutingTrainingCenter.formatTimestamp(event.normalized_at) + '</small></li>').join('') : '<li>Noch keine Events vorhanden.</li>';
+    }
   }
   const workRate = document.getElementById('aiWorkRate');
   if (workRate) workRate.textContent = 'Datenrate: ' + (training.data_rate_per_minute || 0) + '/min';
