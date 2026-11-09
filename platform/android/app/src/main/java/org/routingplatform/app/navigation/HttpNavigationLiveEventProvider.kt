@@ -36,9 +36,12 @@ internal class HttpNavigationLiveEventProvider(
 
     private fun parse(body: String, nowEpochMs: Long): List<NavigationLiveEvent> {
         val root = body.trim()
+        val envelope = root.takeIf { it.startsWith("{") }?.let { JSONObject(it) }
+        val envelopeSignature = envelope?.optString("signature_base64")?.trim()?.takeIf { it.isNotEmpty() }
+        val envelopeKeyId = envelope?.optString("signature_key_id")?.trim()?.takeIf { it.isNotEmpty() }
         val array = when {
             root.startsWith("[") -> JSONArray(root)
-            root.startsWith("{") -> JSONObject(root).optJSONArray("events") ?: JSONArray()
+            envelope != null -> envelope.optJSONArray("events") ?: JSONArray()
             else -> JSONArray()
         }
         return buildList {
@@ -62,8 +65,8 @@ internal class HttpNavigationLiveEventProvider(
                             nowEpochMs + 60_000L,
                         ),
                         source = item.optString("source", providerId),
-                        signatureBase64 = item.optString("signature_base64").trim().takeIf { it.isNotEmpty() },
-                        signatureKeyId = item.optString("signature_key_id").trim().takeIf { it.isNotEmpty() },
+                        signatureBase64 = item.optString("signature_base64").trim().takeIf { it.isNotEmpty() } ?: envelopeSignature,
+                        signatureKeyId = item.optString("signature_key_id").trim().takeIf { it.isNotEmpty() } ?: envelopeKeyId,
                     )
                 }.getOrNull()
                 if (event != null && event.isValid(nowEpochMs)) add(event)
