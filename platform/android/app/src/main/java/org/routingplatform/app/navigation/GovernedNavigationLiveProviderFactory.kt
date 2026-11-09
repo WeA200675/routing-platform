@@ -17,6 +17,7 @@ internal object GovernedNavigationLiveProviderFactory {
         val headers = config.apiKey
             ?.let { mapOf("Authorization" to "Bearer $it") }
             .orEmpty()
+        val locationProvider = AndroidLastKnownRoutePointProvider(context)::current
         val endpoints = listOfNotNull(
             config.trafficEndpoint?.let { "traffic" to (it to DiscoveryCandidateKind.LIVE_PROVIDER) },
             config.hazardEndpoint?.let { "hazard" to (it to DiscoveryCandidateKind.LIVE_PROVIDER) },
@@ -25,13 +26,17 @@ internal object GovernedNavigationLiveProviderFactory {
         )
         return endpoints.map { (id, pair) ->
             val endpoint = pair.first
-            val raw = HttpNavigationLiveEventProvider(
-                providerId = id,
-                endpoint = endpoint.toString(),
-                headers = headers,
-                connectTimeoutMs = config.connectTimeoutMs,
-                readTimeoutMs = config.readTimeoutMs,
-            )
+            val raw: NavigationLiveEventProvider = if (id == "weather" && endpoint.host.equals("api.open-meteo.com", ignoreCase = true)) {
+                OpenMeteoLiveWeatherProvider(endpoint, locationProvider, config.readTimeoutMs)
+            } else {
+                HttpNavigationLiveEventProvider(
+                    providerId = id,
+                    endpoint = endpoint.toString(),
+                    headers = headers,
+                    connectTimeoutMs = config.connectTimeoutMs,
+                    readTimeoutMs = config.readTimeoutMs,
+                )
+            }
             GovernedNavigationLiveEventProvider(
                 delegate = CachedNavigationLiveEventProvider(raw, config.cacheMaxAgeMs),
                 controller = controller,
