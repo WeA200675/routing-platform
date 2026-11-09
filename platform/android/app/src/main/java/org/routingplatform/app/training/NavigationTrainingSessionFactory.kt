@@ -1,6 +1,7 @@
 package org.routingplatform.app.training
 
 import android.content.Context
+import org.routingplatform.app.intelligence.Ed25519NavigationEventVerifier
 import org.routingplatform.app.intelligence.ProductionDiscoveryController
 import org.routingplatform.app.navigation.GovernedNavigationLiveProviderFactory
 import org.routingplatform.app.navigation.NavigationLiveEvent
@@ -32,7 +33,10 @@ internal object NavigationTrainingSessionFactory {
             maxBytes = journalMaxBytes,
             persistence = AndroidFifoJournalPersistence(context),
         )
-        val canGovern = signatureVerifier != null &&
+        val effectiveVerifier = signatureVerifier ?: config.discoveryTrustedPublicKeys.takeIf { it.isNotEmpty() }?.let { keys ->
+            { events: List<NavigationLiveEvent> -> Ed25519NavigationEventVerifier.verify(events, keys) }
+        }
+        val canGovern = effectiveVerifier != null &&
             config.discoveryManifestKeyId != null &&
             config.discoveryTrustedManifestKeys.isNotEmpty() &&
             config.hasAnyProvider()
@@ -57,7 +61,7 @@ internal object NavigationTrainingSessionFactory {
             context = context,
             controller = controller,
             manifestKeyId = config.discoveryManifestKeyId,
-            signatureVerifier = signatureVerifier,
+            signatureVerifier = effectiveVerifier,
         )
         return createInternal(
             apiBaseUrl,
