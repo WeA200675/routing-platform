@@ -34,6 +34,8 @@ import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
 import org.routingplatform.app.navigation.NavigationRouteSourceFactory
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
 import org.routingplatform.app.navigation.NavigationRuntimeCycleInputMapper
+import org.routingplatform.app.navigation.NavigationPoiRecommendation
+import org.routingplatform.app.navigation.NavigationPoiRecommendationEngine
 import org.routingplatform.app.training.NavigationTrainingRuntimeHost
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
@@ -414,6 +416,11 @@ class MainActivity :
                         NavigationRuntimeTelemetry
                             .stopped()
                     )
+                }
+
+            var poiRecommendations by
+                remember {
+                    mutableStateOf<List<NavigationPoiRecommendation>>(emptyList())
                 }
 
             var progressStep by
@@ -1267,6 +1274,30 @@ class MainActivity :
                             telemetry
                                 .trustedTravelBearingDegrees,
 
+                        poiRecommendations = poiRecommendations,
+
+                        onPoiUseAsDestination = { recommendation ->
+                            selectedTripStop = NavigationTripStop(
+                                point = RoutePoint(
+                                    recommendation.event.latitude,
+                                    recommendation.event.longitude,
+                                ),
+                                label = recommendation.title,
+                            )
+                            destinationPlannerMessage = "POI als Ziel ausgewählt."
+                        },
+
+                        onPoiUseAsViaPoint = { recommendation ->
+                            selectedTripStop = NavigationTripStop(
+                                point = RoutePoint(
+                                    recommendation.event.latitude,
+                                    recommendation.event.longitude,
+                                ),
+                                label = recommendation.title,
+                            )
+                            destinationPlannerMessage = "POI als Zwischenziel ausgewählt."
+                        },
+
                         nightPresentation =
                             nightPresentation,
 
@@ -1906,6 +1937,17 @@ class MainActivity :
                                                 routeAcquisitionTelemetry = it
                                             },
                                         )
+                                },
+                                onResult = { result ->
+                                    val position = telemetry.lastObservedPosition
+                                    if (position != null) {
+                                        poiRecommendations =
+                                            NavigationPoiRecommendationEngine.recommend(
+                                                events = result.liveContext.prioritizedEvents.map { it.event },
+                                                currentPosition = position,
+                                                nowEpochMs = result.liveContext.capturedAtEpochMs,
+                                            )
+                                    }
                                 },
                             )
 
