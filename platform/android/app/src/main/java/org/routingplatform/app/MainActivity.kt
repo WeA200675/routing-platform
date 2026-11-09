@@ -240,7 +240,7 @@ class MainActivity :
 
             val liveRouteSource =
                 remember {
-                    NavigationRouteSourceFactory
+                    ParallelNavigationRouteSourceFactory
                         .fromManifest(
                             applicationContext
                         )
