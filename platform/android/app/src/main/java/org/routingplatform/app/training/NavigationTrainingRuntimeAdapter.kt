@@ -22,11 +22,12 @@ internal class NavigationTrainingRuntimeAdapter(
     ): NavigationTrainingCycleResult {
         val telemetry = result.decision.lastDecision
             ?: return NavigationTrainingCycleResult.NoDecision
-        bridge.recordDecision(
+        val event = NavigationDecisionTrainingEventAdapter.toTrainingEvent(
             telemetry = telemetry,
             sessionId = sessionId,
             routeId = routeId,
         )
+        bridge.recordDecisionEvent(event)
         val sync = syncCoordinator.sync(
             networkAvailable = networkAvailable,
             navigationActive = navigationActive,
@@ -34,7 +35,7 @@ internal class NavigationTrainingRuntimeAdapter(
             batteryPercent = batteryPercent,
         )
         return NavigationTrainingCycleResult.Recorded(
-            eventId = NavigationDecisionTrainingEventFactory.create(telemetry).eventId,
+            eventId = event.eventId,
             sync = sync,
         )
     }
