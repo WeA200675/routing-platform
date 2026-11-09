@@ -86,3 +86,11 @@ Use placeholders in the source manifest and inject real values only through the 
 The key map uses `key-id=base64-DER-public-key` entries separated by commas or semicolons. Private keys never belong in the app, repository, manifest, or training payloads.
 
 A provider is considered usable only after all of these checks pass: HTTPS endpoint, allowed host, trusted key ID, valid Ed25519 signature, valid event schema, fresh timestamps, acceptable latency/error reputation, and no active quarantine or kill switch.
+
+
+## Built-in reference endpoints
+
+- Weather: `https://api.open-meteo.com` is recognized and queried with the current Android position.
+- POI: `https://overpass-api.de` is recognized and queried around the current Android position for fuel, restaurants, cafés, parking and charging stations.
+
+Both adapters use bounded timeouts and return no live result when permissions, position or network are unavailable. The normal cache and offline route remain authoritative. Overpass is a public OpenStreetMap service and should be used with conservative request frequency.
