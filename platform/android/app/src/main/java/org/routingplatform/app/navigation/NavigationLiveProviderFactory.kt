@@ -51,6 +51,11 @@ internal object NavigationLiveProviderFactory {
                     readTimeoutMs = config.readTimeoutMs,
                 ))
             }
+        }.map { provider ->
+            CachedNavigationLiveEventProvider(
+                delegate = provider,
+                maxAgeMs = config.cacheMaxAgeMs,
+            )
         }
     }
 }
