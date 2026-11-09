@@ -62,6 +62,8 @@ internal class HttpNavigationLiveEventProvider(
                             nowEpochMs + 60_000L,
                         ),
                         source = item.optString("source", providerId),
+                        signatureBase64 = item.optString("signature_base64").trim().takeIf { it.isNotEmpty() },
+                        signatureKeyId = item.optString("signature_key_id").trim().takeIf { it.isNotEmpty() },
                     )
                 }.getOrNull()
                 if (event != null && event.isValid(nowEpochMs)) add(event)
