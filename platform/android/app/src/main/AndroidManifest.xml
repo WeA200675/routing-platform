@@ -34,21 +34,15 @@
         android:theme="@style/Theme.RoutingPlatform">
 
         <!-- Optional HTTPS live providers. Empty values keep them disabled. -->
-        <meta-data
-            android:name="org.routingplatform.live.TRAFFIC_ENDPOINT"
-            android:value="" />
-        <meta-data
-            android:name="org.routingplatform.live.HAZARD_ENDPOINT"
-            android:value="" />
-        <meta-data
-            android:name="org.routingplatform.live.WEATHER_ENDPOINT"
-            android:value="" />
-        <meta-data
-            android:name="org.routingplatform.live.POI_ENDPOINT"
-            android:value="" />
-        <meta-data
-            android:name="org.routingplatform.live.API_KEY"
-            android:value="" />
+        <meta-data android:name="org.routingplatform.live.TRAFFIC_ENDPOINT" android:value="" />
+        <meta-data android:name="org.routingplatform.live.HAZARD_ENDPOINT" android:value="" />
+        <meta-data android:name="org.routingplatform.live.WEATHER_ENDPOINT" android:value="" />
+        <meta-data android:name="org.routingplatform.live.POI_ENDPOINT" android:value="" />
+        <meta-data android:name="org.routingplatform.live.API_KEY" android:value="" />
+
+        <!-- Discovery governance is disabled until real production values are supplied. -->
+        <meta-data android:name="org.routingplatform.discovery.MANIFEST_KEY_ID" android:value="" />
+        <meta-data android:name="org.routingplatform.discovery.TRUSTED_MANIFEST_KEYS" android:value="" />
 
         <activity
             android:name=".MainActivity"
