@@ -9,6 +9,7 @@
     operations: "/api/training/operations",
     history: "/api/training/history",
     dialogue: "/api/training/dialogue",
+    diagnostics: "/api/training/diagnostics",
     control: "/api/training/control",
     trainingJob: "/api/training/training-job"
   };
