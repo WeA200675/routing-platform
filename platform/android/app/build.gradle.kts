@@ -20,12 +20,19 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
+        buildConfigField(
+            "String",
+            "TRAINING_DISCOVERY_URL",
+            "\"https://wireless-packages-paul-tooth.trycloudflare.com/connection.json\"",
+        )
+
         testInstrumentationRunner =
             "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
