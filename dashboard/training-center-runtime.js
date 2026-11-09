@@ -108,7 +108,8 @@
     if (!value) return "nicht verfügbar";
     return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "medium" }).format(new Date(value));
   }
-\n  global.RoutingTrainingCenter = {
+
+  global.RoutingTrainingCenter = {
     endpoints: Object.freeze(ENDPOINTS),
     loadAll: loadAll,
     sendDialogue: sendDialogue,
