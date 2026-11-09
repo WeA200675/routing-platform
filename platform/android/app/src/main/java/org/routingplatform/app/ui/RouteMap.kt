@@ -115,6 +115,10 @@ fun RouteMap(
         NavigationObservedPositionPresentation? =
         null,
 
+    positionMarkerStyle:
+        NavigationPositionMarkerStyle =
+        NavigationPositionMarkerStyle.ARROW,
+
     trustedTravelBearingDegrees:
         Double? =
         null,
@@ -850,8 +854,10 @@ fun RouteMap(
             ?.setGeoJson(
                 observedPosition
                     ?.let {
-                        pointGeoJson(
-                            it.position
+                        positionMarkerGeoJson(
+                            presentation = it,
+                            style = positionMarkerStyle,
+                            bearingDegrees = trustedTravelBearingDegrees,
                         )
                     }
                     ?: emptyFeatureCollectionGeoJson()
@@ -1324,7 +1330,7 @@ private fun NavigationCompass(
 
                 Text(
                     text =
-                        "▲",
+                        "â²",
 
                     modifier =
                         Modifier.align(
@@ -1597,26 +1603,22 @@ private fun installNavigationLayers(
     )
 
     style.addLayer(
-        CircleLayer(
+        FillLayer(
             OBSERVED_POSITION_LAYER_ID,
             OBSERVED_POSITION_SOURCE_ID,
         ).withProperties(
-            PropertyFactory.circleColor(
+            PropertyFactory.fillColor(
                 observedPosition
                     ?.markerColor
                     ?: "#6B7280"
             ),
 
-            PropertyFactory.circleRadius(
-                9.0f
+            PropertyFactory.fillOpacity(
+                0.95f
             ),
 
-            PropertyFactory.circleStrokeColor(
+            PropertyFactory.fillOutlineColor(
                 "#FFFFFF"
-            ),
-
-            PropertyFactory.circleStrokeWidth(
-                3.0f
             ),
 
             PropertyFactory.visibility(
