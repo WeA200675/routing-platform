@@ -16,45 +16,23 @@ internal object NavigationLiveProviderFactory {
             .orEmpty()
         return buildList {
             config.trafficEndpoint?.let {
-                add(HttpNavigationLiveEventProvider(
-                    providerId = "traffic",
-                    endpoint = it.toString(),
-                    headers = headers,
-                    connectTimeoutMs = config.connectTimeoutMs,
-                    readTimeoutMs = config.readTimeoutMs,
-                ))
+                add(HttpNavigationLiveEventProvider("traffic", it.toString(), headers, config.connectTimeoutMs, config.readTimeoutMs))
             }
             config.hazardEndpoint?.let {
-                add(HttpNavigationLiveEventProvider(
-                    providerId = "hazard",
-                    endpoint = it.toString(),
-                    headers = headers,
-                    connectTimeoutMs = config.connectTimeoutMs,
-                    readTimeoutMs = config.readTimeoutMs,
-                ))
+                add(HttpNavigationLiveEventProvider("hazard", it.toString(), headers, config.connectTimeoutMs, config.readTimeoutMs))
             }
             config.weatherEndpoint?.let {
-                add(HttpNavigationLiveEventProvider(
-                    providerId = "weather",
-                    endpoint = it.toString(),
-                    headers = headers,
-                    connectTimeoutMs = config.connectTimeoutMs,
-                    readTimeoutMs = config.readTimeoutMs,
-                ))
+                add(HttpNavigationLiveEventProvider("weather", it.toString(), headers, config.connectTimeoutMs, config.readTimeoutMs))
             }
             config.poiEndpoint?.let {
-                add(HttpNavigationLiveEventProvider(
-                    providerId = "poi",
-                    endpoint = it.toString(),
-                    headers = headers,
-                    connectTimeoutMs = config.connectTimeoutMs,
-                    readTimeoutMs = config.readTimeoutMs,
-                ))
+                add(HttpNavigationLiveEventProvider("poi", it.toString(), headers, config.connectTimeoutMs, config.readTimeoutMs))
             }
         }.map { provider ->
-            CachedNavigationLiveEventProvider(
-                delegate = provider,
-                maxAgeMs = config.cacheMaxAgeMs,
+            ObservableNavigationLiveEventProvider(
+                CachedNavigationLiveEventProvider(
+                    delegate = provider,
+                    maxAgeMs = config.cacheMaxAgeMs,
+                ),
             )
         }
     }
