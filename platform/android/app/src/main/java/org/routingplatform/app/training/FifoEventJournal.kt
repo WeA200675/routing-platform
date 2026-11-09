@@ -2,11 +2,6 @@ package org.routingplatform.app.training
 
 import java.util.ArrayDeque
 
-/**
- * In-memory bounded FIFO journal with duplicate suppression. Admission is
- * checked before mutation, so the byte ceiling remains hard even when only
- * protected records remain.
- */
 internal class FifoEventJournal(
     private val maxBytes: Long,
 ) {
@@ -14,27 +9,12 @@ internal class FifoEventJournal(
     private val eventIds = HashSet<String>()
     private var totalBytes = 0L
 
-    init {
-        require(maxBytes > 0L)
-    }
+    init { require(maxBytes > 0L) }
 
     @Synchronized
     fun append(event: TrainingEvent): JournalAppendResult {
-        if (event.eventId in eventIds) {
-            return JournalAppendResult.Rejected(
-                reason = RejectionReason.DUPLICATE_EVENT,
-                totalBytes = totalBytes,
-                eventCount = events.size,
-            )
-        }
-        if (event.sizeBytes.toLong() > maxBytes) {
-            return JournalAppendResult.Rejected(
-                reason = RejectionReason.EVENT_TOO_LARGE,
-                totalBytes = totalBytes,
-                eventCount = events.size,
-            )
-        }
-
+        if (event.eventId in eventIds) return rejected(RejectionReason.DUPLICATE_EVENT)
+        if (event.sizeBytes.toLong() > maxBytes) return rejected(RejectionReason.EVENT_TOO_LARGE)
         val evicted = mutableListOf<String>()
         while (totalBytes + event.sizeBytes > maxBytes) {
             val removable = events.firstOrNull { !it.protected } ?: break
@@ -43,38 +23,34 @@ internal class FifoEventJournal(
             totalBytes -= removable.sizeBytes
             evicted += removable.eventId
         }
-
         if (totalBytes + event.sizeBytes > maxBytes) {
-            return JournalAppendResult.Rejected(
-                reason = RejectionReason.ONLY_PROTECTED_EVENTS_REMAIN,
-                totalBytes = totalBytes,
-                eventCount = events.size,
-            )
+            return rejected(RejectionReason.ONLY_PROTECTED_EVENTS_REMAIN)
         }
-
         events.addLast(event)
         eventIds += event.eventId
         totalBytes += event.sizeBytes
-        return JournalAppendResult.Accepted(
-            evictedEventIds = evicted,
-            totalBytes = totalBytes,
-            eventCount = events.size,
-        )
+        return JournalAppendResult.Accepted(evicted, totalBytes, events.size)
     }
 
     @Synchronized
     fun peekBatch(maxEvents: Int, maxBatchBytes: Long): List<TrainingEvent> {
-        require(maxEvents > 0)
-        require(maxBatchBytes > 0L)
+        require(maxEvents > 0 && maxBatchBytes > 0L)
+        val ordered = events.filter { it.protected } + events.filter { !it.protected }
         val result = mutableListOf<TrainingEvent>()
         var bytes = 0L
-        for (event in events) {
+        for (event in ordered) {
             if (result.size >= maxEvents || bytes + event.sizeBytes > maxBatchBytes) break
             result += event
             bytes += event.sizeBytes
         }
         return result
     }
+
+    @Synchronized
+    fun snapshot(): List<TrainingEvent> = events.toList()
+
+    @Synchronized
+    fun integrity(): JournalIntegrity = FifoJournalIntegrity.calculate(events.toList())
 
     @Synchronized
     fun acknowledge(eventIds: Set<String>): Int {
@@ -102,4 +78,7 @@ internal class FifoEventJournal(
         eventIds.clear()
         totalBytes = 0L
     }
+
+    private fun rejected(reason: RejectionReason) =
+        JournalAppendResult.Rejected(reason, totalBytes, events.size)
 }
