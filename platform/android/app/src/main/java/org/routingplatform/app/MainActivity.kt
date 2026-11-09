@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +59,7 @@ import org.routingplatform.app.ui.NavigationObservedPositionPresentation
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MAX
 import org.routingplatform.app.ui.NAVIGATION_BRIGHTNESS_CORRECTION_MIN
 import org.routingplatform.app.ui.NavigationScreen
+import org.routingplatform.app.ui.NavigationPositionMarkerStyle
 import org.routingplatform.app.ui.RoutingPlatformTheme
 import org.routingplatform.app.ui.rememberNavigationHapticRuntime
 import org.routingplatform.app.ui.rememberNavigationVoiceRuntime
@@ -78,6 +80,18 @@ class MainActivity :
         )
 
         setContent {
+            val trainingConnectionManager =
+                remember {
+                    org.routingplatform.app.training.TrainingConnectionManager(
+                        context = applicationContext,
+                        discoveryUrl = BuildConfig.TRAINING_DISCOVERY_URL,
+                    )
+                }
+
+            LaunchedEffect(trainingConnectionManager) {
+                trainingConnectionManager.refresh()
+            }
+
             val bridge =
                 remember {
                     JniNavigationCoreBridge()
@@ -87,6 +101,17 @@ class MainActivity :
                 remember {
                     AndroidUserProfileStore(
                         applicationContext
+                    )
+                }
+
+            var positionMarkerStyle by
+                remember {
+                    mutableStateOf(
+                        NavigationPositionMarkerStyle.parse(
+                        applicationContext
+                            .getSharedPreferences("navigation-presentation", MODE_PRIVATE)
+                            .getString("position_marker_style", null)
+                        )
                     )
                 }
 
@@ -240,7 +265,7 @@ class MainActivity :
 
             val liveRouteSource =
                 remember {
-                    ParallelNavigationRouteSourceFactory
+                    NavigationRouteSourceFactory
                         .fromManifest(
                             applicationContext
                         )
@@ -313,7 +338,7 @@ class MainActivity :
                                     routeLifecycleController ==
                                         null
                                 ) {
-                                    "Live-Endpunkt nicht konfiguriert – Fallback-Route aktiv"
+                                    "Live-Endpunkt nicht konfiguriert â Fallback-Route aktiv"
                                 } else {
                                     "Fallback-Route bereit"
                                 },
@@ -487,7 +512,7 @@ class MainActivity :
                         }
                     ) {
                         destinationPlannerMessage =
-                            "Bitte mindestens zwei gültige Zeichen eingeben."
+                            "Bitte mindestens zwei gÃ¼ltige Zeichen eingeben."
 
                         return@search
                     }
@@ -502,7 +527,7 @@ class MainActivity :
                         true
 
                     destinationPlannerMessage =
-                        "Zielsuche läuft …"
+                        "Zielsuche lÃ¤uft â¦"
 
                     destinationSearchHandle =
                         runCatching {
@@ -571,7 +596,7 @@ class MainActivity :
                             NavigationSessionState.Preview
                     ) {
                         destinationPlannerMessage =
-                            "Navigation zuerst stoppen, bevor der Reiseplan geändert wird."
+                            "Navigation zuerst stoppen, bevor der Reiseplan geÃ¤ndert wird."
 
                         return@routeRequest
                     }
@@ -601,7 +626,7 @@ class MainActivity :
                         )
                     ) {
                         destinationPlannerMessage =
-                            "Präzise Standortfreigabe erforderlich. Nach der Freigabe Ziel erneut bestätigen."
+                            "PrÃ¤zise Standortfreigabe erforderlich. Nach der Freigabe Ziel erneut bestÃ¤tigen."
 
                         permissionLauncher.launch(
                             arrayOf(
@@ -623,7 +648,7 @@ class MainActivity :
                         true
 
                     destinationPlannerMessage =
-                        "Aktuelle Position wird für die Routenplanung bestimmt …"
+                        "Aktuelle Position wird fÃ¼r die Routenplanung bestimmt â¦"
 
                     planningLocationController
                         .request {
@@ -646,7 +671,7 @@ class MainActivity :
                                             )
 
                                     destinationPlannerMessage =
-                                        "Routenvorschau wird berechnet …"
+                                        "Routenvorschau wird berechnet â¦"
 
                                     controller
                                         .loadInitial(
@@ -696,7 +721,7 @@ class MainActivity :
                                                             true
 
                                                         destinationPlannerMessage =
-                                                            "Routenvorschau wird berechnet …"
+                                                            "Routenvorschau wird berechnet â¦"
                                                     }
 
                                                     NavigationRouteAcquisitionState.LiveReady -> {
@@ -747,7 +772,7 @@ class MainActivity :
 
                                     destinationPlannerMessage =
                                         error.message
-                                            ?: "Aktuelle Position ist für die Routenplanung nicht verfügbar."
+                                            ?: "Aktuelle Position ist fÃ¼r die Routenplanung nicht verfÃ¼gbar."
                                 },
                             )
                         }
@@ -1200,6 +1225,18 @@ class MainActivity :
                         observedPosition =
                             observedPositionPresentation,
 
+                        positionMarkerStyle =
+                            positionMarkerStyle,
+
+                        onPositionMarkerStyleChanged = { style ->
+                            positionMarkerStyle = style
+                            applicationContext
+                                .getSharedPreferences("navigation-presentation", MODE_PRIVATE)
+                                .edit()
+                                .putString("position_marker_style", style.name)
+                                .apply()
+                        },
+
                         trustedTravelBearingDegrees =
                             telemetry
                                 .trustedTravelBearingDegrees,
@@ -1348,7 +1385,7 @@ class MainActivity :
                                     )
 
                                 destinationPlannerMessage =
-                                    "Kartenpunkt ausgewählt."
+                                    "Kartenpunkt ausgewÃ¤hlt."
                             }
                         },
 
@@ -1372,7 +1409,7 @@ class MainActivity :
                                     )
 
                                 destinationPlannerMessage =
-                                    "Suchtreffer ausgewählt."
+                                    "Suchtreffer ausgewÃ¤hlt."
                             }
                         },
 
@@ -1393,7 +1430,7 @@ class MainActivity :
                                     )
 
                                 destinationPlannerMessage =
-                                    "${favorite.label} ausgewählt."
+                                    "${favorite.label} ausgewÃ¤hlt."
                             }
                         },
 
@@ -1440,7 +1477,7 @@ class MainActivity :
                                     null
                             ) {
                                 destinationPlannerMessage =
-                                    "Zuerst ein Ziel auswählen."
+                                    "Zuerst ein Ziel auswÃ¤hlen."
                             } else {
                                 val trimmedLabel =
                                     label.trim()
@@ -1497,14 +1534,14 @@ class MainActivity :
 
                                 saveFavoriteDestinations(
                                     updated,
-                                    "Favorit gelöscht.",
+                                    "Favorit gelÃ¶scht.",
                                 )
                             }.onFailure {
                                     error ->
 
                                 destinationPlannerMessage =
                                     error.message
-                                        ?: "Favorit konnte nicht gelöscht werden."
+                                        ?: "Favorit konnte nicht gelÃ¶scht werden."
                             }
                         },
 
@@ -1543,7 +1580,7 @@ class MainActivity :
 
                                         destinationPlannerMessage =
                                             error.message
-                                                ?: "Zwischenziel konnte nicht hinzugefügt werden."
+                                                ?: "Zwischenziel konnte nicht hinzugefÃ¼gt werden."
                                     }
                                 }
                         },
@@ -1575,7 +1612,7 @@ class MainActivity :
 
                                 destinationPlannerMessage =
                                     error.message
-                                        ?: "Zwischenziel konnte nicht gelöscht werden."
+                                        ?: "Zwischenziel konnte nicht gelÃ¶scht werden."
                             }
                         },
 
