@@ -25,6 +25,27 @@ function renderTrainingState(state) {
   if (workState) workState.textContent = training.running ? 'AKTIV' : 'GESTOPPT';
   const workTime = document.getElementById('aiWorkTime');
   if (workTime) workTime.textContent = 'Letzte API-Antwort: ' + RoutingTrainingCenter.formatTimestamp(overview.captured_at);
+  const diag = state.sections && state.sections.diagnostics;
+  if (diag && diag.process) {
+    const p = diag.process, t = diag.throughput || {}, tm = diag.timing || {};
+    const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value == null ? 'nicht verfügbar' : value; };
+    set('monStatus', diag.status || 'nicht verfügbar');
+    set('monJob', p.current_job || 'idle');
+    set('monUptime', p.uptime_seconds == null ? null : p.uptime_seconds + ' s');
+    set('monCycle', RoutingTrainingCenter.formatTimestamp(p.last_cycle_at));
+    set('monRate', (t.events_per_minute || 0) + ' / min');
+    set('monProcessed', t.processed || 0);
+    set('monAccepted', t.accepted || 0);
+    set('monRejected', t.rejected || 0);
+    set('monQueue', t.queue || 0);
+    set('monApi', (tm.api_response_ms == null ? 'nicht gemessen' : tm.api_response_ms + ' ms'));
+    set('monIngest', RoutingTrainingCenter.formatTimestamp(tm.last_ingest_at));
+    set('monNormalize', RoutingTrainingCenter.formatTimestamp(tm.last_normalization_at));
+    set('monReplay', RoutingTrainingCenter.formatTimestamp(tm.last_replay_at));
+    set('monProviders', Object.entries(diag.providers || {}).map(([k,v]) => k + ': ' + v).join(' · ') || 'nicht verfügbar');
+    const target = document.getElementById('monTargets');
+    if (target) target.innerHTML = (diag.improvement_targets || ['Keine Diagnoseempfehlungen verfügbar.']).map(x => '<li>' + x + '</li>').join('');
+  }
   const workRate = document.getElementById('aiWorkRate');
   if (workRate) workRate.textContent = 'Datenrate: ' + (training.data_rate_per_minute || 0) + '/min';
 }
