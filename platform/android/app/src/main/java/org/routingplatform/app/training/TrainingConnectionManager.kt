@@ -12,13 +12,18 @@ internal sealed interface TrainingConnectionState {
     data class Offline(val reason: String) : TrainingConnectionState
 }
 
+/** Owns discovery and keeps the last good endpoint available during outages. */
 internal class TrainingConnectionManager(
     context: Context,
     discoveryUrl: String,
     fallbackUrl: String? = null,
     private val executor: Executor = Executors.newSingleThreadExecutor(),
 ) {
-    private val discovery = TrainingEndpointDiscovery(context.applicationContext, discoveryUrl, fallbackUrl)
+    private val discovery = TrainingEndpointDiscovery(
+        context = context.applicationContext,
+        discoveryUrl = discoveryUrl,
+        fallbackUrl = fallbackUrl,
+    )
     private val state = AtomicReference<TrainingConnectionState>(TrainingConnectionState.Idle)
 
     fun currentState(): TrainingConnectionState = state.get()
