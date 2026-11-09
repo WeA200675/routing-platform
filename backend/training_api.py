@@ -332,6 +332,7 @@ class Handler(BaseHTTPRequestHandler):
                 STATE.last_cycle_at = int(time.time() * 1000)
                 STATE.job_rejected += len(events) - accepted
                 STATE.job_rate = round((STATE.job_processed / max(1.0, (time.time() - (STATE.started_at or time.time())))) * 60.0, 2)
+                STATE.pending_events.extend([event for event in events if isinstance(event, dict) and event.get("event_id")][:accepted])
             STATE.record_activity("Accepted " + str(accepted) + " training events", "INGEST")
             self._send(202, STATE.envelope({
                 "accepted": accepted,
