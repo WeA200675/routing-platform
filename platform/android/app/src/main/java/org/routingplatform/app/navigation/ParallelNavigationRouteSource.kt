@@ -2,9 +2,7 @@ package org.routingplatform.app.navigation
 
 import android.os.Handler
 import android.os.Looper
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -91,23 +89,22 @@ class ParallelNavigationRouteSource(
         onResult: (Result<NavigationRouteContract>) -> Unit,
     ) {
         if (remaining.decrementAndGet() != 0 || !completed.compareAndSet(false, true) || cancelled.get() || closed.get()) return
-        val result = if (successes.isNotEmpty()) {
-            val scores = successes.map {
-                RouteCandidateScore(
-                    routeId = it.routeId,
-                    safetyScore = 1.0,
-                    timeSeconds = it.durationS,
-                    costScore = it.distanceM,
-                    confidence = if (it.segmentDataStatus == NavigationRouteSegmentDataStatus.Complete) 0.95 else 0.75,
-                )
+        val selected: Result<NavigationRouteContract> =
+            if (successes.isNotEmpty()) {
+                val scores = successes.map {
+                    RouteCandidateScore(
+                        routeId = it.routeId,
+                        safetyScore = 1.0,
+                        timeSeconds = it.durationS,
+                        costScore = it.distanceM,
+                        confidence = if (it.segmentDataStatus == NavigationRouteSegmentDataStatus.Complete) 0.95 else 0.75,
+                    )
+                }
+                val selectedId = NavigationRouteCandidateSelector.select(scores)?.routeId
+                Result.success(successes.firstOrNull { it.routeId == selectedId } ?: successes.minBy { it.durationS })
+            } else {
+                Result.failure(failures.firstOrNull() ?: IllegalStateException("All route families failed for $request"))
             }
-            val selectedId = NavigationRouteCandidateSelector.select(scores)?.routeId
-            successes.firstOrNull { it.routeId == selectedId } ?: successes.minBy { it.durationS }
-        } else {
-            Result.failure(
-                failures.firstOrNull() ?: IllegalStateException("All route families failed for $request")
-            )
-        }
-        mainHandler.post { onResult(runCatching { result as NavigationRouteContract }) }
+        mainHandler.post { onResult(selected) }
     }
 }
