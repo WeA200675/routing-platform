@@ -33,6 +33,7 @@ import org.routingplatform.app.navigation.NavigationRouteLifecycleController
 import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
 import org.routingplatform.app.navigation.NavigationRouteSourceFactory
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
+import org.routingplatform.app.navigation.NavigationRuntimeCycleInputMapper
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
 import org.routingplatform.app.navigation.NavigationStartOrientationVisibilityController
@@ -216,6 +217,13 @@ class MainActivity :
 
                         bridge =
                             bridge,
+                    )
+                }
+
+            val runtimeCycleInputMapper =
+                remember {
+                    NavigationRuntimeCycleInputMapper(
+                        context = applicationContext,
                     )
                 }
 
@@ -866,6 +874,11 @@ class MainActivity :
 
                         onTelemetry = {
                                 updatedTelemetry ->
+
+                            runtimeCycleInputMapper
+                                .update(
+                                    updatedTelemetry
+                                )
 
                             driveProofObservationSink
                                 .record(
