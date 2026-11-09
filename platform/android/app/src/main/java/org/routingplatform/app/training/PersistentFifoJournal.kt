@@ -13,7 +13,7 @@ internal data class PersistedJournal(
 internal class PersistentFifoJournal(
     private val maxBytes: Long,
     private val persistence: FifoJournalPersistence,
-) {
+) : TrainingEventStore {
     private val journal = FifoEventJournal(maxBytes)
 
     init {
@@ -25,15 +25,15 @@ internal class PersistentFifoJournal(
     }
 
     @Synchronized
-    fun append(event: TrainingEvent): JournalAppendResult =
+    override fun append(event: TrainingEvent): JournalAppendResult =
         journal.append(event).also { persist() }
 
     @Synchronized
-    fun peekBatch(maxEvents: Int, maxBatchBytes: Long): List<TrainingEvent> =
+    override fun peekBatch(maxEvents: Int, maxBatchBytes: Long): List<TrainingEvent> =
         journal.peekBatch(maxEvents, maxBatchBytes)
 
     @Synchronized
-    fun acknowledge(eventIds: Set<String>): Int =
+    override fun acknowledge(eventIds: Set<String>): Int =
         journal.acknowledge(eventIds).also { persist() }
 
     @Synchronized
