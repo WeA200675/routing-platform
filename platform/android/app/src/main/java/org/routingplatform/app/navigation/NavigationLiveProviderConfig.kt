@@ -12,6 +12,7 @@ data class NavigationLiveProviderConfig(
     val apiKey: String? = null,
     val discoveryManifestKeyId: String? = null,
     val discoveryTrustedManifestKeys: Set<String> = emptySet(),
+    val discoveryTrustedPublicKeys: Map<String, String> = emptyMap(),
     val connectTimeoutMs: Int = 5_000,
     val readTimeoutMs: Int = 8_000,
     val cacheMaxAgeMs: Long = 15 * 60 * 1_000L,
@@ -45,6 +46,7 @@ data class NavigationLiveProviderConfig(
         const val API_KEY = "org.routingplatform.live.API_KEY"
         const val DISCOVERY_KEY_ID = "org.routingplatform.discovery.MANIFEST_KEY_ID"
         const val DISCOVERY_TRUSTED_KEYS = "org.routingplatform.discovery.TRUSTED_MANIFEST_KEYS"
+        const val DISCOVERY_PUBLIC_KEYS = "org.routingplatform.discovery.TRUSTED_PUBLIC_KEYS"
 
         fun fromManifest(context: Context): NavigationLiveProviderConfig {
             val info = context.packageManager.getApplicationInfo(
@@ -61,6 +63,11 @@ data class NavigationLiveProviderConfig(
                     ?.filter { it.isNotEmpty() }
                     ?.toSet()
                     .orEmpty()
+            fun keyMap(key: String): Map<String, String> =
+                meta?.getString(key)?.split(',', ';')?.mapNotNull { entry ->
+                    val parts = entry.split('=', limit = 2).map { it.trim() }
+                    if (parts.size == 2 && parts[0].isNotEmpty() && parts[1].isNotEmpty()) parts[0] to parts[1] else null
+                }?.toMap().orEmpty()
             return NavigationLiveProviderConfig(
                 trafficEndpoint = uri(TRAFFIC_KEY),
                 hazardEndpoint = uri(HAZARD_KEY),
@@ -69,6 +76,7 @@ data class NavigationLiveProviderConfig(
                 apiKey = meta?.getString(API_KEY)?.trim()?.takeIf { it.isNotEmpty() },
                 discoveryManifestKeyId = meta?.getString(DISCOVERY_KEY_ID)?.trim()?.takeIf { it.isNotEmpty() },
                 discoveryTrustedManifestKeys = csv(DISCOVERY_TRUSTED_KEYS),
+                discoveryTrustedPublicKeys = keyMap(DISCOVERY_PUBLIC_KEYS),
             )
         }
     }
