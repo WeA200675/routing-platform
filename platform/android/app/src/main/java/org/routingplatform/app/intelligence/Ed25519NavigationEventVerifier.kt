@@ -38,7 +38,7 @@ internal object Ed25519NavigationEventVerifier {
         }.getOrDefault(false)
     }
 
-    private fun canonicalPayload(events: List<NavigationLiveEvent>): String =
+    internal fun canonicalPayload(events: List<NavigationLiveEvent>): String =
         events.sortedBy { it.id }.joinToString("\n") { event ->
             listOf(
                 event.id,
