@@ -19,6 +19,14 @@ function renderTrainingState(state) {
   document.getElementById('liveUpdated').textContent = RoutingTrainingCenter.formatTimestamp(overview.captured_at);
   document.getElementById('liveJob').textContent = training.current_job || 'idle';
   document.getElementById('liveRate').textContent = (training.data_rate_per_minute || 0) + ' / ' + (training.processed || 0) + ' / ' + (training.accepted || 0) + ' / ' + (training.rejected || 0);
+  const work = document.getElementById('aiWorkStatus');
+  if (work) work.textContent = training.running ? ('Die KI arbeitet aktuell an: ' + (training.current_job || 'Datensammlung')) : 'Training ist gestoppt. Keine Verarbeitung läuft.';
+  const workState = document.getElementById('aiWorkState');
+  if (workState) workState.textContent = training.running ? 'AKTIV' : 'GESTOPPT';
+  const workTime = document.getElementById('aiWorkTime');
+  if (workTime) workTime.textContent = 'Letzte API-Antwort: ' + RoutingTrainingCenter.formatTimestamp(overview.captured_at);
+  const workRate = document.getElementById('aiWorkRate');
+  if (workRate) workRate.textContent = 'Datenrate: ' + (training.data_rate_per_minute || 0) + '/min';
 }
 async function refreshTrainingCenter() {
   try {
