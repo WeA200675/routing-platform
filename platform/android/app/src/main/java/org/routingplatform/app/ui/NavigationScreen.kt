@@ -107,6 +107,14 @@ internal fun NavigationScreen(
         NavigationObservedPositionPresentation? =
         null,
 
+    positionMarkerStyle:
+        NavigationPositionMarkerStyle =
+        NavigationPositionMarkerStyle.ARROW,
+
+    onPositionMarkerStyleChanged:
+        (NavigationPositionMarkerStyle) -> Unit =
+        {},
+
     trustedTravelBearingDegrees:
         Double? =
         null,
@@ -452,6 +460,9 @@ internal fun NavigationScreen(
                 observedPosition =
                     observedPosition,
 
+                positionMarkerStyle =
+                    positionMarkerStyle,
+
                 trustedTravelBearingDegrees =
                     trustedTravelBearingDegrees,
 
@@ -695,7 +706,7 @@ internal fun NavigationScreen(
                     ?.takeIf { it.isNotEmpty() }
                     ?.let { lanes ->
                         Text(
-                            text = "Führung: " + lanes.joinToString(" · "),
+                            text = "FÃ¼hrung: " + lanes.joinToString(" Â· "),
                             style =
                                 MaterialTheme.typography.bodyMedium,
                             modifier =
@@ -778,7 +789,7 @@ internal fun NavigationScreen(
 
                             Text(
                                 text =
-                                    "Nächstes Manöver: " +
+                                    "NÃ¤chstes ManÃ¶ver: " +
                                         NavigationFormatter
                                             .distance(
                                                 maneuverDistanceM
@@ -902,7 +913,7 @@ internal fun NavigationScreen(
                                 if (
                                     destinationPlannerBusy
                                 ) {
-                                    "Zielplanung läuft …"
+                                    "Zielplanung lÃ¤uft â¦"
                                 } else {
                                     "Ziel planen"
                                 }
@@ -936,6 +947,19 @@ internal fun NavigationScreen(
                             items =
                                 listOf(
                                     NavigationSettingTile(
+                                        title = "Positionsanzeiger",
+                                        value = positionMarkerStyle.name,
+                                        onClick = {
+                                            val next = when (positionMarkerStyle) {
+                                                NavigationPositionMarkerStyle.ARROW -> NavigationPositionMarkerStyle.CAR
+                                                NavigationPositionMarkerStyle.CAR -> NavigationPositionMarkerStyle.DOT
+                                                NavigationPositionMarkerStyle.DOT -> NavigationPositionMarkerStyle.ARROW
+                                            }
+                                            onPositionMarkerStyleChanged(next)
+                                        },
+                                    ),
+
+                                    NavigationSettingTile(
                                         testTag =
                                             NavigationUiTestTags
                                                 .ExperiencePackOpen,
@@ -950,7 +974,7 @@ internal fun NavigationScreen(
                                                     personalityPreferences
                                                         .weeklyDiscoveryEnabled
                                                 ) {
-                                                    " · Überraschung an"
+                                                    " Â· Ãberraschung an"
                                                 } else {
                                                     ""
                                                 },
@@ -967,7 +991,7 @@ internal fun NavigationScreen(
                                                 .VoiceSettingsOpen,
 
                                         title =
-                                            "Sprachführung",
+                                            "SprachfÃ¼hrung",
 
                                         value =
                                             if (
@@ -1046,7 +1070,7 @@ internal fun NavigationScreen(
                                                 .TextScaleSettingsOpen,
 
                                         title =
-                                            "Textgröße",
+                                            "TextgrÃ¶Ãe",
 
                                         value =
                                             NavigationTextScalePresentation
@@ -1821,7 +1845,7 @@ private fun DestinationPlannerDialog(
                             onDismiss,
                     ) {
                         Text(
-                            "Schließen"
+                            "SchlieÃen"
                         )
                     }
                 }
@@ -2064,7 +2088,7 @@ private fun DestinationPlannerDialog(
                                 },
                             ) {
                                 Text(
-                                    "Löschen"
+                                    "LÃ¶schen"
                                 )
                             }
                         }
@@ -2080,7 +2104,7 @@ private fun DestinationPlannerDialog(
 
                 Text(
                     text =
-                        "Ausgewählte Markierung",
+                        "AusgewÃ¤hlte Markierung",
 
                     fontWeight =
                         FontWeight.SemiBold,
@@ -2092,7 +2116,7 @@ private fun DestinationPlannerDialog(
                 ) {
                     Text(
                         text =
-                            "Karte lange drücken oder einen Suchtreffer/Favoriten auswählen.",
+                            "Karte lange drÃ¼cken oder einen Suchtreffer/Favoriten auswÃ¤hlen.",
 
                         style =
                             MaterialTheme
@@ -2430,7 +2454,7 @@ private fun DestinationPlannerDialog(
                                             },
                                         ) {
                                             Text(
-                                                "↑"
+                                                "â"
                                             )
                                         }
 
@@ -2448,7 +2472,7 @@ private fun DestinationPlannerDialog(
                                             },
                                         ) {
                                             Text(
-                                                "↓"
+                                                "â"
                                             )
                                         }
 
@@ -2463,7 +2487,7 @@ private fun DestinationPlannerDialog(
                                             },
                                         ) {
                                             Text(
-                                                "Löschen"
+                                                "LÃ¶schen"
                                             )
                                         }
                                     }
