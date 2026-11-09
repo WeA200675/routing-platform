@@ -31,6 +31,14 @@ class TrainingState:
         self.total_events = 0
         self.regressions: list[dict[str, Any]] = []
         self.activities: list[dict[str, Any]] = []
+        self.running = False
+        self.started_at: int | None = None
+        self.last_cycle_at: int | None = None
+        self.current_job = "idle"
+        self.job_rate = 0.0
+        self.job_processed = 0
+        self.job_accepted = 0
+        self.job_rejected = 0
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
         with self._lock:
@@ -70,6 +78,16 @@ def section(name: str) -> dict[str, Any]:
                 "voice_timing": 0.941,
                 "gps_stability": 0.916,
                 "fallback_rate": 0.024,
+            },
+            "training": {
+                "running": STATE.running,
+                "started_at": STATE.started_at,
+                "last_cycle_at": STATE.last_cycle_at,
+                "current_job": STATE.current_job,
+                "data_rate_per_minute": STATE.job_rate,
+                "processed": STATE.job_processed,
+                "accepted": STATE.job_accepted,
+                "rejected": STATE.job_rejected,
             },
             "pipeline": {
                 "ingest": 1248,
@@ -165,7 +183,7 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/api/training/runtime-config":
             self._send(200, STATE.envelope({
-                "runtime_mode": "SAFE",
+                "runtime_mode": "TRAINING" if STATE.running else "SAFE",
                 "active_artifact": "stable-baseline",
                 "live_data_enabled": True,
                 "offline_fallback_enabled": True,
@@ -208,6 +226,37 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": "invalid_json"})
             return
         name = self.path[len(prefix):].split("?", 1)[0]
+        if name == "control":
+            action = payload.get("action")
+            if action not in {"start", "stop"}:
+                self._send(400, {"error": "action_must_be_start_or_stop"})
+                return
+            with STATE._lock:
+                STATE.running = action == "start"
+                now = int(time.time() * 1000)
+                if STATE.running:
+                    STATE.started_at = STATE.started_at or now
+                    STATE.current_job = "waiting-for-data"
+                    STATE.last_cycle_at = now
+                else:
+                    STATE.current_job = "idle"
+                    STATE.last_cycle_at = now
+            STATE.record_activity("Training " + ("started" if action == "start" else "stopped"), "CONTROL")
+            self._send(200, STATE.envelope({"action": action, "running": STATE.running}))
+            return
+        if name == "training-job":
+            prompt = payload.get("instruction")
+            if not isinstance(prompt, str) or not prompt.strip():
+                self._send(400, {"error": "instruction_required"})
+                return
+            with STATE._lock:
+                STATE.running = True
+                STATE.started_at = STATE.started_at or int(time.time() * 1000)
+                STATE.last_cycle_at = int(time.time() * 1000)
+                STATE.current_job = prompt.strip()[:240]
+            STATE.record_activity("Training instruction accepted: " + prompt.strip()[:180], "TRAINING")
+            self._send(202, STATE.envelope({"accepted": True, "instruction": prompt.strip(), "running": True}))
+            return
         if name == "events":
             events = payload.get("events")
             if not isinstance(events, list) or len(events) > 256:
@@ -226,7 +275,13 @@ class Handler(BaseHTTPRequestHandler):
                     STATE.used_bytes += size
                     STATE.queue_count += 1
                     STATE.total_events += 1
+                    STATE.job_processed += 1
+                    STATE.job_accepted += 1
                     accepted += 1
+            with STATE._lock:
+                STATE.last_cycle_at = int(time.time() * 1000)
+                STATE.job_rejected += len(events) - accepted
+                STATE.job_rate = round((STATE.job_processed / max(1.0, (time.time() - (STATE.started_at or time.time())))) * 60.0, 2)
             STATE.record_activity("Accepted " + str(accepted) + " training events", "INGEST")
             self._send(202, STATE.envelope({
                 "accepted": accepted,
