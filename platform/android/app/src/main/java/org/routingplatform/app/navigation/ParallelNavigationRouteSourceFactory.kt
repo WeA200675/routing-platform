@@ -13,8 +13,8 @@ object ParallelNavigationRouteSourceFactory {
         context: Context,
         families: List<NavigationRouteFamily> = listOf(
             NavigationRouteFamily.ProfileOptimal,
-            NavigationRouteFamily.ProfileFastest,
-            NavigationRouteFamily.ProfileShortest,
+            NavigationRouteFamily.Fastest,
+            NavigationRouteFamily.Shortest,
         ),
     ): NavigationRouteSource? {
         val info = context.packageManager.getApplicationInfo(
