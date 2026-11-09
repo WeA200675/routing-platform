@@ -4,7 +4,7 @@ import java.util.ArrayDeque
 
 internal class FifoEventJournal(
     private val maxBytes: Long,
-) {
+) : TrainingEventStore {
     private val events = ArrayDeque<TrainingEvent>()
     private val eventIds = HashSet<String>()
     private var totalBytes = 0L
@@ -12,7 +12,7 @@ internal class FifoEventJournal(
     init { require(maxBytes > 0L) }
 
     @Synchronized
-    fun append(event: TrainingEvent): JournalAppendResult {
+    override fun append(event: TrainingEvent): JournalAppendResult {
         if (event.eventId in eventIds) return rejected(RejectionReason.DUPLICATE_EVENT)
         if (event.sizeBytes.toLong() > maxBytes) return rejected(RejectionReason.EVENT_TOO_LARGE)
         val evicted = mutableListOf<String>()
@@ -23,9 +23,7 @@ internal class FifoEventJournal(
             totalBytes -= removable.sizeBytes
             evicted += removable.eventId
         }
-        if (totalBytes + event.sizeBytes > maxBytes) {
-            return rejected(RejectionReason.ONLY_PROTECTED_EVENTS_REMAIN)
-        }
+        if (totalBytes + event.sizeBytes > maxBytes) return rejected(RejectionReason.ONLY_PROTECTED_EVENTS_REMAIN)
         events.addLast(event)
         eventIds += event.eventId
         totalBytes += event.sizeBytes
@@ -33,7 +31,7 @@ internal class FifoEventJournal(
     }
 
     @Synchronized
-    fun peekBatch(maxEvents: Int, maxBatchBytes: Long): List<TrainingEvent> {
+    override fun peekBatch(maxEvents: Int, maxBatchBytes: Long): List<TrainingEvent> {
         require(maxEvents > 0 && maxBatchBytes > 0L)
         val ordered = events.filter { it.protected } + events.filter { !it.protected }
         val result = mutableListOf<TrainingEvent>()
@@ -46,14 +44,11 @@ internal class FifoEventJournal(
         return result
     }
 
-    @Synchronized
-    fun snapshot(): List<TrainingEvent> = events.toList()
+    @Synchronized fun snapshot(): List<TrainingEvent> = events.toList()
+    @Synchronized fun integrity(): JournalIntegrity = FifoJournalIntegrity.calculate(events.toList())
 
     @Synchronized
-    fun integrity(): JournalIntegrity = FifoJournalIntegrity.calculate(events.toList())
-
-    @Synchronized
-    fun acknowledge(eventIds: Set<String>): Int {
+    override fun acknowledge(eventIds: Set<String>): Int {
         if (eventIds.isEmpty()) return 0
         var removed = 0
         val iterator = events.iterator()
@@ -71,13 +66,7 @@ internal class FifoEventJournal(
 
     @Synchronized fun sizeBytes(): Long = totalBytes
     @Synchronized fun size(): Int = events.size
-
-    @Synchronized
-    fun clear() {
-        events.clear()
-        eventIds.clear()
-        totalBytes = 0L
-    }
+    @Synchronized fun clear() { events.clear(); eventIds.clear(); totalBytes = 0L }
 
     private fun rejected(reason: RejectionReason) =
         JournalAppendResult.Rejected(reason, totalBytes, events.size)
