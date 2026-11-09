@@ -12,6 +12,7 @@ import os
 import threading
 import time
 import uuid
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -20,11 +21,12 @@ DIALOGUE_SCHEMA = "training-dialogue-v1"
 
 
 class TrainingState:
-    def __init__(self, max_bytes: int = 80 * 1024 * 1024) -> None:
+    def __init__(self, max_bytes: int = 80 * 1024 * 1024, journal_path: str | None = None) -> None:
         if max_bytes <= 0:
             raise ValueError("max_bytes must be positive")
         self._lock = threading.RLock()
         self.max_bytes = max_bytes
+        self.journal_path = Path(journal_path or os.getenv("TRAINING_JOURNAL_PATH", "/var/lib/routing-training/state.json"))
         self.used_bytes = 0
         self.queue_count = 0
         self.synced_count = 0
@@ -46,6 +48,34 @@ class TrainingState:
         self.last_normalization_at: int | None = None
         self.last_replay_at: int | None = None
         self.worker_last_duration_ms = 0
+        self._load_journal()
+
+    def _load_journal(self) -> None:
+        try:
+            data = json.loads(self.journal_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            return
+        with self._lock:
+            for key in ("used_bytes", "queue_count", "synced_count", "total_events", "normalized_count", "replay_count", "regression_passed", "job_processed", "job_accepted", "job_rejected"):
+                if isinstance(data.get(key), int) and data[key] >= 0:
+                    setattr(self, key, data[key])
+            self.last_cycle_at = data.get("last_cycle_at")
+            self.last_normalization_at = data.get("last_normalization_at")
+            self.last_replay_at = data.get("last_replay_at")
+
+    def persist(self) -> None:
+        with self._lock:
+            data = {key: getattr(self, key) for key in (
+                "used_bytes", "queue_count", "synced_count", "total_events", "normalized_count",
+                "replay_count", "regression_passed", "job_processed", "job_accepted", "job_rejected",
+                "last_cycle_at", "last_normalization_at", "last_replay_at")}
+        try:
+            self.journal_path.parent.mkdir(parents=True, exist_ok=True)
+            temp = self.journal_path.with_suffix(".tmp")
+            temp.write_text(json.dumps(data), encoding="utf-8")
+            temp.replace(self.journal_path)
+        except OSError:
+            pass
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
         with self._lock:
@@ -291,6 +321,7 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     STATE.current_job = "idle"
                     STATE.last_cycle_at = now
+            STATE.persist()
             STATE.record_activity("Training " + ("started" if action == "start" else "stopped"), "CONTROL")
             self._send(200, STATE.envelope({"action": action, "running": STATE.running}))
             return
@@ -333,6 +364,7 @@ class Handler(BaseHTTPRequestHandler):
                 STATE.job_rejected += len(events) - accepted
                 STATE.job_rate = round((STATE.job_processed / max(1.0, (time.time() - (STATE.started_at or time.time())))) * 60.0, 2)
                 STATE.pending_events.extend([event for event in events if isinstance(event, dict) and event.get("event_id")][:accepted])
+            STATE.persist()
             STATE.record_activity("Accepted " + str(accepted) + " training events", "INGEST")
             self._send(202, STATE.envelope({
                 "accepted": accepted,
@@ -391,6 +423,7 @@ def process_training_batch() -> None:
         STATE.queue_count = max(0, STATE.queue_count - normalized)
         STATE.synced_count += normalized
     if normalized:
+        STATE.persist()
         STATE.record_activity("Worker: normalized, replayed and regression-checked " + str(normalized) + " events", "WORKER")
 
 
