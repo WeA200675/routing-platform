@@ -51,6 +51,7 @@ import org.routingplatform.app.navigation.NavigationTrainingMetrics
 import org.routingplatform.app.navigation.NavigationTrainingReport
 import org.routingplatform.app.navigation.NavigationUiSnapshot
 import org.routingplatform.app.navigation.RoutePoint
+import org.routingplatform.app.navigation.NavigationPoiRecommendation
 import org.routingplatform.app.places.DestinationSearchResult
 import org.routingplatform.app.places.FavoriteDestination
 import org.routingplatform.app.places.FavoriteDestinationCollection
@@ -289,6 +290,18 @@ internal fun NavigationScreen(
 
     onMoveViaDown:
         (Int) -> Unit =
+        {},
+
+    poiRecommendations:
+        List<NavigationPoiRecommendation> =
+        emptyList(),
+
+    onPoiUseAsDestination:
+        (NavigationPoiRecommendation) -> Unit =
+        {},
+
+    onPoiUseAsViaPoint:
+        (NavigationPoiRecommendation) -> Unit =
         {},
 ) {
     var trainingDashboardOpen by
@@ -2494,6 +2507,12 @@ private fun DestinationPlannerDialog(
                                 }
                         }
                     }
+
+                NavigationPoiRecommendationsPanel(
+                    recommendations = poiRecommendations,
+                    onUseAsDestination = onPoiUseAsDestination,
+                    onUseAsViaPoint = onPoiUseAsViaPoint,
+                )
             }
         }
     }
