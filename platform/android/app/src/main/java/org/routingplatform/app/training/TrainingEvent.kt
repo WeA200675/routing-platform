@@ -1,11 +1,5 @@
 package org.routingplatform.app.training
 
-/**
- * Versioned, provenance-aware envelope for locally buffered training evidence.
- *
- * The payload is intentionally opaque here so the navigation runtime stays
- * independent from transport and storage implementations.
- */
 internal data class TrainingEvent(
     val eventId: String,
     val schemaVersion: String,
@@ -46,5 +40,6 @@ internal sealed interface JournalAppendResult {
 
 internal enum class RejectionReason {
     EVENT_TOO_LARGE,
+    DUPLICATE_EVENT,
     ONLY_PROTECTED_EVENTS_REMAIN,
 }
