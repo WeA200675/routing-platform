@@ -31,20 +31,28 @@ internal class NavigationRuntimeTrainingSession(
                 syncCoordinator = syncCoordinator,
             ),
         ),
-        onRecoveryRequest = { requestId -> pendingRecoveryRequestId = requestId },
+        onRecoveryRequest = { requestId ->
+            pendingRecoveryRequestId = requestId
+            onRecoveryRequest?.invoke(requestId)
+        },
     )
 
     @Volatile
     var pendingRecoveryRequestId: Long? = null
         private set
 
+    @Volatile
+    private var onRecoveryRequest: ((Long) -> Unit)? = null
+
     fun start(
         inputMapper: NavigationRuntimeCycleInputMapper,
         navigationActive: () -> Boolean,
         sessionId: () -> String?,
         routeId: () -> String?,
+        onRecoveryRequest: (Long) -> Unit = {},
         onResult: (NavigationRuntimeCycleResult) -> Unit = {},
     ) {
+        this.onRecoveryRequest = onRecoveryRequest
         binding.start(
             inputs = { inputMapper.inputs(navigationActive()) },
             batteryPercent = { inputMapper.inputs(navigationActive()).batteryPercent },
@@ -58,6 +66,7 @@ internal class NavigationRuntimeTrainingSession(
 
     fun stop() {
         binding.stop()
+        onRecoveryRequest = null
         pendingRecoveryRequestId = null
     }
 
