@@ -30,23 +30,24 @@ internal class TrainingRuntimeBridge(
     }
 
     /**
-     * Records a real navigation watchdog/decision outcome in the same FIFO journal
-     * as performance samples. Call this from the navigation lifecycle after each
-     * runtime cycle; the event remains queued while offline and is uploaded by
-     * [TrainingSyncCoordinator].
+     * Records one real watchdog/decision result. The event is persisted before
+     * upload, so offline navigation remains lossless.
      */
     fun recordDecision(
         telemetry: NavigationDecisionTelemetry,
         sessionId: String? = null,
         routeId: String? = null,
     ): JournalAppendResult =
-        journal.append(
+        recordDecisionEvent(
             NavigationDecisionTrainingEventAdapter.toTrainingEvent(
                 telemetry = telemetry,
                 sessionId = sessionId,
                 routeId = routeId,
             ),
         )
+
+    internal fun recordDecisionEvent(event: TrainingEvent): JournalAppendResult =
+        journal.append(event)
 
     fun flush(maxEvents: Int = 32, maxBatchBytes: Long = 64 * 1024): UploadResult {
         val batch = journal.peekBatch(maxEvents, maxBatchBytes)
