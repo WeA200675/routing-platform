@@ -4,6 +4,7 @@ data class DiscoveryConsensus(
     val subjectKey: String,
     val agreeingSources: List<String>,
     val conflictingSources: List<String>,
+    val independentGroups: Set<String>,
     val confidence: Double,
     val accepted: Boolean,
     val reason: String,
@@ -15,48 +16,56 @@ data class DiscoverySourceVote(
     val value: String,
     val score: Double,
     val stage: DiscoveryActivationStage,
+    val independenceGroup: String = sourceId,
+    val capturedAtEpochMs: Long = 0L,
 )
 
 internal class DiscoveryConsensusEngine(
     private val minimumAgreement: Int = 2,
     private val minimumConfidence: Double = 0.70,
+    private val maxObservationSkewMs: Long = 120_000L,
 ) {
     fun evaluate(votes: List<DiscoverySourceVote>): List<DiscoveryConsensus> =
         votes.groupBy { it.subjectKey }.map { (subject, subjectVotes) ->
-            val groups = subjectVotes.groupBy { it.value }
-            val winner = groups.maxByOrNull { (_, values) ->
-                values.sumOf { it.score.coerceIn(0.0, 1.0) }
+            val now = subjectVotes.maxOfOrNull { it.capturedAtEpochMs } ?: 0L
+            val recent = subjectVotes.filter {
+                now == 0L || now - it.capturedAtEpochMs <= maxObservationSkewMs
             }
-            val agreeing = winner?.value.orEmpty()
+            val groups = recent.groupBy { it.value }
+            val winner = groups.maxByOrNull { (_, values) ->
+                values.map { it.score.coerceIn(0.0, 1.0) }
+                    .distinctBy { it }
+                    .sum()
+            }
             val selected = winner?.key
-            val agreeingIds = winner?.value?.map { it.sourceId }.orEmpty()
-            val conflictingIds = subjectVotes
+            val agreeing = winner?.value.orEmpty()
+            val agreeingGroups = agreeing.map { it.independenceGroup }.toSet()
+            val agreeingIds = agreeing.map { it.sourceId }
+            val conflictingIds = recent
                 .filter { it.sourceId !in agreeingIds }
                 .map { it.sourceId }
-            val confidence = winner?.value
-                ?.map { it.score.coerceIn(0.0, 1.0) }
-                ?.average()
-                ?: 0.0
+            val confidence = agreeing
+                .map { it.score.coerceIn(0.0, 1.0) }
+                .average()
+                .takeIf { it.isFinite() } ?: 0.0
             val accepted = selected != null &&
-                agreeingIds.size >= minimumAgreement &&
+                agreeingGroups.size >= minimumAgreement &&
                 confidence >= minimumConfidence &&
-                agreeingIds.all { id ->
-                    subjectVotes.any {
-                        it.sourceId == id &&
-                            (it.stage == DiscoveryActivationStage.ACTIVE ||
-                                it.stage == DiscoveryActivationStage.CANARY)
-                    }
+                agreeing.all {
+                    it.stage == DiscoveryActivationStage.ACTIVE ||
+                        it.stage == DiscoveryActivationStage.CANARY
                 }
             DiscoveryConsensus(
                 subjectKey = subject,
                 agreeingSources = agreeingIds,
                 conflictingSources = conflictingIds,
+                independentGroups = agreeingGroups,
                 confidence = confidence,
                 accepted = accepted,
                 reason = when {
                     selected == null -> "Keine verwertbare Quelle"
-                    accepted -> "Quellenkonsens für Wert $selected"
-                    agreeingIds.size < minimumAgreement -> "Zu wenige unabhängige Quellen"
+                    accepted -> "Zeitnaher Konsens unabhängiger Quellen für Wert $selected"
+                    agreeingGroups.size < minimumAgreement -> "Zu wenige unabhängige Quellen"
                     confidence < minimumConfidence -> "Konsenskonfidenz zu niedrig"
                     else -> "Quellenstatus nicht ausreichend"
                 },
