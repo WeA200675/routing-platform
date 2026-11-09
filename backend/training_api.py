@@ -42,6 +42,7 @@ class TrainingState:
         self.job_accepted = 0
         self.job_rejected = 0
         self.pending_events: list[dict[str, Any]] = []
+        self.event_records: list[dict[str, Any]] = []
         self.normalized_count = 0
         self.replay_count = 0
         self.regression_passed = 0
@@ -62,13 +63,16 @@ class TrainingState:
             self.last_cycle_at = data.get("last_cycle_at")
             self.last_normalization_at = data.get("last_normalization_at")
             self.last_replay_at = data.get("last_replay_at")
+            records = data.get("event_records")
+            if isinstance(records, list):
+                self.event_records = records[-500:]
 
     def persist(self) -> None:
         with self._lock:
             data = {key: getattr(self, key) for key in (
                 "used_bytes", "queue_count", "synced_count", "total_events", "normalized_count",
                 "replay_count", "regression_passed", "job_processed", "job_accepted", "job_rejected",
-                "last_cycle_at", "last_normalization_at", "last_replay_at")}
+                "last_cycle_at", "last_normalization_at", "last_replay_at", "event_records")}
         try:
             self.journal_path.parent.mkdir(parents=True, exist_ok=True)
             temp = self.journal_path.with_suffix(".tmp")
@@ -158,6 +162,7 @@ def section(name: str) -> dict[str, Any]:
                     "replay": STATE.replay_count,
                     "regression_passed": STATE.regression_passed,
                     "worker_duration_ms": STATE.worker_last_duration_ms,
+                    "recent_events": STATE.event_records[-25:],
                     "queue": STATE.queue_count,
                     "synced": STATE.synced_count,
                 },
@@ -363,7 +368,10 @@ class Handler(BaseHTTPRequestHandler):
                 STATE.last_cycle_at = int(time.time() * 1000)
                 STATE.job_rejected += len(events) - accepted
                 STATE.job_rate = round((STATE.job_processed / max(1.0, (time.time() - (STATE.started_at or time.time())))) * 60.0, 2)
-                STATE.pending_events.extend([event for event in events if isinstance(event, dict) and event.get("event_id")][:accepted])
+                accepted_events = [event for event in events if isinstance(event, dict) and event.get("event_id")][:accepted]
+                STATE.pending_events.extend(accepted_events)
+                STATE.event_records.extend({**event, "status": "accepted", "captured_at": int(time.time() * 1000)} for event in accepted_events)
+                STATE.event_records = STATE.event_records[-500:]
             STATE.persist()
             STATE.record_activity("Accepted " + str(accepted) + " training events", "INGEST")
             self._send(202, STATE.envelope({
@@ -413,6 +421,11 @@ def process_training_batch() -> None:
             normalized += 1
     now = int(time.time() * 1000)
     with STATE._lock:
+        accepted_ids = {event.get("event_id") for event in batch}
+        for record in STATE.event_records:
+            if record.get("event_id") in accepted_ids:
+                record["status"] = "regression_passed"
+                record["normalized_at"] = int(time.time() * 1000)
         STATE.normalized_count += normalized
         STATE.replay_count += normalized
         STATE.regression_passed += normalized
