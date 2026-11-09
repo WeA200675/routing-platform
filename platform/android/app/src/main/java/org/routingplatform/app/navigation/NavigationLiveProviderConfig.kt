@@ -10,6 +10,8 @@ data class NavigationLiveProviderConfig(
     val weatherEndpoint: URI? = null,
     val poiEndpoint: URI? = null,
     val apiKey: String? = null,
+    val discoveryManifestKeyId: String? = null,
+    val discoveryTrustedManifestKeys: Set<String> = emptySet(),
     val connectTimeoutMs: Int = 5_000,
     val readTimeoutMs: Int = 8_000,
     val cacheMaxAgeMs: Long = 15 * 60 * 1_000L,
@@ -27,10 +29,13 @@ data class NavigationLiveProviderConfig(
     }
 
     fun hasAnyProvider(): Boolean =
-        trafficEndpoint != null ||
-            hazardEndpoint != null ||
-            weatherEndpoint != null ||
-            poiEndpoint != null
+        trafficEndpoint != null || hazardEndpoint != null || weatherEndpoint != null || poiEndpoint != null
+
+    fun providerHosts(): Set<String> =
+        listOf(trafficEndpoint, hazardEndpoint, weatherEndpoint, poiEndpoint)
+            .filterNotNull()
+            .mapNotNull { it.host?.lowercase() }
+            .toSet()
 
     companion object {
         const val TRAFFIC_KEY = "org.routingplatform.live.TRAFFIC_ENDPOINT"
@@ -38,6 +43,8 @@ data class NavigationLiveProviderConfig(
         const val WEATHER_KEY = "org.routingplatform.live.WEATHER_ENDPOINT"
         const val POI_KEY = "org.routingplatform.live.POI_ENDPOINT"
         const val API_KEY = "org.routingplatform.live.API_KEY"
+        const val DISCOVERY_KEY_ID = "org.routingplatform.discovery.MANIFEST_KEY_ID"
+        const val DISCOVERY_TRUSTED_KEYS = "org.routingplatform.discovery.TRUSTED_MANIFEST_KEYS"
 
         fun fromManifest(context: Context): NavigationLiveProviderConfig {
             val info = context.packageManager.getApplicationInfo(
@@ -47,12 +54,21 @@ data class NavigationLiveProviderConfig(
             val meta = info.metaData
             fun uri(key: String): URI? =
                 meta?.getString(key)?.trim()?.takeIf { it.isNotEmpty() }?.let(::URI)
+            fun csv(key: String): Set<String> =
+                meta?.getString(key)
+                    ?.split(',', ';', ' ', '\n')
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?.toSet()
+                    .orEmpty()
             return NavigationLiveProviderConfig(
                 trafficEndpoint = uri(TRAFFIC_KEY),
                 hazardEndpoint = uri(HAZARD_KEY),
                 weatherEndpoint = uri(WEATHER_KEY),
                 poiEndpoint = uri(POI_KEY),
                 apiKey = meta?.getString(API_KEY)?.trim()?.takeIf { it.isNotEmpty() },
+                discoveryManifestKeyId = meta?.getString(DISCOVERY_KEY_ID)?.trim()?.takeIf { it.isNotEmpty() },
+                discoveryTrustedManifestKeys = csv(DISCOVERY_TRUSTED_KEYS),
             )
         }
     }
