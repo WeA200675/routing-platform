@@ -94,12 +94,10 @@ class ParallelNavigationRouteSource(
         val selected: Result<NavigationRouteContract> =
             if (successes.isNotEmpty()) {
                 val scores = successes.map {
-                    RouteCandidateScore(
-                        routeId = it.routeId,
-                        safetyScore = 1.0,
-                        timeSeconds = it.durationS,
-                        costScore = it.distanceM,
-                        confidence = if (it.segmentDataStatus == NavigationRouteSegmentDataStatus.Complete) 0.95 else 0.75,
+                    NavigationLiveRouteCandidateScorer.score(
+                        route = it,
+                        events = liveEventsProvider(),
+                        nowEpochMs = clockEpochMs(),
                     )
                 }
                 val selectedId = NavigationRouteCandidateSelector.select(scores)?.routeId
