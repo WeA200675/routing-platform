@@ -1,5 +1,7 @@
 package org.routingplatform.app.training
 
+import org.routingplatform.app.navigation.NavigationDecisionTelemetry
+
 internal class TrainingRuntimeBridge(
     private val telemetry: NavigationPerformanceTelemetry,
     private val journal: FifoEventJournal,
@@ -12,20 +14,37 @@ internal class TrainingRuntimeBridge(
             voiceStage = sampleInput.voiceStage,
             fallbackUsed = sampleInput.fallbackUsed,
         ) ?: return null
-        val event = TrainingEvent(
-            eventId = sampleInput.eventId,
-            schemaVersion = sample.schemaVersion,
-            eventType = "navigation.performance",
-            sessionId = sample.sessionId,
-            routeId = sample.routeId,
-            capturedAtEpochMs = sampleInput.capturedAtElapsedMs,
-            source = "android.navigation",
-            qualityScore = if (sample.fallbackUsed) 0.6 else 1.0,
-            payload = sample.toString(),
-            sizeBytes = sampleInput.sizeBytes,
+        return recordEvent(
+            TrainingEvent(
+                eventId = sampleInput.eventId,
+                schemaVersion = sample.schemaVersion,
+                eventType = "navigation.performance",
+                sessionId = sample.sessionId,
+                routeId = sample.routeId,
+                capturedAtEpochMs = sampleInput.capturedAtElapsedMs,
+                source = "android.navigation",
+                qualityScore = if (sample.fallbackUsed) 0.6 else 1.0,
+                payload = sample.toString(),
+                sizeBytes = sampleInput.sizeBytes,
+            ),
         )
-        return journal.append(event)
     }
+
+    fun recordDecision(
+        telemetry: NavigationDecisionTelemetry,
+        sessionId: String? = null,
+        routeId: String? = null,
+    ): JournalAppendResult =
+        recordEvent(
+            NavigationDecisionTrainingEventAdapter.toTrainingEvent(
+                telemetry = telemetry,
+                sessionId = sessionId,
+                routeId = routeId,
+            ),
+        )
+
+    internal fun recordEvent(event: TrainingEvent): JournalAppendResult =
+        journal.append(event)
 
     fun flush(maxEvents: Int = 32, maxBatchBytes: Long = 64 * 1024): UploadResult {
         val batch = journal.peekBatch(maxEvents, maxBatchBytes)
