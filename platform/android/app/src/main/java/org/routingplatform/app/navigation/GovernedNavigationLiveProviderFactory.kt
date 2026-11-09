@@ -28,6 +28,8 @@ internal object GovernedNavigationLiveProviderFactory {
             val endpoint = pair.first
             val raw: NavigationLiveEventProvider = if (id == "weather" && endpoint.host.equals("api.open-meteo.com", ignoreCase = true)) {
                 OpenMeteoLiveWeatherProvider(endpoint, locationProvider, config.readTimeoutMs)
+            } else if (id == "poi" && endpoint.host.equals("overpass-api.de", ignoreCase = true)) {
+                OverpassPoiProvider(endpoint, locationProvider, config.readTimeoutMs)
             } else {
                 HttpNavigationLiveEventProvider(
                     providerId = id,
