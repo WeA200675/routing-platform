@@ -34,6 +34,7 @@ import org.routingplatform.app.navigation.NavigationRouteProgressSafetyStatus
 import org.routingplatform.app.navigation.NavigationRouteSourceFactory
 import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
 import org.routingplatform.app.navigation.NavigationRuntimeCycleInputMapper
+import org.routingplatform.app.training.NavigationTrainingRuntimeHost
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
 import org.routingplatform.app.navigation.NavigationStartOrientationVisibilityController
@@ -226,6 +227,18 @@ class MainActivity :
                         context = applicationContext,
                     )
                 }
+
+            val trainingRuntimeHost =
+                remember {
+                    NavigationTrainingRuntimeHost(
+                        context = applicationContext,
+                        discoveryUrl = BuildConfig.TRAINING_DISCOVERY_URL,
+                    )
+                }
+
+            DisposableEffect(trainingRuntimeHost) {
+                onDispose { trainingRuntimeHost.close() }
+            }
 
             val driveProofObservationSink =
                 remember {
@@ -1875,6 +1888,27 @@ class MainActivity :
                                 bridge
                                     .startNavigation()
 
+                            trainingRuntimeHost.start(
+                                inputMapper = runtimeCycleInputMapper,
+                                navigationActive = {
+                                    snapshot.state ==
+                                        NavigationSessionState.Navigating
+                                },
+                                sessionId = { snapshot.sessionId },
+                                routeId = { snapshot.routeId },
+                                onRecoveryRequest = {
+                                    routeLifecycleController
+                                        ?.observeTelemetry(
+                                            telemetry = telemetry,
+                                            snapshotProvider = { snapshot },
+                                            onSnapshot = { snapshot = it },
+                                            onTelemetry = {
+                                                routeAcquisitionTelemetry = it
+                                            },
+                                        )
+                                },
+                            )
+
                             val permissions =
                                 navigationRuntimePermissionsToRequest(
                                     applicationContext
@@ -1897,6 +1931,7 @@ class MainActivity :
                              * transition.
                              */
                             runtimeController.reset()
+                            trainingRuntimeHost.stop()
 
                             telemetry =
                                 NavigationRuntimeTelemetry
