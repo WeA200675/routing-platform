@@ -43,6 +43,7 @@
         <!-- Discovery governance is disabled until real production values are supplied. -->
         <meta-data android:name="org.routingplatform.discovery.MANIFEST_KEY_ID" android:value="" />
         <meta-data android:name="org.routingplatform.discovery.TRUSTED_MANIFEST_KEYS" android:value="" />
+        <meta-data android:name="org.routingplatform.discovery.TRUSTED_PUBLIC_KEYS" android:value="" />
 
         <activity
             android:name=".MainActivity"
