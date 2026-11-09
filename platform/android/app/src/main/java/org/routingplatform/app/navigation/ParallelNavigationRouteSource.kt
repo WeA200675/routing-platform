@@ -17,8 +17,8 @@ class ParallelNavigationRouteSource(
     private val delegateFactory: (NavigationRouteFamily) -> NavigationRouteSource,
     private val families: List<NavigationRouteFamily> = listOf(
         NavigationRouteFamily.ProfileOptimal,
-        NavigationRouteFamily.ProfileFastest,
-        NavigationRouteFamily.ProfileShortest,
+        NavigationRouteFamily.Fastest,
+        NavigationRouteFamily.Shortest,
     ),
 ) : NavigationRouteSource {
     private val mainHandler = Handler(Looper.getMainLooper())
