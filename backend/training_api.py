@@ -146,7 +146,7 @@ def section(name: str) -> dict[str, Any]:
             elapsed = max(0.0, (now - started) / 1000.0) if started else 0.0
             rate = round((STATE.job_processed / max(1.0, elapsed)) * 60.0, 2) if started else 0.0
             return STATE.envelope({
-                "status": "running" if STATE.running else "stopped",
+                "status": ("stopped" if not STATE.running else ("active" if STATE.last_cycle_at and now - STATE.last_cycle_at < 30_000 else "waiting-for-data")),
                 "process": {
                     "current_job": STATE.current_job,
                     "started_at": started,
