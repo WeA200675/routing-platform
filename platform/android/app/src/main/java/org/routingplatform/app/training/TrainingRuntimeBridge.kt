@@ -4,7 +4,7 @@ import org.routingplatform.app.navigation.NavigationDecisionTelemetry
 
 internal class TrainingRuntimeBridge(
     private val telemetry: NavigationPerformanceTelemetry,
-    private val journal: FifoEventJournal,
+    private val journal: TrainingEventStore,
     private val apiClient: TrainingCenterApiClient,
 ) {
     fun record(sampleInput: PerformanceSampleInput): JournalAppendResult? {
