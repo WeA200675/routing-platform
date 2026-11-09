@@ -23,8 +23,7 @@
 
     <queries>
         <intent>
-            <action
-                android:name="android.intent.action.TTS_SERVICE" />
+            <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
     </queries>
 
@@ -34,16 +33,30 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RoutingPlatform">
 
+        <!-- Optional HTTPS live providers. Empty values keep them disabled. -->
+        <meta-data
+            android:name="org.routingplatform.live.TRAFFIC_ENDPOINT"
+            android:value="" />
+        <meta-data
+            android:name="org.routingplatform.live.HAZARD_ENDPOINT"
+            android:value="" />
+        <meta-data
+            android:name="org.routingplatform.live.WEATHER_ENDPOINT"
+            android:value="" />
+        <meta-data
+            android:name="org.routingplatform.live.POI_ENDPOINT"
+            android:value="" />
+        <meta-data
+            android:name="org.routingplatform.live.API_KEY"
+            android:value="" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
 
             <intent-filter>
-                <action
-                    android:name="android.intent.action.MAIN" />
-
-                <category
-                    android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
         </activity>
