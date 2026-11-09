@@ -98,6 +98,44 @@ def section(name: str) -> dict[str, Any]:
                 "canary": 0,
             },
         })
+    if name == "diagnostics":
+        now = int(time.time() * 1000)
+        with STATE._lock:
+            started = STATE.started_at
+            elapsed = max(0.0, (now - started) / 1000.0) if started else 0.0
+            rate = round((STATE.job_processed / max(1.0, elapsed)) * 60.0, 2) if started else 0.0
+            return STATE.envelope({
+                "status": "running" if STATE.running else "stopped",
+                "process": {
+                    "current_job": STATE.current_job,
+                    "started_at": started,
+                    "last_cycle_at": STATE.last_cycle_at,
+                    "uptime_seconds": round(elapsed, 1),
+                },
+                "throughput": {
+                    "events_per_minute": rate,
+                    "processed": STATE.job_processed,
+                    "accepted": STATE.job_accepted,
+                    "rejected": STATE.job_rejected,
+                    "queue": STATE.queue_count,
+                    "synced": STATE.synced_count,
+                },
+                "timing": {
+                    "api_response_ms": 0,
+                    "last_ingest_at": STATE.last_cycle_at,
+                    "last_normalization_at": None,
+                    "last_replay_at": None,
+                },
+                "providers": {
+                    "training_api": "online",
+                    "cloud_storage": "not_measured",
+                    "live_events": "not_configured",
+                },
+                "improvement_targets": [
+                    "Noch keine echten Trainingsdaten für Qualitätsvergleich vorhanden." if STATE.total_events == 0 else "Replay- und Regressionswerte weiter sammeln.",
+                    "Provider-Latenzen und Cloud-Synchronisation messen.",
+                ],
+            })
     if name == "knowledge":
         return STATE.envelope({
             "sources": [
