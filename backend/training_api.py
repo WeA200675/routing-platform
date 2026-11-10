@@ -51,6 +51,7 @@ class TrainingState:
             data = json.loads(self.state_path.read_text(encoding="utf-8"))
             self.seen_event_ids.update(str(value) for value in data.get("seen_event_ids", []))
             self.provider_diagnostics.extend(data.get("provider_diagnostics", [])[-200:])
+            self.activities.extend(data.get("activities", [])[-50:])
             self.total_events = int(data.get("total_events", 0))
             self.normalized_count = int(data.get("normalized_count", 0))
             self.replay_count = int(data.get("replay_count", 0))
@@ -66,6 +67,7 @@ class TrainingState:
             payload = {
                 "seen_event_ids": list(self.seen_event_ids)[-10000:],
                 "provider_diagnostics": self.provider_diagnostics[-200:],
+                "activities": self.activities[-50:],
                 "total_events": self.total_events,
                 "normalized_count": self.normalized_count,
                 "replay_count": self.replay_count,
