@@ -130,6 +130,26 @@ class TrainingState:
             previous = actual
         return True
 
+    def record_activities(self, entries: list[tuple[str, str]]) -> None:
+        with self._lock:
+            previous = self.activities[0].get("hash", "") if self.activities else ""
+            for event_id, status in entries:
+                item = {
+                    "id": str(uuid.uuid4()),
+                    "captured_at": int(time.time() * 1000),
+                    "text": "Processed " + event_id + " through normalize/replay/regression: " + status,
+                    "status": "WORKER",
+                    "previous_hash": previous,
+                }
+                item["hash"] = hashlib.sha256(
+                    json.dumps(item, sort_keys=True, ensure_ascii=False).encode("utf-8")
+                ).hexdigest()
+                self.activities.insert(0, item)
+                previous = item["hash"]
+            if len(self.activities) > 50:
+                self.audit_anchor_hash = self.activities[49].get("previous_hash", "")
+                del self.activities[50:]
+
     def persist(self) -> None:
         with self._lock:
             payload = {
@@ -223,12 +243,7 @@ class TrainingState:
                         status = "QUARANTINE"
                     activities.append((str(event.get("event_id", "event")), status))
 
-            for event_id, status in activities:
-                self.record_activity(
-                    "Processed " + event_id +
-                    " through normalize/replay/regression: " + status,
-                    "WORKER",
-                )
+            self.record_activities(activities)
             self.persist()
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
