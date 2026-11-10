@@ -55,7 +55,7 @@ class TrainingState:
         canonical = dict(data)
         canonical.pop("state_checksum", None)
         return hashlib.sha256(
-            json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode("utf-8")
+            json.dumps(canonical, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
 
     @classmethod
@@ -123,7 +123,7 @@ class TrainingState:
             if expected.get("previous_hash", "") != previous:
                 return False
             digest = hashlib.sha256(
-                json.dumps(expected, sort_keys=True, ensure_ascii=False).encode("utf-8")
+                json.dumps(expected, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             ).hexdigest()
             if actual != digest:
                 return False
@@ -142,7 +142,7 @@ class TrainingState:
                     "previous_hash": previous,
                 }
                 item["hash"] = hashlib.sha256(
-                    json.dumps(item, sort_keys=True, ensure_ascii=False).encode("utf-8")
+                    json.dumps(item, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
                 ).hexdigest()
                 self.activities.insert(0, item)
                 previous = item["hash"]
@@ -172,7 +172,7 @@ class TrainingState:
         try:
             self.state_path.parent.mkdir(parents=True, exist_ok=True)
             temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
-            encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             with temporary.open("wb") as handle:
                 handle.write(encoded)
                 handle.flush()
