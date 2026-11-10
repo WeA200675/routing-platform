@@ -16,12 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.routingplatform.app.vehicle.ObdDeviceManager
 import org.routingplatform.app.vehicle.VehicleEnergyType
+import org.routingplatform.app.vehicle.VehicleTelemetrySource
 
 @Composable
 internal fun ObdDevicePanel(
     manager: ObdDeviceManager,
     energyType: VehicleEnergyType,
-    onReaderReady: (Any) -> Unit,
+    onReaderReady: (VehicleTelemetrySource) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var devices by remember { mutableStateOf(emptyList<BluetoothDevice>()) }
