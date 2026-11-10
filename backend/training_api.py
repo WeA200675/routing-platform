@@ -7,6 +7,7 @@ Navigation never depends on this process being available.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -33,6 +34,7 @@ class TrainingState:
         self.total_events = 0
         self.regressions: list[dict[str, Any]] = []
         self.activities: list[dict[str, Any]] = []
+        self.audit_integrity = True
         self.provider_diagnostics: list[dict[str, Any]] = []
         self.seen_event_ids: set[str] = set()
         self.pending_events: list[dict[str, Any]] = []
@@ -52,6 +54,7 @@ class TrainingState:
             self.seen_event_ids.update(str(value) for value in data.get("seen_event_ids", []))
             self.provider_diagnostics.extend(data.get("provider_diagnostics", [])[-200:])
             self.activities.extend(data.get("activities", [])[-50:])
+            self.audit_integrity = self._verify_audit_chain(self.activities)
             self.total_events = int(data.get("total_events", 0))
             self.normalized_count = int(data.get("normalized_count", 0))
             self.replay_count = int(data.get("replay_count", 0))
@@ -62,12 +65,29 @@ class TrainingState:
         except (FileNotFoundError, OSError, ValueError, TypeError):
             return
 
+    @staticmethod
+    def _verify_audit_chain(items: list[dict[str, Any]]) -> bool:
+        previous = ""
+        for item in reversed(items):
+            expected = dict(item)
+            actual = expected.pop("hash", None)
+            if expected.get("previous_hash", "") != previous:
+                return False
+            digest = hashlib.sha256(
+                json.dumps(expected, sort_keys=True, ensure_ascii=False).encode("utf-8")
+            ).hexdigest()
+            if actual != digest:
+                return False
+            previous = actual
+        return True
+
     def persist(self) -> None:
         with self._lock:
             payload = {
                 "seen_event_ids": list(self.seen_event_ids)[-10000:],
                 "provider_diagnostics": self.provider_diagnostics[-200:],
                 "activities": self.activities[-50:],
+                "audit_integrity": self.audit_integrity,
                 "total_events": self.total_events,
                 "normalized_count": self.normalized_count,
                 "replay_count": self.replay_count,
@@ -132,12 +152,18 @@ class TrainingState:
 
     def record_activity(self, text: str, status: str = "INFO") -> None:
         with self._lock:
-            self.activities.insert(0, {
+            previous = self.activities[0].get("hash", "") if self.activities else ""
+            item = {
                 "id": str(uuid.uuid4()),
                 "captured_at": int(time.time() * 1000),
                 "text": text,
                 "status": status,
-            })
+                "previous_hash": previous,
+            }
+            item["hash"] = hashlib.sha256(
+                json.dumps(item, sort_keys=True, ensure_ascii=False).encode("utf-8")
+            ).hexdigest()
+            self.activities.insert(0, item)
             del self.activities[50:]
 
 
@@ -221,6 +247,7 @@ def section(name: str) -> dict[str, Any]:
                 if entries else 0
             )
         return STATE.envelope({
+            "audit_integrity": STATE.audit_integrity,
             "provider_diagnostics": {
                 "sample_count": len(entries),
                 "success_count": success_count,
