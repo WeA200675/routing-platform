@@ -1,5 +1,8 @@
 package org.routingplatform.app.vehicle
 
+import org.routingplatform.app.navigation.NavigationPoiCategory
+import org.routingplatform.app.navigation.NavigationPoiRecommendation
+
 data class VehicleProfile(
     val vehicleId: String,
     val energyType: VehicleEnergyType,
