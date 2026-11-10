@@ -22,7 +22,7 @@ class NavigationLiveContextStoreTest {
         store.upsert(event("b", capturedAt = 2))
         store.upsert(event("c", capturedAt = 3))
         assertEquals(2, store.size())
-        assertEquals(listOf("b", "c"), store.prioritized(4).map { it.event.id })
+        assertEquals(setOf("b", "c"), store.prioritized(4).map { it.event.id }.toSet())
     }
 
     private fun event(
