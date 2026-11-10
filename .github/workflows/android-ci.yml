@@ -67,8 +67,8 @@ jobs:
             --stacktrace \
             :app:testDebugUnitTest \
             :app:lintDebug \
-            :app:compileReleaseKotlin
-          :app:assembleDebug
+            :app:compileReleaseKotlin \
+            :app:assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
