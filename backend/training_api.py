@@ -109,7 +109,7 @@ class TrainingState:
                 else:
                     self.regression_failed += 1
                     self.quarantined_count += 1
-                    self.quarantined_events.append({"event_id": event.get("event_id"), "reason": "invalid_schema", "captured_at": int(time.time() * 1000)})
+                    self.quarantined_events.append({"event_id": event.get("event_id"), "reason": "invalid_schema", "captured_at": int(time.time() * 1000), "event": event})
                     del self.quarantined_events[:-100]
                     status = "QUARANTINE"
             self.record_activity("Processed " + str(event.get("event_id", "event")) + " through normalize/replay/regression: " + status, "WORKER")
@@ -390,6 +390,23 @@ class Handler(BaseHTTPRequestHandler):
             with STATE._lock:
                 items = list(STATE.quarantined_events[-100:])
             self._send(200, STATE.envelope({"items": items, "count": len(items)}))
+            return
+        if name.startswith("quarantine/") and name.endswith("/release"):
+            event_id = name[len("quarantine/"):-len("/release")]
+            with STATE._lock:
+                match = next((item for item in STATE.quarantined_events if item.get("event_id") == event_id), None)
+                if match is None:
+                    self._send(404, STATE.envelope({"error": "quarantine_event_not_found", "event_id": event_id}))
+                    return
+                event = match.get("event")
+                if not isinstance(event, dict):
+                    self._send(409, STATE.envelope({"error": "quarantine_payload_missing", "event_id": event_id}))
+                    return
+                STATE.pending_events.append(event)
+                STATE.queue_count += 1
+                STATE.quarantined_events = [item for item in STATE.quarantined_events if item.get("event_id") != event_id]
+            STATE.persist()
+            self._send(202, STATE.envelope({"action": "release", "event_id": event_id, "queue_count": STATE.queue_count}))
             return
         if name.startswith("quarantine/") and name.endswith("/discard"):
             event_id = name[len("quarantine/"):-len("/discard")]
