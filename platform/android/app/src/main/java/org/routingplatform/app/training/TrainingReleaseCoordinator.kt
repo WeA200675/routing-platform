@@ -9,7 +9,7 @@ data class TrainingReleaseDecision(
     val reason: String,
 )
 
-class TrainingReleaseCoordinator(
+internal class TrainingReleaseCoordinator(
     private val registry: TrainingArtifactRegistry,
 ) {
     fun prepare(
