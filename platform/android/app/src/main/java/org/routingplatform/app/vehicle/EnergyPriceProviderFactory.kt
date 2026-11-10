@@ -6,6 +6,7 @@ object EnergyPriceProviderFactory {
     fun fromManifest(context: Context): EnergyPriceAvailabilityProvider? {
         val config = EnergyPriceProviderConfig.fromManifest(context)
         val fuel = config.fuelEndpoint
+        val tanker = config.tankerkoenigApiKey?.let { TankerkoenigPriceProvider(it) }
         val charging = config.chargingEndpoint
         if (fuel == null && charging == null) return null
         return object : EnergyPriceAvailabilityProvider {
@@ -14,7 +15,11 @@ object EnergyPriceProviderFactory {
                 kind: EnergyStopKind,
             ): EnergyPriceAvailability? {
                 val endpoint = if (kind == EnergyStopKind.FUEL) fuel else charging
-                return endpoint?.let { HttpEnergyPriceAvailabilityProvider(it).lookup(poi, kind) }
+                return if (kind == EnergyStopKind.FUEL && tanker != null) {
+                    tanker.lookup(poi, kind)
+                } else {
+                    endpoint?.let { HttpEnergyPriceAvailabilityProvider(it).lookup(poi, kind) }
+                }
             }
         }
     }
