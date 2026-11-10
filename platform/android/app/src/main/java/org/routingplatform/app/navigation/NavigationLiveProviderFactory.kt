@@ -5,12 +5,18 @@ import android.content.Context
 internal object NavigationLiveProviderFactory {
     fun fromManifest(context: Context): List<NavigationLiveEventProvider> {
         val config = NavigationLiveProviderConfig.fromManifest(context)
-        return fromConfig(config, locationProvider = AndroidLastKnownRoutePointProvider(context)::current)
+        return fromConfig(
+            config,
+            locationProvider = AndroidLastKnownRoutePointProvider(context)::current,
+            diagnosticStore = NavigationDiagnosticsStore(context),
+        )
     }
 
     fun fromConfig(
         config: NavigationLiveProviderConfig,
         locationProvider: () -> RoutePoint? = { null },
+        diagnosticStore: NavigationDiagnosticsStore? = null,
+        telemetryStore: NavigationLiveProviderTelemetryStore? = null,
     ): List<NavigationLiveEventProvider> {
         val headers = config.apiKey
             ?.let { mapOf("Authorization" to "Bearer $it") }
@@ -39,7 +45,11 @@ internal object NavigationLiveProviderFactory {
         }.map { provider ->
             ObservableNavigationLiveEventProvider(
                 CachedNavigationLiveEventProvider(
-                    delegate = provider,
+                    delegate = InstrumentedNavigationLiveEventProvider(
+                        delegate = provider,
+                        onObservation = { observation -> telemetryStore?.record(observation) },
+                        diagnosticStore = diagnosticStore,
+                    ),
                     maxAgeMs = config.cacheMaxAgeMs,
                 ),
             )
