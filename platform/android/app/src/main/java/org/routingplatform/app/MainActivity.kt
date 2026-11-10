@@ -101,8 +101,9 @@ class MainActivity :
                     )
                 }
 
-            LaunchedEffect(trainingConnectionManager) {
-                trainingConnectionManager.refresh()
+            DisposableEffect(trainingConnectionManager) {
+                trainingConnectionManager.startAutonomousRecovery()
+                onDispose { trainingConnectionManager.stopAutonomousRecovery() }
             }
 
             val navigationDiagnosticsStore =
