@@ -1320,6 +1320,7 @@ class MainActivity :
                         },
 
                         onVehicleMeasurementConfirmed = { measurement: VehicleMeasurement ->
+                            energyStopRuntime?.updateMeasurement(measurement)
                             if (vehicleEfficiencyCalibrator.add(measurement)) {
                                 vehicleCalibrationHistory.append(measurement)
                             }
