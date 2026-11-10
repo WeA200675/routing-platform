@@ -1,6 +1,7 @@
 package org.routingplatform.app.vehicle
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Context
@@ -12,6 +13,7 @@ class ObdDeviceManager(
     private val context: Context,
     private val adapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter(),
 ) {
+    @SuppressLint("MissingPermission")
     fun bondedDevices(): List<BluetoothDevice> {
         if (!hasConnectPermission()) return emptyList()
         return runCatching { adapter?.bondedDevices?.toList().orEmpty() }.getOrDefault(emptyList())
