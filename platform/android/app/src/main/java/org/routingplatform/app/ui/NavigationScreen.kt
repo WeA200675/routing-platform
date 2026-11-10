@@ -310,6 +310,8 @@ internal fun NavigationScreen(
     onVehicleMeasurementConfirmed:
         (org.routingplatform.app.vehicle.VehicleMeasurement) -> Unit =
         {},
+
+    onCameraPermissionRequired: () -> Unit = {},
 ) {
     var trainingDashboardOpen by
         remember {
@@ -2525,6 +2527,7 @@ private fun DestinationPlannerDialog(
                     energyType = vehicleEnergyType,
                     nowEpochMs = System.currentTimeMillis(),
                     onMeasurementConfirmed = onVehicleMeasurementConfirmed,
+                    onCameraPermissionRequired = onCameraPermissionRequired,
                 )
             }
         }
