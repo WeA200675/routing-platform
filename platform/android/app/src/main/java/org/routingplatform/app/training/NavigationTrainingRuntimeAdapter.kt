@@ -27,7 +27,7 @@ internal class NavigationTrainingRuntimeAdapter(
             sessionId = sessionId,
             routeId = routeId,
         )
-        bridge.recordDecisionEvent(event)
+        bridge.recordEvent(event)
         val sync = syncCoordinator.sync(
             networkAvailable = networkAvailable,
             navigationActive = navigationActive,
