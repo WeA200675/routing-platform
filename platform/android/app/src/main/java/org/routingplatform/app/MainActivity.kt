@@ -122,7 +122,7 @@ class MainActivity :
                         baseUrlProvider = {
                             when (val state = trainingConnectionManager.currentState()) {
                                 is org.routingplatform.app.training.TrainingConnectionState.Connected ->
-                                    state.endpoint.apiUrl
+                                    state.endpoint.dashboardUrl
                                 else -> null
                             }
                         },
