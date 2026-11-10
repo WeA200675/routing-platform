@@ -18,17 +18,21 @@ class ObdVehicleTelemetrySource(
     private val energyType: VehicleEnergyType,
 ) : VehicleTelemetrySource {
     override fun read(nowEpochMs: Long): VehicleMeasurement? {
-        val consumption = reader.readConsumptionPer100() ?: return null
+        val consumption = reader.readConsumptionPer100()
+        val fuel = reader.readFuelLevelPercent()
+        val battery = reader.readBatteryPercent()
+        val range = reader.readRemainingRangeKm()
+        if (consumption == null && fuel == null && battery == null && range == null) return null
         return VehicleMeasurement(
             capturedAtEpochMs = nowEpochMs,
             source = VehicleMeasurementSource.OBD,
             energyType = energyType,
             odometerKm = reader.readOdometerKm(),
             consumptionPer100 = consumption,
-            remainingRangeKm = reader.readRemainingRangeKm(),
-            fuelLevelPercent = if (energyType == VehicleEnergyType.FUEL) reader.readFuelLevelPercent() else null,
-            batteryPercent = if (energyType == VehicleEnergyType.ELECTRIC) reader.readBatteryPercent() else null,
-            confidence = 0.98,
+            remainingRangeKm = range,
+            fuelLevelPercent = if (energyType == VehicleEnergyType.FUEL) fuel else null,
+            batteryPercent = if (energyType == VehicleEnergyType.ELECTRIC) battery else null,
+            confidence = if (consumption != null) 0.98 else 0.85,
         )
     }
 }
