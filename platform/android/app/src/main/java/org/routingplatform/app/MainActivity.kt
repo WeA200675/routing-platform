@@ -36,12 +36,14 @@ import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
 import org.routingplatform.app.navigation.NavigationRuntimeCycleInputMapper
 import org.routingplatform.app.navigation.NavigationPoiRecommendation
 import org.routingplatform.app.navigation.NavigationPoiRecommendationEngine
+import org.routingplatform.app.vehicle.EnergyPriceProviderFactory
 import org.routingplatform.app.vehicle.VehicleEfficiencyCalibrator
 import org.routingplatform.app.vehicle.VehicleMeasurement
 import org.routingplatform.app.vehicle.VehicleCalibrationHistory
 import org.routingplatform.app.vehicle.VehicleProfileStore
 import org.routingplatform.app.vehicle.EnergyStopCandidate
 import org.routingplatform.app.navigation.VehicleEnergyStopRuntimeFactory
+import org.routingplatform.app.navigation.RoutePoint
 import org.routingplatform.app.navigation.remainingRouteDistanceKm
 import org.routingplatform.app.training.NavigationTrainingRuntimeHost
 import org.routingplatform.app.navigation.NavigationSessionState
