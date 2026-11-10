@@ -64,7 +64,7 @@ internal class BluetoothObdTelemetryReader(
             .replace("\n", " ")
             .replace(">", " ")
             .trim()
-            .replace(Regex("\s+"), " ")
+            .replace(Regex("\\s+"), " ")
     }.getOrNull()
 
     private fun checkPermission() {
