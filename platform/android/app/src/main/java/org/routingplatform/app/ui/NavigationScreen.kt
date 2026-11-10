@@ -2522,6 +2522,15 @@ private fun DestinationPlannerDialog(
                         }
                     }
 
+                val poiRecommendations = emptyList<NavigationPoiRecommendation>()
+                val onPoiUseAsDestination: (NavigationPoiRecommendation) -> Unit = {}
+                val onPoiUseAsViaPoint: (NavigationPoiRecommendation) -> Unit = {}
+                val vehicleEnergyType = VehicleEnergyType.FUEL
+                val onVehicleMeasurementConfirmed: (org.routingplatform.app.vehicle.VehicleMeasurement) -> Unit = {}
+                val onCameraPermissionRequired: () -> Unit = {}
+                val energyStopCandidate: EnergyStopCandidate? = null
+                val onEnergyStopAccepted: (EnergyStopCandidate) -> Unit = {}
+
                 NavigationPoiRecommendationsPanel(
                     recommendations = poiRecommendations,
                     onUseAsDestination = onPoiUseAsDestination,
