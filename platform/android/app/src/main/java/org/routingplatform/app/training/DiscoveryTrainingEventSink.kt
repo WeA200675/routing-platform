@@ -37,5 +37,5 @@ internal class DiscoveryTrainingEventSink(
     }
 
     private fun escape(value: String): String =
-        value.replace("\\", "\\\\").replace(""", "\"")
+        value.replace("\\", "\\\\").replace("\"", "\\\"")
 }
