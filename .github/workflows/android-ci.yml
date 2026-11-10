@@ -68,3 +68,12 @@ jobs:
             :app:testDebugUnitTest \
             :app:lintDebug \
             :app:compileReleaseKotlin
+          :app:assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: routing-platform-debug-apk
+          path: platform/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
