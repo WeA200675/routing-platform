@@ -99,8 +99,20 @@ class TrainingState:
         try:
             self.state_path.parent.mkdir(parents=True, exist_ok=True)
             temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
-            temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            with temporary.open("wb") as handle:
+                handle.write(encoded)
+                handle.flush()
+                os.fsync(handle.fileno())
             temporary.replace(self.state_path)
+            try:
+                directory_fd = os.open(str(self.state_path.parent), os.O_RDONLY)
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+            except OSError:
+                pass
         except OSError:
             return
 
