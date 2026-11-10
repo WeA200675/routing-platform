@@ -9,11 +9,12 @@ object VehicleEnergyStopRuntimeFactory {
         profile: VehicleProfile,
         onRecommendation: (org.routingplatform.app.vehicle.EnergyStopCandidate?) -> Unit,
         onUseAsViaPoint: (org.routingplatform.app.vehicle.EnergyStopCandidate) -> Unit,
+        priceProvider: org.routingplatform.app.vehicle.EnergyPriceAvailabilityProvider? = null,
     ): NavigationEnergyStopRuntime =
         NavigationEnergyStopRuntime(
             coordinator = VehicleEnergyStopCoordinator(
                 profile = profile,
-                priceProvider = null,
+                priceProvider = priceProvider,
             ),
             onRecommendation = onRecommendation,
             onUseAsViaPoint = onUseAsViaPoint,
