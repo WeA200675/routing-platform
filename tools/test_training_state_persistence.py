@@ -25,12 +25,16 @@ class TrainingStatePersistenceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "state.json"
             backup = path.with_suffix(".json.bak")
-            backup.write_text('{"pending_events":[{"event_id":"backup-1"}]}', encoding="utf-8")
-            path.write_text("{broken", encoding="utf-8")
             state = TrainingState()
-            state.state_path = path
-            state._load_persistent_state()
-            self.assertEqual(state.pending_events[0]["event_id"], "backup-1")
+            state.state_path = backup
+            state.pending_events.append({"event_id": "backup-1"})
+            state.queue_count = 1
+            state.persist()
+            path.write_text("{broken", encoding="utf-8")
+            restored = TrainingState()
+            restored.state_path = path
+            restored._load_persistent_state()
+            self.assertEqual(restored.pending_events[0]["event_id"], "backup-1")
 
 if __name__ == "__main__":
     unittest.main()
