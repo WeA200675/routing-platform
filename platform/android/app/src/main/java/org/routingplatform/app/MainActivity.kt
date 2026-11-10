@@ -103,6 +103,36 @@ class MainActivity :
                 trainingConnectionManager.refresh()
             }
 
+            val navigationDiagnosticsStore =
+                remember {
+                    org.routingplatform.app.navigation.NavigationDiagnosticsStore(applicationContext)
+                }
+
+            val navigationDiagnosticsQueue =
+                remember {
+                    org.routingplatform.app.navigation.NavigationDiagnosticsUploadQueue(applicationContext)
+                }
+
+            val navigationDiagnosticsUploadCoordinator =
+                remember {
+                    org.routingplatform.app.navigation.NavigationDiagnosticsUploadCoordinator(
+                        worker = org.routingplatform.app.navigation.NavigationDiagnosticsUploadWorker(
+                            queue = navigationDiagnosticsQueue,
+                        ),
+                        baseUrlProvider = {
+                            when (val state = trainingConnectionManager.currentState()) {
+                                is org.routingplatform.app.training.TrainingConnectionState.Connected ->
+                                    state.endpoint.apiUrl
+                                else -> null
+                            }
+                        },
+                    )
+                }
+
+            DisposableEffect(navigationDiagnosticsUploadCoordinator) {
+                onDispose { navigationDiagnosticsUploadCoordinator.close() }
+            }
+
             val bridge =
                 remember {
                     JniNavigationCoreBridge()
@@ -1940,6 +1970,7 @@ class MainActivity :
                              * progress is also preserved.
                              */
                             runtimeController.reset()
+                            navigationDiagnosticsUploadCoordinator.start()
 
                             telemetry =
                                 NavigationRuntimeTelemetry
@@ -2030,6 +2061,8 @@ class MainActivity :
                              */
                             runtimeController.reset()
                             trainingRuntimeHost.stop()
+                            navigationDiagnosticsStore.snapshotAndEnqueue(navigationDiagnosticsQueue)
+                            navigationDiagnosticsUploadCoordinator.stop()
 
                             telemetry =
                                 NavigationRuntimeTelemetry
