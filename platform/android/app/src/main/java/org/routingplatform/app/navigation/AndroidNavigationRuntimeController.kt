@@ -923,6 +923,10 @@ fun navigationRuntimePermissionsToRequest(
         permissions.add(
             Manifest.permission.BLUETOOTH_SCAN
         )
+
+        permissions.add(
+            Manifest.permission.BLUETOOTH_CONNECT
+        )
     }
 
     if (
