@@ -64,6 +64,7 @@ import org.routingplatform.app.profile.NavigationHapticIntensity
 import org.routingplatform.app.profile.NavigationPersonalityPreferences
 import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoicePreferences
+import org.routingplatform.app.vehicle.VehicleEnergyType
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
 import kotlin.math.roundToInt
 
@@ -302,6 +303,12 @@ internal fun NavigationScreen(
 
     onPoiUseAsViaPoint:
         (NavigationPoiRecommendation) -> Unit =
+        {},
+
+    vehicleEnergyType: VehicleEnergyType = VehicleEnergyType.FUEL,
+
+    onVehicleMeasurementConfirmed:
+        (org.routingplatform.app.vehicle.VehicleMeasurement) -> Unit =
         {},
 ) {
     var trainingDashboardOpen by
@@ -2512,6 +2519,12 @@ private fun DestinationPlannerDialog(
                     recommendations = poiRecommendations,
                     onUseAsDestination = onPoiUseAsDestination,
                     onUseAsViaPoint = onPoiUseAsViaPoint,
+                )
+
+                VehicleCalibrationPanel(
+                    energyType = vehicleEnergyType,
+                    nowEpochMs = System.currentTimeMillis(),
+                    onMeasurementConfirmed = onVehicleMeasurementConfirmed,
                 )
             }
         }
