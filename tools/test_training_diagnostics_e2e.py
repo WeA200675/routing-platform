@@ -67,6 +67,12 @@ def main():
         assert provider["sample_count"] == 1, provider
         assert provider["success_rate"] == 1.0, provider
         assert provider["average_latency_ms"] == 143, provider
+        time.sleep(0.5)
+        _, processed = request(base + "/api/training/diagnostics")
+        pipeline = processed["provider_diagnostics"]["processing"]
+        assert pipeline["normalized"] >= 1, pipeline
+        assert pipeline["replay"] >= 1, pipeline
+        assert pipeline["regression_passed"] >= 1, pipeline
 
         retry_status, retry = request(
             base + "/api/training/events",
