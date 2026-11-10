@@ -1,7 +1,7 @@
 package org.routingplatform.app.navigation
 
 data class NavigationDecisionSnapshot(
-    val recovery: NavigationRecoveryDecision,
+    val recovery: NavigationWatchdogRecoveryDecision,
     val liveAction: LiveRouteAction,
     val shouldRequestRecalculation: Boolean,
 )
