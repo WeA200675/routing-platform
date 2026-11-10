@@ -45,3 +45,6 @@ jobs:
 
       - name: Run Training Diagnostics End-to-End Test
         run: python3 tools/test_training_diagnostics_e2e.py
+
+      - name: Run Audit Integrity Tests
+        run: python3 -m unittest tools.test_audit_integrity -v
