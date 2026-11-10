@@ -2529,6 +2529,12 @@ private fun DestinationPlannerDialog(
                     onMeasurementConfirmed = onVehicleMeasurementConfirmed,
                     onCameraPermissionRequired = onCameraPermissionRequired,
                 )
+
+                VehicleSetupPanel(
+                    energyType = vehicleEnergyType,
+                    onEnergyTypeChanged = {},
+                    onTelemetrySourceSelected = {},
+                )
             }
         }
     }
