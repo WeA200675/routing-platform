@@ -26,6 +26,10 @@ class NavigationDiagnosticsUploadCoordinator(
         schedule(0L)
     }
 
+    fun triggerNow() {
+        synchronized(this) { schedule(0L) }
+    }
+
     @Synchronized
     fun stop() {
         running.set(false)
