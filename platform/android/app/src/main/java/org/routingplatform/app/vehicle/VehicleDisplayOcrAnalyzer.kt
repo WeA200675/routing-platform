@@ -16,6 +16,7 @@ internal class VehicleDisplayOcrAnalyzer(
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     @Volatile private var processing = false
 
+    @OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
         if (processing || image.format != ImageFormat.YUV_420_888) {
             image.close()
