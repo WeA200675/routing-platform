@@ -35,6 +35,7 @@ class TrainingState:
         self.regressions: list[dict[str, Any]] = []
         self.activities: list[dict[str, Any]] = []
         self.audit_integrity = True
+        self.audit_anchor_hash = ""
         self.provider_diagnostics: list[dict[str, Any]] = []
         self.seen_event_ids: set[str] = set()
         self.pending_events: list[dict[str, Any]] = []
@@ -54,7 +55,8 @@ class TrainingState:
             self.seen_event_ids.update(str(value) for value in data.get("seen_event_ids", []))
             self.provider_diagnostics.extend(data.get("provider_diagnostics", [])[-200:])
             self.activities.extend(data.get("activities", [])[-50:])
-            self.audit_integrity = self._verify_audit_chain(self.activities)
+            self.audit_anchor_hash = str(data.get("audit_anchor_hash", ""))
+            self.audit_integrity = self._verify_audit_chain(self.activities, self.audit_anchor_hash)
             self.total_events = int(data.get("total_events", 0))
             self.normalized_count = int(data.get("normalized_count", 0))
             self.replay_count = int(data.get("replay_count", 0))
@@ -66,8 +68,8 @@ class TrainingState:
             return
 
     @staticmethod
-    def _verify_audit_chain(items: list[dict[str, Any]]) -> bool:
-        previous = ""
+    def _verify_audit_chain(items: list[dict[str, Any]], anchor: str = "") -> bool:
+        previous = anchor
         for item in reversed(items):
             expected = dict(item)
             actual = expected.pop("hash", None)
@@ -88,6 +90,7 @@ class TrainingState:
                 "provider_diagnostics": self.provider_diagnostics[-200:],
                 "activities": self.activities[-50:],
                 "audit_integrity": self.audit_integrity,
+                "audit_anchor_hash": self.audit_anchor_hash,
                 "total_events": self.total_events,
                 "normalized_count": self.normalized_count,
                 "replay_count": self.replay_count,
@@ -176,7 +179,9 @@ class TrainingState:
                 json.dumps(item, sort_keys=True, ensure_ascii=False).encode("utf-8")
             ).hexdigest()
             self.activities.insert(0, item)
-            del self.activities[50:]
+            if len(self.activities) > 50:
+                self.audit_anchor_hash = self.activities[49].get("previous_hash", "")
+                del self.activities[50:]
 
 
 STATE = TrainingState()
