@@ -2,7 +2,7 @@ package org.routingplatform.app.training
 
 import org.routingplatform.app.navigation.NavigationDecisionTelemetry
 
-internal class TrainingRuntimeBridge(
+class TrainingRuntimeBridge(
     private val telemetry: NavigationPerformanceTelemetry,
     private val journal: TrainingEventStore,
     private val apiClient: TrainingCenterApiClient,
