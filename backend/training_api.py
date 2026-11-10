@@ -572,7 +572,9 @@ def serve(host: str = "127.0.0.1", port: int = 8787) -> None:
     def shutdown_handler(signum: int, _frame: Any) -> None:
         STATE.record_activity("Training API shutdown requested", "SHUTDOWN")
         STATE.stop_worker()
-        server.shutdown()
+        # BaseServer.shutdown must run from a different thread than serve_forever;
+        # otherwise signal handling deadlocks and graceful test/service shutdown hangs.
+        threading.Thread(target=server.shutdown, name="training-api-shutdown", daemon=True).start()
 
     signal.signal(signal.SIGTERM, shutdown_handler)
     signal.signal(signal.SIGINT, shutdown_handler)
