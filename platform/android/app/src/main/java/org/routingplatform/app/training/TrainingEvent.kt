@@ -1,6 +1,6 @@
 package org.routingplatform.app.training
 
-internal data class TrainingEvent(
+data class TrainingEvent(
     val eventId: String,
     val schemaVersion: String,
     val eventType: String,
