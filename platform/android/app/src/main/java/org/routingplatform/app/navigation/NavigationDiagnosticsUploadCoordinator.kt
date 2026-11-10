@@ -18,6 +18,7 @@ class NavigationDiagnosticsUploadCoordinator(
     private val running = AtomicBoolean(false)
     private var task: ScheduledFuture<*>? = null
     private var delaySeconds = INITIAL_DELAY_SECONDS
+    @Volatile private var lastResult: NavigationDiagnosticsUploadResult = NavigationDiagnosticsUploadResult.NothingPending
 
     @Synchronized
     fun start() {
@@ -25,6 +26,8 @@ class NavigationDiagnosticsUploadCoordinator(
         delaySeconds = INITIAL_DELAY_SECONDS
         schedule(0L)
     }
+
+    fun currentResult(): NavigationDiagnosticsUploadResult = lastResult
 
     fun triggerNow() {
         synchronized(this) { schedule(0L) }
@@ -53,6 +56,7 @@ class NavigationDiagnosticsUploadCoordinator(
         if (!running.get()) return
         val result = baseUrlProvider()?.let(worker::uploadNext)
             ?: NavigationDiagnosticsUploadResult.Failed("Kein Trainingsendpunkt verfügbar")
+        lastResult = result
         onResult(result)
         synchronized(this) {
             if (!running.get()) return
