@@ -24,26 +24,33 @@ internal fun VehicleCalibrationPanel(
     energyType: VehicleEnergyType,
     nowEpochMs: Long,
     onMeasurementConfirmed: (VehicleMeasurement) -> Unit,
+    onCameraPermissionRequired: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var displayText by remember { mutableStateOf("") }
     var parsed by remember { mutableStateOf<VehicleMeasurement?>(null) }
+
+    fun accept(text: String) {
+        displayText = text
+        parsed = VehicleDisplayMeasurementParser.parse(text, energyType, nowEpochMs)
+    }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("Verbrauch kalibrieren", style = MaterialTheme.typography.titleMedium)
+        VehicleDisplayOcrCameraPanel(
+            energyType = energyType,
+            onRecognizedText = ::accept,
+            onPermissionRequired = onCameraPermissionRequired,
+        )
         OutlinedTextField(
             value = displayText,
-            onValueChange = {
-                displayText = it
-                parsed = VehicleDisplayMeasurementParser.parse(it, energyType, nowEpochMs)
-            },
+            onValueChange = ::accept,
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Erkannter Displaytext") },
-            supportingText = {
-                Text("OCR-Ergebnis prüfen, bevor es übernommen wird.")
-            },
+            supportingText = { Text("OCR-Ergebnis prüfen, bevor es übernommen wird.") },
         )
         parsed?.let { measurement ->
             Text(
@@ -52,15 +59,14 @@ internal fun VehicleCalibrationPanel(
                     " · Konfidenz: " + "%.0f".format(measurement.confidence * 100) + "%",
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onMeasurementConfirmed(measurement) }) {
-                    Text("Übernehmen")
-                }
+                Button(
+                    enabled = measurement.confidence >= 0.70,
+                    onClick = { onMeasurementConfirmed(measurement) },
+                ) { Text("Übernehmen") }
                 Button(onClick = {
                     displayText = ""
                     parsed = null
-                }) {
-                    Text("Verwerfen")
-                }
+                }) { Text("Verwerfen") }
             }
         }
     }
