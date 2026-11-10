@@ -27,7 +27,7 @@ class NavigationPoiSearchCoordinatorTest {
             FallbackPoiSearchSource(
                 listOf(
                     object : PoiSearchSource {
-                        override fun search(request: PoiSearchRequest) = emptyList()
+                        override fun search(request: PoiSearchRequest): List<NavigationPoi> = emptyList()
                     },
                     offline,
                 ),
