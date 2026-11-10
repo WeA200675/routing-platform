@@ -9,6 +9,10 @@ class NavigationEnergyStopRuntime(
     private val onRecommendation: (EnergyStopCandidate?) -> Unit,
     private val onUseAsViaPoint: (EnergyStopCandidate) -> Unit,
 ) {
+    fun updateMeasurement(measurement: VehicleMeasurement) {
+        coordinator.updateMeasurement(measurement)
+    }
+
     fun update(
         measurement: VehicleMeasurement?,
         liveEvents: List<NavigationLiveEvent>,
