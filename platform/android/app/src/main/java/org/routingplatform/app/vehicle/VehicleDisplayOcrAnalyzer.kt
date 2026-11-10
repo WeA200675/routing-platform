@@ -1,5 +1,7 @@
 package org.routingplatform.app.vehicle
 
+import android.annotation.SuppressLint
+
 import android.graphics.ImageFormat
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -8,6 +10,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 
+@SuppressLint("UnsafeOptInUsageError")
 @OptIn(ExperimentalGetImage::class)
 internal class VehicleDisplayOcrAnalyzer(
     private val onText: (String) -> Unit,
