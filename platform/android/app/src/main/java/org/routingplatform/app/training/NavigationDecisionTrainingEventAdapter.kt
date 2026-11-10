@@ -2,7 +2,7 @@ package org.routingplatform.app.training
 
 import org.routingplatform.app.navigation.NavigationDecisionTelemetry
 
-object NavigationDecisionTrainingEventAdapter {
+internal object NavigationDecisionTrainingEventAdapter {
     fun toTrainingEvent(
         telemetry: NavigationDecisionTelemetry,
         sessionId: String? = null,
