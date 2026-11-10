@@ -41,6 +41,7 @@ class TrainingState:
         self.regression_passed = 0
         self.regression_failed = 0
         self.quarantined_count = 0
+        self.quarantined_events: list[dict[str, Any]] = []
         self.worker_running = False
         self.state_path = Path(os.environ.get("TRAINING_STATE_PATH", "/var/lib/routing-training/api-state.json"))
         self._load_persistent_state()
@@ -56,6 +57,7 @@ class TrainingState:
             self.regression_passed = int(data.get("regression_passed", 0))
             self.regression_failed = int(data.get("regression_failed", 0))
             self.quarantined_count = int(data.get("quarantined_count", 0))
+            self.quarantined_events.extend(data.get("quarantined_events", [])[-100:])
         except (FileNotFoundError, OSError, ValueError, TypeError):
             return
 
@@ -70,6 +72,7 @@ class TrainingState:
                 "regression_passed": self.regression_passed,
                 "regression_failed": self.regression_failed,
                 "quarantined_count": self.quarantined_count,
+                "quarantined_events": self.quarantined_events[-100:],
             }
         try:
             self.state_path.parent.mkdir(parents=True, exist_ok=True)
@@ -106,6 +109,8 @@ class TrainingState:
                 else:
                     self.regression_failed += 1
                     self.quarantined_count += 1
+                    self.quarantined_events.append({"event_id": event.get("event_id"), "reason": "invalid_schema", "captured_at": int(time.time() * 1000)})
+                    del self.quarantined_events[:-100]
                     status = "QUARANTINE"
             self.record_activity("Processed " + str(event.get("event_id", "event")) + " through normalize/replay/regression: " + status, "WORKER")
             self.persist()
@@ -229,6 +234,7 @@ def section(name: str) -> dict[str, Any]:
                     "regression_passed": STATE.regression_passed,
                     "regression_failed": STATE.regression_failed,
                     "quarantined": STATE.quarantined_count,
+                    "recent_quarantine": STATE.quarantined_events[-20:],
                 },
             }
         })
@@ -379,6 +385,19 @@ class Handler(BaseHTTPRequestHandler):
                 "status": "queued",
                 "request_id": str(uuid.uuid4()),
             }))
+            return
+        if name == "quarantine/review":
+            with STATE._lock:
+                items = list(STATE.quarantined_events[-100:])
+            self._send(200, STATE.envelope({"items": items, "count": len(items)}))
+            return
+        if name.startswith("quarantine/") and name.endswith("/discard"):
+            event_id = name[len("quarantine/"):-len("/discard")]
+            with STATE._lock:
+                before = len(STATE.quarantined_events)
+                STATE.quarantined_events = [item for item in STATE.quarantined_events if item.get("event_id") != event_id]
+            STATE.persist()
+            self._send(200, STATE.envelope({"action": "discard", "event_id": event_id, "removed": before != len(STATE.quarantined_events)}))
             return
         self._send(404, {"error": "unknown_endpoint"})
 
