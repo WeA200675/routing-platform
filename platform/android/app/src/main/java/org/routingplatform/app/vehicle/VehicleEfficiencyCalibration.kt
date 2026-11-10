@@ -50,7 +50,7 @@ object VehicleDisplayMeasurementParser {
             normalized.contains("km") ||
                 normalized.contains("reichweite")
             ) }
-        val battery = values.firstOrNull { it in 0.0..100.0 && normalized.contains("%") }
+        val level = values.firstOrNull { it in 0.0..100.0 && normalized.contains("%") }
         return VehicleMeasurement(
             capturedAtEpochMs = nowEpochMs,
             source = source,
@@ -58,8 +58,8 @@ object VehicleDisplayMeasurementParser {
             odometerKm = null,
             consumptionPer100 = consumption,
             remainingRangeKm = range,
-            fuelLevelPercent = if (energyType == VehicleEnergyType.FUEL) battery else null,
-            batteryPercent = if (energyType == VehicleEnergyType.ELECTRIC) battery else null,
+            fuelLevelPercent = if (energyType == VehicleEnergyType.FUEL) level else null,
+            batteryPercent = if (energyType == VehicleEnergyType.ELECTRIC) level else null,
             confidence = when {
                 consumption != null && range != null -> 0.9
                 consumption != null || range != null -> 0.75
