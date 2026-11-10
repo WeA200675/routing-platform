@@ -32,13 +32,16 @@ class TrainingServiceHealthMonitor {
         trainingActive: Boolean,
     ): TrainingServiceHealth =
         TrainingServiceHealth(
-            api = status(apiReachable),
-            discovery = status(discoveryReachable),
-            liveData = status(liveDataReachable),
-            storage = status(storageWithinLimit),
-            training = status(trainingActive),
+            api = coreStatus(apiReachable),
+            discovery = coreStatus(discoveryReachable),
+            liveData = optionalStatus(liveDataReachable),
+            storage = coreStatus(storageWithinLimit),
+            training = optionalStatus(trainingActive),
         )
 
-    private fun status(ok: Boolean): TrainingServiceStatus =
+    private fun coreStatus(ok: Boolean): TrainingServiceStatus =
+        if (ok) TrainingServiceStatus.HEALTHY else TrainingServiceStatus.OFFLINE
+
+    private fun optionalStatus(ok: Boolean): TrainingServiceStatus =
         if (ok) TrainingServiceStatus.HEALTHY else TrainingServiceStatus.DEGRADED
 }
