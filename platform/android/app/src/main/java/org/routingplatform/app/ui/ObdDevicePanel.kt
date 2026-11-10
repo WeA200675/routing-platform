@@ -1,5 +1,6 @@
 package org.routingplatform.app.ui
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import org.routingplatform.app.vehicle.VehicleEnergyType
 import org.routingplatform.app.vehicle.VehicleTelemetrySource
 
 @Composable
+@SuppressLint("MissingPermission")
 internal fun ObdDevicePanel(
     manager: ObdDeviceManager,
     energyType: VehicleEnergyType,
