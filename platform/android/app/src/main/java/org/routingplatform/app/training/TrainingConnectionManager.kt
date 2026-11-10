@@ -28,6 +28,8 @@ internal class TrainingConnectionManager(
         fallbackUrl = fallbackUrl,
     )
     private val state = AtomicReference<TrainingConnectionState>(TrainingConnectionState.Idle)
+    private val recovery = TrainingConnectionRecoveryCoordinator()
+    private val recoveryRunnable = Runnable { refresh() }
 
     fun currentState(): TrainingConnectionState = state.get()
 
@@ -38,7 +40,34 @@ internal class TrainingConnectionManager(
             val result = runCatching { TrainingConnectionState.Connected(discovery.resolve()) }
                 .getOrElse { TrainingConnectionState.Offline(it.message ?: "Trainingscloud nicht erreichbar") }
             state.set(result)
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (result is TrainingConnectionState.Connected) {
+                recovery.onProbeSuccess(now)
+            } else {
+                recovery.onProbeFailure(now)
+                scheduleRecovery(now)
+            }
             mainHandler.post { onComplete(result) }
+        }
+    }
+
+    /** Starts bounded autonomous recovery after discovery/API outages. */
+    fun startAutonomousRecovery() {
+        mainHandler.removeCallbacks(recoveryRunnable)
+        refresh()
+    }
+
+    fun stopAutonomousRecovery() {
+        mainHandler.removeCallbacks(recoveryRunnable)
+    }
+
+    private fun scheduleRecovery(nowElapsedMs: Long) {
+        val snapshot = recovery.current()
+        if (snapshot.state == TrainingRecoveryState.CIRCUIT_OPEN) {
+            mainHandler.postDelayed(recoveryRunnable, 60_000L)
+        } else {
+            val delay = (snapshot.nextRetryAtElapsedMs - nowElapsedMs).coerceAtLeast(250L)
+            mainHandler.postDelayed(recoveryRunnable, delay)
         }
     }
 }
