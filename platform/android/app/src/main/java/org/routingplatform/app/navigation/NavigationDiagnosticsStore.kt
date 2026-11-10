@@ -4,6 +4,15 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
+data class NavigationDiagnosticsSummary(
+    val sampleCount: Int,
+    val successCount: Int,
+    val failureCount: Int,
+    val successRate: Double,
+    val averageLatencyMs: Long,
+    val lastCapturedAtEpochMs: Long?,
+)
+
 data class NavigationProviderDiagnostic(
     val providerId: String,
     val capturedAtEpochMs: Long,
@@ -52,6 +61,19 @@ class NavigationDiagnosticsStore(context: Context) {
                 ))
             }
         }
+    }
+
+    fun summary(): NavigationDiagnosticsSummary {
+        val entries = readAll()
+        val successes = entries.count { it.success }
+        return NavigationDiagnosticsSummary(
+            sampleCount = entries.size,
+            successCount = successes,
+            failureCount = entries.size - successes,
+            successRate = if (entries.isEmpty()) 0.0 else successes.toDouble() / entries.size,
+            averageLatencyMs = if (entries.isEmpty()) 0L else entries.map { it.latencyMs }.average().toLong(),
+            lastCapturedAtEpochMs = entries.maxOfOrNull { it.capturedAtEpochMs },
+        )
     }
 
     fun clear() {
