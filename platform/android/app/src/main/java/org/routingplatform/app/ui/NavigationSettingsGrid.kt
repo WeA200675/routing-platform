@@ -22,7 +22,8 @@ import org.routingplatform.app.profile.ProfileAccentColor
 
 internal data class NavigationSettingTile(
     val testTag:
-        String,
+        String =
+        "navigation-setting",
 
     val title:
         String,
