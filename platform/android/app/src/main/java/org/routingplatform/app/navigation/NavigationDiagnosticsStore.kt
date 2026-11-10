@@ -76,6 +76,44 @@ class NavigationDiagnosticsStore(context: Context) {
         )
     }
 
+    fun snapshotJson(): JSONObject {
+        val entries = readAll()
+        val events = JSONArray()
+        entries.forEachIndexed { index, entry ->
+            events.put(
+                JSONObject().apply {
+                    put("event_id", "provider-diagnostic-${entry.capturedAtEpochMs}-$index")
+                    put("type", "navigation-provider-diagnostic")
+                    put("captured_at", entry.capturedAtEpochMs)
+                    put("size_bytes", 0)
+                    put("payload", JSONObject().apply {
+                        put("provider_id", entry.providerId)
+                        put("success", entry.success)
+                        put("event_count", entry.eventCount)
+                        put("accepted_event_count", entry.acceptedEventCount)
+                        put("latency_ms", entry.latencyMs)
+                        put("fallback_used", entry.fallbackUsed)
+                        put("error", entry.error)
+                    })
+                },
+            )
+        }
+        return JSONObject().apply {
+            put("schema_version", "navigation-diagnostics-v1")
+            put("captured_at", System.currentTimeMillis())
+            put("summary", JSONObject().apply {
+                val summary = summary()
+                put("sample_count", summary.sampleCount)
+                put("success_count", summary.successCount)
+                put("failure_count", summary.failureCount)
+                put("success_rate", summary.successRate)
+                put("average_latency_ms", summary.averageLatencyMs)
+                put("last_captured_at", summary.lastCapturedAtEpochMs)
+            })
+            put("events", events)
+        }
+    }
+
     fun clear() {
         prefs.edit().remove(KEY).apply()
     }
