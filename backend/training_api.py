@@ -405,6 +405,7 @@ class Handler(BaseHTTPRequestHandler):
                 STATE.pending_events.append(event)
                 STATE.queue_count += 1
                 STATE.quarantined_events = [item for item in STATE.quarantined_events if item.get("event_id") != event_id]
+            STATE.record_activity("Quarantine release: " + event_id, "RELEASED")
             STATE.persist()
             self._send(202, STATE.envelope({"action": "release", "event_id": event_id, "queue_count": STATE.queue_count}))
             return
@@ -413,6 +414,7 @@ class Handler(BaseHTTPRequestHandler):
             with STATE._lock:
                 before = len(STATE.quarantined_events)
                 STATE.quarantined_events = [item for item in STATE.quarantined_events if item.get("event_id") != event_id]
+            STATE.record_activity("Quarantine discard: " + event_id, "DISCARDED")
             STATE.persist()
             self._send(200, STATE.envelope({"action": "discard", "event_id": event_id, "removed": before != len(STATE.quarantined_events)}))
             return
