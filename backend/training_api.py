@@ -39,6 +39,8 @@ class TrainingState:
         self.normalized_count = 0
         self.replay_count = 0
         self.regression_passed = 0
+        self.regression_failed = 0
+        self.quarantined_count = 0
         self.worker_running = False
         self.state_path = Path(os.environ.get("TRAINING_STATE_PATH", "/var/lib/routing-training/api-state.json"))
         self._load_persistent_state()
@@ -52,6 +54,8 @@ class TrainingState:
             self.normalized_count = int(data.get("normalized_count", 0))
             self.replay_count = int(data.get("replay_count", 0))
             self.regression_passed = int(data.get("regression_passed", 0))
+            self.regression_failed = int(data.get("regression_failed", 0))
+            self.quarantined_count = int(data.get("quarantined_count", 0))
         except (FileNotFoundError, OSError, ValueError, TypeError):
             return
 
@@ -64,6 +68,8 @@ class TrainingState:
                 "normalized_count": self.normalized_count,
                 "replay_count": self.replay_count,
                 "regression_passed": self.regression_passed,
+                "regression_failed": self.regression_failed,
+                "quarantined_count": self.quarantined_count,
             }
         try:
             self.state_path.parent.mkdir(parents=True, exist_ok=True)
@@ -214,6 +220,8 @@ def section(name: str) -> dict[str, Any]:
                     "normalized": STATE.normalized_count,
                     "replay": STATE.replay_count,
                     "regression_passed": STATE.regression_passed,
+                    "regression_failed": STATE.regression_failed,
+                    "quarantined": STATE.quarantined_count,
                 },
             }
         })
