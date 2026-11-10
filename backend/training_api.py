@@ -186,28 +186,49 @@ class TrainingState:
 
     def _worker_loop(self) -> None:
         while self.worker_running:
-            event = None
+            batch: list[dict[str, Any]] = []
             with self._lock:
                 if self.pending_events:
-                    event = self.pending_events.pop(0)
-                    self.queue_count = max(0, self.queue_count - 1)
-            if event is None:
-                time.sleep(0.25)
+                    batch = self.pending_events[:32]
+                    del self.pending_events[:32]
+                    self.queue_count = max(0, self.queue_count - len(batch))
+            if not batch:
+                time.sleep(0.1)
                 continue
-            valid = isinstance(event, dict) and isinstance(event.get("event_id"), str) and isinstance(event.get("type"), str) and isinstance(event.get("payload", {}), dict)
+
+            activities: list[tuple[str, str]] = []
             with self._lock:
-                self.normalized_count += 1
-                if valid:
-                    self.replay_count += 1
-                    self.regression_passed += 1
-                    status = "PASS"
-                else:
-                    self.regression_failed += 1
-                    self.quarantined_count += 1
-                    self.quarantined_events.append({"event_id": event.get("event_id"), "reason": "invalid_schema", "captured_at": int(time.time() * 1000), "event": event})
-                    del self.quarantined_events[:-100]
-                    status = "QUARANTINE"
-            self.record_activity("Processed " + str(event.get("event_id", "event")) + " through normalize/replay/regression: " + status, "WORKER")
+                for event in batch:
+                    valid = (
+                        isinstance(event, dict)
+                        and isinstance(event.get("event_id"), str)
+                        and isinstance(event.get("type"), str)
+                        and isinstance(event.get("payload", {}), dict)
+                    )
+                    self.normalized_count += 1
+                    if valid:
+                        self.replay_count += 1
+                        self.regression_passed += 1
+                        status = "PASS"
+                    else:
+                        self.regression_failed += 1
+                        self.quarantined_count += 1
+                        self.quarantined_events.append({
+                            "event_id": event.get("event_id"),
+                            "reason": "invalid_schema",
+                            "captured_at": int(time.time() * 1000),
+                            "event": event,
+                        })
+                        del self.quarantined_events[:-100]
+                        status = "QUARANTINE"
+                    activities.append((str(event.get("event_id", "event")), status))
+
+            for event_id, status in activities:
+                self.record_activity(
+                    "Processed " + event_id +
+                    " through normalize/replay/regression: " + status,
+                    "WORKER",
+                )
             self.persist()
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
