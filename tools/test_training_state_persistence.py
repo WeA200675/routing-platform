@@ -21,6 +21,16 @@ class TrainingStatePersistenceTest(unittest.TestCase):
             self.assertEqual(second.queue_count, 1)
             self.assertEqual(second.pending_events[0]["event_id"], "pending-1")
 
+    def test_corrupt_primary_uses_backup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.json"
+            backup = path.with_suffix(".json.bak")
+            backup.write_text('{"pending_events":[{"event_id":"backup-1"}]}', encoding="utf-8")
+            path.write_text("{broken", encoding="utf-8")
+            state = TrainingState()
+            state.state_path = path
+            state._load_persistent_state()
+            self.assertEqual(state.pending_events[0]["event_id"], "backup-1")
 
 if __name__ == "__main__":
     unittest.main()
