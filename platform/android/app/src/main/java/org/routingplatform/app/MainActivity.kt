@@ -133,6 +133,18 @@ class MainActivity :
                 onDispose { navigationDiagnosticsUploadCoordinator.close() }
             }
 
+            val navigationNetworkRecoveryMonitor = remember {
+                org.routingplatform.app.navigation.NavigationNetworkRecoveryMonitor(
+                    context = applicationContext,
+                    onAvailable = { navigationDiagnosticsUploadCoordinator.triggerNow() },
+                )
+            }
+
+            DisposableEffect(navigationNetworkRecoveryMonitor) {
+                navigationNetworkRecoveryMonitor.start()
+                onDispose { navigationNetworkRecoveryMonitor.stop() }
+            }
+
             val bridge =
                 remember {
                     JniNavigationCoreBridge()
