@@ -3,6 +3,7 @@
 import json
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 
@@ -21,9 +22,12 @@ def request(url, payload=None):
 
 def main():
     port = "18787"
+    state_file = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+    state_file.close()
+    environment = {**__import__("os").environ, "TRAINING_API_HOST": "127.0.0.1", "TRAINING_API_PORT": port, "TRAINING_STATE_PATH": state_file.name}
     process = subprocess.Popen(
         [sys.executable, "backend/training_api.py"],
-        env={**__import__("os").environ, "TRAINING_API_HOST": "127.0.0.1", "TRAINING_API_PORT": port},
+        env=environment,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -76,6 +80,20 @@ def main():
             },
         )
         assert retry_status == 202 and retry["accepted"] == 0, retry
+        process.terminate()
+        process.wait(timeout=5)
+        process = subprocess.Popen(
+            [sys.executable, "backend/training_api.py"],
+            env=environment,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        time.sleep(0.3)
+        restart_status, restart = request(
+            base + "/api/training/events",
+            {"events": [{"event_id": "e2e-provider-001", "type": "navigation-provider-diagnostic", "size_bytes": 256}]},
+        )
+        assert restart_status == 202 and restart["accepted"] == 0, restart
         print("provider diagnostics e2e: PASS")
     finally:
         process.terminate()
