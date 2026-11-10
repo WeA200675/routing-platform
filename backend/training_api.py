@@ -7,6 +7,7 @@ Navigation never depends on this process being available.
 """
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -171,17 +172,20 @@ class TrainingState:
             payload["state_checksum"] = self._state_checksum(payload)
         try:
             self.state_path.parent.mkdir(parents=True, exist_ok=True)
-            temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
-            encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-            with temporary.open("wb") as handle:
-                handle.write(encoded)
-                handle.flush()
-                os.fsync(handle.fileno())
-            if self.state_path.exists():
-                backup = self.state_path.with_suffix(self.state_path.suffix + ".bak")
-                self.state_path.replace(backup)
-            temporary.replace(self.state_path)
-            os.chmod(self.state_path, 0o600)
+            lock_path = self.state_path.with_suffix(self.state_path.suffix + ".lock")
+            with lock_path.open("a+", encoding="utf-8") as lock_handle:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+                temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
+                encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                with temporary.open("wb") as handle:
+                    handle.write(encoded)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                if self.state_path.exists():
+                    self.state_path.replace(self.state_path.with_suffix(self.state_path.suffix + ".bak"))
+                temporary.replace(self.state_path)
+                os.chmod(self.state_path, 0o600)
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
             try:
                 directory_fd = os.open(str(self.state_path.parent), os.O_RDONLY)
                 try:
