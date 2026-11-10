@@ -38,6 +38,7 @@ import org.routingplatform.app.navigation.NavigationPoiRecommendation
 import org.routingplatform.app.navigation.NavigationPoiRecommendationEngine
 import org.routingplatform.app.vehicle.VehicleEfficiencyCalibrator
 import org.routingplatform.app.vehicle.VehicleMeasurement
+import org.routingplatform.app.vehicle.VehicleCalibrationHistory
 import org.routingplatform.app.training.NavigationTrainingRuntimeHost
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
@@ -425,9 +426,8 @@ class MainActivity :
                     mutableStateOf<List<NavigationPoiRecommendation>>(emptyList())
                 }
 
-            val vehicleEfficiencyCalibrator = remember {
-                VehicleEfficiencyCalibrator()
-            }
+            val vehicleEfficiencyCalibrator = remember { VehicleEfficiencyCalibrator() }
+            val vehicleCalibrationHistory = remember { VehicleCalibrationHistory(applicationContext) }
 
             var progressStep by
                 remember {
@@ -1305,7 +1305,9 @@ class MainActivity :
                         },
 
                         onVehicleMeasurementConfirmed = { measurement: VehicleMeasurement ->
-                            vehicleEfficiencyCalibrator.add(measurement)
+                            if (vehicleEfficiencyCalibrator.add(measurement)) {
+                                vehicleCalibrationHistory.append(measurement)
+                            }
                         },
 
                         onCameraPermissionRequired = {
