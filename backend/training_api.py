@@ -32,6 +32,7 @@ class TrainingState:
         self.total_events = 0
         self.regressions: list[dict[str, Any]] = []
         self.activities: list[dict[str, Any]] = []
+        self.provider_diagnostics: list[dict[str, Any]] = []
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
         with self._lock:
@@ -128,6 +129,25 @@ def section(name: str) -> dict[str, Any]:
             "cloud": {"reachable": True, "sync_ratio": 0.962},
             "alerts": STATE.regressions,
         })
+    if name == "diagnostics":
+        with STATE._lock:
+            entries = list(STATE.provider_diagnostics[-200:])
+            success_count = sum(1 for entry in entries if entry.get("success"))
+            average_latency = (
+                round(sum(int(entry.get("latency_ms", 0)) for entry in entries) / len(entries))
+                if entries else 0
+            )
+        return STATE.envelope({
+            "provider_diagnostics": {
+                "sample_count": len(entries),
+                "success_count": success_count,
+                "failure_count": len(entries) - success_count,
+                "success_rate": success_count / len(entries) if entries else 0.0,
+                "average_latency_ms": average_latency,
+                "recent": entries[-20:],
+            }
+        })
+
     if name == "history":
         return STATE.envelope({
             "performance": [
@@ -223,6 +243,20 @@ class Handler(BaseHTTPRequestHandler):
                     STATE.queue_count += 1
                     STATE.total_events += 1
                     accepted += 1
+                    if event.get("type") == "navigation-provider-diagnostic":
+                        payload_data = event.get("payload")
+                        if isinstance(payload_data, dict):
+                            STATE.provider_diagnostics.append({
+                                "provider_id": str(payload_data.get("provider_id", "unknown")),
+                                "captured_at": int(event.get("captured_at", int(time.time() * 1000))),
+                                "success": bool(payload_data.get("success", False)),
+                                "latency_ms": int(payload_data.get("latency_ms", 0)),
+                                "event_count": int(payload_data.get("event_count", 0)),
+                                "accepted_event_count": int(payload_data.get("accepted_event_count", 0)),
+                                "fallback_used": bool(payload_data.get("fallback_used", False)),
+                                "error": payload_data.get("error"),
+                            })
+                            del STATE.provider_diagnostics[:-200]
             STATE.record_activity("Accepted " + str(accepted) + " training events", "INGEST")
             self._send(202, STATE.envelope({
                 "accepted": accepted,
