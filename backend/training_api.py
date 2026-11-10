@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 import threading
 import time
 import uuid
@@ -34,6 +35,32 @@ class TrainingState:
         self.activities: list[dict[str, Any]] = []
         self.provider_diagnostics: list[dict[str, Any]] = []
         self.seen_event_ids: set[str] = set()
+        self.state_path = Path(os.environ.get("TRAINING_STATE_PATH", "/var/lib/routing-training/api-state.json"))
+        self._load_persistent_state()
+
+    def _load_persistent_state(self) -> None:
+        try:
+            data = json.loads(self.state_path.read_text(encoding="utf-8"))
+            self.seen_event_ids.update(str(value) for value in data.get("seen_event_ids", []))
+            self.provider_diagnostics.extend(data.get("provider_diagnostics", [])[-200:])
+            self.total_events = int(data.get("total_events", 0))
+        except (FileNotFoundError, OSError, ValueError, TypeError):
+            return
+
+    def persist(self) -> None:
+        with self._lock:
+            payload = {
+                "seen_event_ids": list(self.seen_event_ids)[-10000:],
+                "provider_diagnostics": self.provider_diagnostics[-200:],
+                "total_events": self.total_events,
+            }
+        try:
+            self.state_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
+            temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            temporary.replace(self.state_path)
+        except OSError:
+            return
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
         with self._lock:
@@ -263,6 +290,7 @@ class Handler(BaseHTTPRequestHandler):
                             })
                             del STATE.provider_diagnostics[:-200]
             STATE.record_activity("Accepted " + str(accepted) + " training events", "INGEST")
+            STATE.persist()
             self._send(202, STATE.envelope({
                 "accepted": accepted,
                 "rejected": len(events) - accepted,
