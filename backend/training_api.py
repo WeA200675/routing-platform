@@ -68,6 +68,8 @@ class TrainingState:
 
     def _load_persistent_state(self) -> None:
         try:
+            if self.state_path.stat().st_size > 16 * 1024 * 1024:
+                raise ValueError("state file too large")
             data = json.loads(self.state_path.read_text(encoding="utf-8"))
             if not self._valid_state(data):
                 raise ValueError("invalid state checksum or schema")
@@ -88,8 +90,16 @@ class TrainingState:
         except (FileNotFoundError, OSError):
             return
         except Exception:
+            try:
+                if self.state_path.exists():
+                    corrupt = self.state_path.with_name(self.state_path.name + ".corrupt-" + str(int(time.time() * 1000)))
+                    self.state_path.replace(corrupt)
+            except OSError:
+                pass
             backup = self.state_path.with_suffix(self.state_path.suffix + ".bak")
             try:
+                if backup.stat().st_size > 16 * 1024 * 1024:
+                    raise ValueError("backup state file too large")
                 data = json.loads(backup.read_text(encoding="utf-8"))
                 if not self._valid_state(data):
                     raise ValueError("invalid backup checksum or schema")
