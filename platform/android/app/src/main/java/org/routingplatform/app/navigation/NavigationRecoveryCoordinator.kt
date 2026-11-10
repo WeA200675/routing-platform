@@ -6,7 +6,7 @@ enum class NavigationRecoveryAction {
     KEEP_CURRENT_ROUTE,
 }
 
-data class NavigationRecoveryDecision(
+data class NavigationWatchdogRecoveryDecision(
     val action: NavigationRecoveryAction,
     val watchdog: NavigationWatchdogSnapshot,
     val requestId: Long? = null,
@@ -23,7 +23,7 @@ class NavigationRecoveryCoordinator(
         lastPositionElapsedMs: Long?,
         lastProgressElapsedMs: Long?,
         navigationActive: Boolean,
-    ): NavigationRecoveryDecision {
+    ): NavigationWatchdogRecoveryDecision {
         val snapshot = watchdog.evaluate(
             nowElapsedMs = nowElapsedMs,
             lastPositionElapsedMs = lastPositionElapsedMs,
@@ -32,12 +32,12 @@ class NavigationRecoveryCoordinator(
         )
 
         if (snapshot.status != NavigationWatchdogStatus.RECOVERY_REQUIRED) {
-            return NavigationRecoveryDecision(NavigationRecoveryAction.NONE, snapshot)
+            return NavigationWatchdogRecoveryDecision(NavigationRecoveryAction.NONE, snapshot)
         }
 
         val existing = pendingRequestId
         if (existing != null) {
-            return NavigationRecoveryDecision(
+            return NavigationWatchdogRecoveryDecision(
                 NavigationRecoveryAction.KEEP_CURRENT_ROUTE,
                 snapshot,
                 existing,
@@ -46,7 +46,7 @@ class NavigationRecoveryCoordinator(
 
         val requestId = ++nextRequestId
         pendingRequestId = requestId
-        return NavigationRecoveryDecision(
+        return NavigationWatchdogRecoveryDecision(
             NavigationRecoveryAction.REQUEST_RECALCULATION,
             snapshot,
             requestId,
