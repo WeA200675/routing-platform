@@ -36,6 +36,8 @@ import org.routingplatform.app.navigation.NavigationRuntimeTelemetry
 import org.routingplatform.app.navigation.NavigationRuntimeCycleInputMapper
 import org.routingplatform.app.navigation.NavigationPoiRecommendation
 import org.routingplatform.app.navigation.NavigationPoiRecommendationEngine
+import org.routingplatform.app.vehicle.VehicleEfficiencyCalibrator
+import org.routingplatform.app.vehicle.VehicleMeasurement
 import org.routingplatform.app.training.NavigationTrainingRuntimeHost
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
@@ -422,6 +424,10 @@ class MainActivity :
                 remember {
                     mutableStateOf<List<NavigationPoiRecommendation>>(emptyList())
                 }
+
+            val vehicleEfficiencyCalibrator = remember {
+                VehicleEfficiencyCalibrator()
+            }
 
             var progressStep by
                 remember {
@@ -1296,6 +1302,10 @@ class MainActivity :
                                 label = recommendation.title,
                             )
                             destinationPlannerMessage = "POI als Zwischenziel ausgewählt."
+                        },
+
+                        onVehicleMeasurementConfirmed = { measurement: VehicleMeasurement ->
+                            vehicleEfficiencyCalibrator.add(measurement)
                         },
 
                         nightPresentation =
