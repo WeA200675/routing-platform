@@ -39,3 +39,6 @@ jobs:
 
       - name: Run Core Tests
         run: ctest --test-dir build --output-on-failure
+
+      - name: Run Training API Diagnostics Test
+        run: python3 -m unittest tools.test_provider_diagnostics -v
