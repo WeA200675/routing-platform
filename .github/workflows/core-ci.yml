@@ -42,3 +42,6 @@ jobs:
 
       - name: Run Training API Diagnostics Test
         run: python3 -m unittest tools.test_provider_diagnostics -v
+
+      - name: Run Training Diagnostics End-to-End Test
+        run: python3 tools/test_training_diagnostics_e2e.py
