@@ -65,6 +65,7 @@ import org.routingplatform.app.profile.NavigationPersonalityPreferences
 import org.routingplatform.app.profile.NavigationPreferences
 import org.routingplatform.app.profile.VoicePreferences
 import org.routingplatform.app.vehicle.VehicleEnergyType
+import org.routingplatform.app.vehicle.EnergyStopCandidate
 import org.routingplatform.app.profile.WeeklyDiscoveryIntensity
 import kotlin.math.roundToInt
 
@@ -312,6 +313,10 @@ internal fun NavigationScreen(
         {},
 
     onCameraPermissionRequired: () -> Unit = {},
+
+    energyStopCandidate: EnergyStopCandidate? = null,
+
+    onEnergyStopAccepted: (EnergyStopCandidate) -> Unit = {},
 ) {
     var trainingDashboardOpen by
         remember {
@@ -2534,6 +2539,11 @@ private fun DestinationPlannerDialog(
                     energyType = vehicleEnergyType,
                     onEnergyTypeChanged = {},
                     onTelemetryMeasurement = onVehicleMeasurementConfirmed,
+                )
+
+                EnergyStopRecommendationPanel(
+                    candidate = energyStopCandidate,
+                    onUseAsViaPoint = onEnergyStopAccepted,
                 )
             }
         }
