@@ -274,7 +274,7 @@ class TrainingState:
                 "previous_hash": previous,
             }
             item["hash"] = hashlib.sha256(
-                json.dumps(item, sort_keys=True, ensure_ascii=False).encode("utf-8")
+                json.dumps(item, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
             ).hexdigest()
             self.activities.insert(0, item)
             if len(self.activities) > 50:
