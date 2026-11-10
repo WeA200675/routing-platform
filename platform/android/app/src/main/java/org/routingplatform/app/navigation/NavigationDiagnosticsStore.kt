@@ -114,6 +114,12 @@ class NavigationDiagnosticsStore(context: Context) {
         }
     }
 
+    fun snapshotAndEnqueue(queue: NavigationDiagnosticsUploadQueue): JSONObject {
+        val snapshot = snapshotJson()
+        queue.enqueue(snapshot)
+        return snapshot
+    }
+
     fun clear() {
         prefs.edit().remove(KEY).apply()
     }
