@@ -67,7 +67,7 @@ class TrainingState:
             self.regression_failed = int(data.get("regression_failed", 0))
             self.quarantined_count = int(data.get("quarantined_count", 0))
             self.quarantined_events.extend(data.get("quarantined_events", [])[-100:])
-        except (FileNotFoundError, OSError, ValueError, TypeError):
+        except (FileNotFoundError, OSError):
             return
         except Exception:
             backup = self.state_path.with_suffix(self.state_path.suffix + ".bak")
