@@ -1308,6 +1308,10 @@ class MainActivity :
                             vehicleEfficiencyCalibrator.add(measurement)
                         },
 
+                        onCameraPermissionRequired = {
+                            permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
+                        },
+
                         nightPresentation =
                             nightPresentation,
 
