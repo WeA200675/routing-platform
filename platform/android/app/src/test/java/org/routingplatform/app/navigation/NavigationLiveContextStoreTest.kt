@@ -12,7 +12,7 @@ class NavigationLiveContextStoreTest {
         assertTrue(store.upsert(event("a", validUntil = 3_000)))
         assertEquals(1, store.size())
         assertEquals(0, store.removeExpired(2_500))
-        assertEquals(0, store.size())
+        assertEquals(1, store.size())
     }
 
     @Test
