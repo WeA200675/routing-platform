@@ -54,6 +54,8 @@ class TrainingState:
         try:
             data = json.loads(self.state_path.read_text(encoding="utf-8"))
             self.seen_event_ids.update(str(value) for value in data.get("seen_event_ids", []))
+            self.pending_events.extend(data.get("pending_events", [])[-256:])
+            self.queue_count = len(self.pending_events)
             self.provider_diagnostics.extend(data.get("provider_diagnostics", [])[-200:])
             self.activities.extend(data.get("activities", [])[-50:])
             self.audit_anchor_hash = str(data.get("audit_anchor_hash", ""))
@@ -88,6 +90,7 @@ class TrainingState:
         with self._lock:
             payload = {
                 "seen_event_ids": list(self.seen_event_ids)[-10000:],
+                "pending_events": self.pending_events[-256:],
                 "provider_diagnostics": self.provider_diagnostics[-200:],
                 "activities": self.activities[-50:],
                 "audit_integrity": self.audit_integrity,
