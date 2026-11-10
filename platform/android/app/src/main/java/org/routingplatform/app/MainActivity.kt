@@ -39,6 +39,10 @@ import org.routingplatform.app.navigation.NavigationPoiRecommendationEngine
 import org.routingplatform.app.vehicle.VehicleEfficiencyCalibrator
 import org.routingplatform.app.vehicle.VehicleMeasurement
 import org.routingplatform.app.vehicle.VehicleCalibrationHistory
+import org.routingplatform.app.vehicle.VehicleProfileStore
+import org.routingplatform.app.vehicle.EnergyStopCandidate
+import org.routingplatform.app.navigation.VehicleEnergyStopRuntimeFactory
+import org.routingplatform.app.navigation.remainingRouteDistanceKm
 import org.routingplatform.app.training.NavigationTrainingRuntimeHost
 import org.routingplatform.app.navigation.NavigationSessionState
 import org.routingplatform.app.navigation.NavigationStartOrientationEngine
@@ -428,6 +432,17 @@ class MainActivity :
 
             val vehicleEfficiencyCalibrator = remember { VehicleEfficiencyCalibrator() }
             val vehicleCalibrationHistory = remember { VehicleCalibrationHistory(applicationContext) }
+            val vehicleProfile = remember { VehicleProfileStore(applicationContext).load() }
+            var energyStopCandidate by remember { mutableStateOf<EnergyStopCandidate?>(null) }
+            val energyStopRuntime = remember(vehicleProfile) {
+                vehicleProfile?.let { profile ->
+                    VehicleEnergyStopRuntimeFactory.create(
+                        profile = profile,
+                        onRecommendation = { energyStopCandidate = it },
+                        onUseAsViaPoint = { energyStopCandidate = it },
+                    )
+                }
+            }
 
             var progressStep by
                 remember {
@@ -1314,6 +1329,17 @@ class MainActivity :
                             permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA))
                         },
 
+                        energyStopCandidate = energyStopCandidate,
+
+                        onEnergyStopAccepted = { candidate ->
+                            energyStopCandidate = candidate
+                            selectedTripStop = NavigationTripStop(
+                                point = RoutePoint(candidate.poi.event.latitude, candidate.poi.event.longitude),
+                                label = candidate.poi.title,
+                            )
+                            destinationPlannerMessage = "Energiestopp als Zwischenziel ausgewählt."
+                        },
+
                         nightPresentation =
                             nightPresentation,
 
@@ -1957,12 +1983,24 @@ class MainActivity :
                                 onResult = { result ->
                                     val position = telemetry.lastObservedPosition
                                     if (position != null) {
+                                        val events = result.liveContext.prioritizedEvents.map { it.event }
                                         poiRecommendations =
                                             NavigationPoiRecommendationEngine.recommend(
-                                                events = result.liveContext.prioritizedEvents.map { it.event },
+                                                events = events,
                                                 currentPosition = position,
                                                 nowEpochMs = result.liveContext.capturedAtEpochMs,
                                             )
+                                        energyStopRuntime?.update(
+                                            measurement = null,
+                                            liveEvents = events,
+                                            currentPosition = position,
+                                            routeRemainingKm = remainingRouteDistanceKm(
+                                                snapshot.geometry,
+                                                snapshot.shapeSegmentIndex,
+                                                snapshot.segmentFraction,
+                                            ),
+                                            nowEpochMs = result.liveContext.capturedAtEpochMs,
+                                        )
                                     }
                                 },
                             )
