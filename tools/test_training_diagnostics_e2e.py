@@ -63,6 +63,19 @@ def main():
         assert provider["sample_count"] == 1, provider
         assert provider["success_rate"] == 1.0, provider
         assert provider["average_latency_ms"] == 143, provider
+
+        retry_status, retry = request(
+            base + "/api/training/events",
+            {
+                "events": [{
+                    "event_id": "e2e-provider-001",
+                    "type": "navigation-provider-diagnostic",
+                    "size_bytes": 256,
+                    "payload": {"provider_id": "traffic", "success": True, "latency_ms": 143},
+                }]
+            },
+        )
+        assert retry_status == 202 and retry["accepted"] == 0, retry
         print("provider diagnostics e2e: PASS")
     finally:
         process.terminate()
