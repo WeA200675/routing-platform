@@ -50,9 +50,27 @@ class TrainingState:
         self.state_path = Path(os.environ.get("TRAINING_STATE_PATH", "/var/lib/routing-training/api-state.json"))
         self._load_persistent_state()
 
+    @staticmethod
+    def _state_checksum(data: dict[str, Any]) -> str:
+        canonical = dict(data)
+        canonical.pop("state_checksum", None)
+        return hashlib.sha256(
+            json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+
+    @classmethod
+    def _valid_state(cls, data: Any) -> bool:
+        return (
+            isinstance(data, dict)
+            and data.get("state_schema") == "training-api-state-v1"
+            and data.get("state_checksum") == cls._state_checksum(data)
+        )
+
     def _load_persistent_state(self) -> None:
         try:
             data = json.loads(self.state_path.read_text(encoding="utf-8"))
+            if not self._valid_state(data):
+                raise ValueError("invalid state checksum or schema")
             self.seen_event_ids.update(str(value) for value in data.get("seen_event_ids", []))
             self.pending_events.extend(data.get("pending_events", [])[-256:])
             self.queue_count = len(self.pending_events)
@@ -73,6 +91,8 @@ class TrainingState:
             backup = self.state_path.with_suffix(self.state_path.suffix + ".bak")
             try:
                 data = json.loads(backup.read_text(encoding="utf-8"))
+                if not self._valid_state(data):
+                    raise ValueError("invalid backup checksum or schema")
                 self.seen_event_ids.update(str(value) for value in data.get("seen_event_ids", []))
                 self.pending_events.extend(data.get("pending_events", [])[-256:])
                 self.queue_count = len(self.pending_events)
@@ -118,6 +138,7 @@ class TrainingState:
                 "quarantined_count": self.quarantined_count,
                 "quarantined_events": self.quarantined_events[-100:],
             }
+            payload["state_checksum"] = self._state_checksum(payload)
         try:
             self.state_path.parent.mkdir(parents=True, exist_ok=True)
             temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
