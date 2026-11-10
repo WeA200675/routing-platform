@@ -69,6 +69,20 @@ class TrainingState:
             self.quarantined_events.extend(data.get("quarantined_events", [])[-100:])
         except (FileNotFoundError, OSError, ValueError, TypeError):
             return
+        except Exception:
+            backup = self.state_path.with_suffix(self.state_path.suffix + ".bak")
+            try:
+                data = json.loads(backup.read_text(encoding="utf-8"))
+                self.seen_event_ids.update(str(value) for value in data.get("seen_event_ids", []))
+                self.pending_events.extend(data.get("pending_events", [])[-256:])
+                self.queue_count = len(self.pending_events)
+                self.provider_diagnostics.extend(data.get("provider_diagnostics", [])[-200:])
+                self.activities.extend(data.get("activities", [])[-50:])
+                self.audit_anchor_hash = str(data.get("audit_anchor_hash", ""))
+                self.audit_integrity = self._verify_audit_chain(self.activities, self.audit_anchor_hash)
+                self.total_events = int(data.get("total_events", 0))
+            except Exception:
+                return
 
     @staticmethod
     def _verify_audit_chain(items: list[dict[str, Any]], anchor: str = "") -> bool:
@@ -89,6 +103,7 @@ class TrainingState:
     def persist(self) -> None:
         with self._lock:
             payload = {
+                "state_schema": "training-api-state-v1",
                 "seen_event_ids": list(self.seen_event_ids)[-10000:],
                 "pending_events": self.pending_events[-256:],
                 "provider_diagnostics": self.provider_diagnostics[-200:],
@@ -111,7 +126,11 @@ class TrainingState:
                 handle.write(encoded)
                 handle.flush()
                 os.fsync(handle.fileno())
+            if self.state_path.exists():
+                backup = self.state_path.with_suffix(self.state_path.suffix + ".bak")
+                self.state_path.replace(backup)
             temporary.replace(self.state_path)
+            os.chmod(self.state_path, 0o600)
             try:
                 directory_fd = os.open(str(self.state_path.parent), os.O_RDONLY)
                 try:
