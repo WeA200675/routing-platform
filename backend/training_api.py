@@ -96,11 +96,18 @@ class TrainingState:
             if event is None:
                 time.sleep(0.25)
                 continue
+            valid = isinstance(event, dict) and isinstance(event.get("event_id"), str) and isinstance(event.get("type"), str) and isinstance(event.get("payload", {}), dict)
             with self._lock:
                 self.normalized_count += 1
-                self.replay_count += 1
-                self.regression_passed += 1
-            self.record_activity("Processed " + str(event.get("event_id", "event")) + " through normalize/replay/regression", "WORKER")
+                if valid:
+                    self.replay_count += 1
+                    self.regression_passed += 1
+                    status = "PASS"
+                else:
+                    self.regression_failed += 1
+                    self.quarantined_count += 1
+                    status = "QUARANTINE"
+            self.record_activity("Processed " + str(event.get("event_id", "event")) + " through normalize/replay/regression: " + status, "WORKER")
             self.persist()
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
