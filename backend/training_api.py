@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import signal
 from pathlib import Path
 import threading
 import time
@@ -118,6 +119,10 @@ class TrainingState:
                 pass
         except OSError:
             return
+
+    def stop_worker(self) -> None:
+        self.worker_running = False
+        self.persist()
 
     def start_worker(self) -> None:
         if self.worker_running:
@@ -470,8 +475,20 @@ class Handler(BaseHTTPRequestHandler):
 def serve(host: str = "127.0.0.1", port: int = 8787) -> None:
     STATE.start_worker()
     server = ThreadingHTTPServer((host, port), Handler)
+
+    def shutdown_handler(signum: int, _frame: Any) -> None:
+        STATE.record_activity("Training API shutdown requested", "SHUTDOWN")
+        STATE.stop_worker()
+        server.shutdown()
+
+    signal.signal(signal.SIGTERM, shutdown_handler)
+    signal.signal(signal.SIGINT, shutdown_handler)
     print(f"Training API listening on http://{host}:{port}")
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        STATE.stop_worker()
+        server.server_close()
 
 
 if __name__ == "__main__":
