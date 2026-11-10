@@ -440,6 +440,7 @@ class MainActivity :
                         profile = profile,
                         onRecommendation = { energyStopCandidate = it },
                         onUseAsViaPoint = { energyStopCandidate = it },
+                        priceProvider = EnergyPriceProviderFactory.fromManifest(applicationContext),
                     )
                 }
             }
