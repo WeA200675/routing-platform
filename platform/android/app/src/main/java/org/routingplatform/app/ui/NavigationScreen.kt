@@ -2533,7 +2533,7 @@ private fun DestinationPlannerDialog(
                 VehicleSetupPanel(
                     energyType = vehicleEnergyType,
                     onEnergyTypeChanged = {},
-                    onTelemetrySourceSelected = {},
+                    onTelemetryMeasurement = onVehicleMeasurementConfirmed,
                 )
             }
         }
