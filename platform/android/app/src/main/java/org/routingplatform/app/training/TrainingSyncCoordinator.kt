@@ -1,6 +1,6 @@
 package org.routingplatform.app.training
 
-class TrainingSyncCoordinator(
+internal class TrainingSyncCoordinator(
     private val bridge: TrainingRuntimeBridge,
 ) {
     fun sync(
