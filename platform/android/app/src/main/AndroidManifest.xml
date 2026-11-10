@@ -44,6 +44,7 @@
         <meta-data android:name="org.routingplatform.live.API_KEY" android:value="" />
         <meta-data android:name="org.routingplatform.energy.FUEL_PRICE_ENDPOINT" android:value="" />
         <meta-data android:name="org.routingplatform.energy.CHARGING_PRICE_ENDPOINT" android:value="" />
+        <meta-data android:name="org.routingplatform.energy.TANKERKOENIG_API_KEY" android:value="" />
 
         <!-- Discovery governance is disabled until real production values are supplied. -->
         <meta-data android:name="org.routingplatform.discovery.MANIFEST_KEY_ID" android:value="" />
