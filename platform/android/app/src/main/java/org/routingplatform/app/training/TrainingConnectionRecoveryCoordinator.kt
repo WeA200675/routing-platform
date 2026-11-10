@@ -7,21 +7,21 @@ package org.routingplatform.app.training
  * recovery actions (refresh discovery, restart companion, reconnect API, flush
  * FIFO). Navigation remains independent of the training channel.
  */
-enum class TrainingConnectionState {
+internal enum class TrainingRecoveryState {
     ONLINE,
     RECONNECTING,
     OFFLINE_BUFFERING,
     CIRCUIT_OPEN,
 }
 
-data class TrainingConnectionSnapshot(
-    val state: TrainingConnectionState = TrainingConnectionState.OFFLINE_BUFFERING,
+internal data class TrainingConnectionSnapshot(
+    val state: TrainingRecoveryState = TrainingRecoveryState.OFFLINE_BUFFERING,
     val consecutiveFailures: Int = 0,
     val nextRetryAtElapsedMs: Long = 0L,
     val lastSuccessAtElapsedMs: Long? = null,
 )
 
-class TrainingConnectionRecoveryCoordinator(
+internal class TrainingConnectionRecoveryCoordinator(
     private val maxFailuresBeforeCircuitOpen: Int = 5,
     private val baseRetryDelayMs: Long = 1_000L,
     private val maxRetryDelayMs: Long = 60_000L,
@@ -38,7 +38,7 @@ class TrainingConnectionRecoveryCoordinator(
 
     fun onProbeSuccess(nowElapsedMs: Long): TrainingConnectionSnapshot {
         snapshot = TrainingConnectionSnapshot(
-            state = TrainingConnectionState.ONLINE,
+            state = TrainingRecoveryState.ONLINE,
             consecutiveFailures = 0,
             nextRetryAtElapsedMs = 0L,
             lastSuccessAtElapsedMs = nowElapsedMs,
@@ -49,9 +49,9 @@ class TrainingConnectionRecoveryCoordinator(
     fun onProbeFailure(nowElapsedMs: Long): TrainingConnectionSnapshot {
         val failures = (snapshot.consecutiveFailures + 1).coerceAtMost(maxFailuresBeforeCircuitOpen)
         val state = if (failures >= maxFailuresBeforeCircuitOpen) {
-            TrainingConnectionState.CIRCUIT_OPEN
+            TrainingRecoveryState.CIRCUIT_OPEN
         } else {
-            TrainingConnectionState.RECONNECTING
+            TrainingRecoveryState.RECONNECTING
         }
         val exponent = (failures - 1).coerceIn(0, 6)
         val delay = (baseRetryDelayMs * (1L shl exponent)).coerceAtMost(maxRetryDelayMs)
@@ -64,18 +64,18 @@ class TrainingConnectionRecoveryCoordinator(
     }
 
     fun shouldRetry(nowElapsedMs: Long): Boolean =
-        snapshot.state != TrainingConnectionState.ONLINE &&
-            snapshot.state != TrainingConnectionState.CIRCUIT_OPEN &&
+        snapshot.state != TrainingRecoveryState.ONLINE &&
+            snapshot.state != TrainingRecoveryState.CIRCUIT_OPEN &&
             nowElapsedMs >= snapshot.nextRetryAtElapsedMs
 
     fun allowHalfOpenProbe(nowElapsedMs: Long): Boolean =
-        snapshot.state == TrainingConnectionState.CIRCUIT_OPEN &&
+        snapshot.state == TrainingRecoveryState.CIRCUIT_OPEN &&
             nowElapsedMs >= snapshot.nextRetryAtElapsedMs
 
     fun beginHalfOpenProbe(nowElapsedMs: Long): TrainingConnectionSnapshot {
         require(allowHalfOpenProbe(nowElapsedMs))
         snapshot = snapshot.copy(
-            state = TrainingConnectionState.RECONNECTING,
+            state = TrainingRecoveryState.RECONNECTING,
             nextRetryAtElapsedMs = nowElapsedMs,
         )
         return snapshot
