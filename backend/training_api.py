@@ -33,6 +33,7 @@ class TrainingState:
         self.regressions: list[dict[str, Any]] = []
         self.activities: list[dict[str, Any]] = []
         self.provider_diagnostics: list[dict[str, Any]] = []
+        self.seen_event_ids: set[str] = set()
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
         with self._lock:
@@ -234,11 +235,15 @@ class Handler(BaseHTTPRequestHandler):
                 for event in events:
                     if not isinstance(event, dict) or not event.get("event_id"):
                         continue
+                    event_id = str(event["event_id"])
+                    if event_id in STATE.seen_event_ids:
+                        continue
                     size = int(event.get("size_bytes", 0))
                     if size < 0 or size > STATE.max_bytes:
                         continue
                     if STATE.used_bytes + size > STATE.max_bytes:
                         break
+                    STATE.seen_event_ids.add(event_id)
                     STATE.used_bytes += size
                     STATE.queue_count += 1
                     STATE.total_events += 1
