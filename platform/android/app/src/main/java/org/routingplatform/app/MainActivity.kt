@@ -1465,6 +1465,10 @@ class MainActivity :
                                 latitude = telemetry.lastObservedPosition?.latitude,
                                 longitude = telemetry.lastObservedPosition?.longitude,
                             )
+                            // Persist and enqueue immediately. The upload worker
+                            // sends it when online and retains it offline.
+                            navigationDiagnosticsStore.snapshotAndEnqueue(navigationDiagnosticsQueue)
+                            navigationDiagnosticsUploadCoordinator.triggerNow()
                             pendingErrorRouteId = snapshot.routeId
                             Toast.makeText(
                                 applicationContext,
