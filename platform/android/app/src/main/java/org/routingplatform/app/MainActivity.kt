@@ -1422,17 +1422,35 @@ class MainActivity :
                                 longitude = telemetry.lastObservedPosition?.longitude,
                             )
                             pendingErrorRouteId = snapshot.routeId
+                            Toast.makeText(
+                                applicationContext,
+                                "Fehler offline markiert",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        },
+
+                        onRecordErrorVideo = {
                             errorVideoLauncher.launch(
                                 Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
                                     putExtra(MediaStore.EXTRA_DURATION_LIMIT, 15)
                                     putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1)
                                 }
                             )
-                            Toast.makeText(
-                                applicationContext,
-                                "Fehler markiert – optional bis zu 15 s Video aufnehmen",
-                                Toast.LENGTH_LONG,
-                            ).show()
+                        },
+
+                        onSendErrorToAi = {
+                            val share = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "Navigationsfehler melden. Route=\${snapshot.routeId}; " +
+                                        "Zeit=\${System.currentTimeMillis()}; " +
+                                        "Repository=https://github.com/WeA200675/routing-platform",
+                                )
+                            }
+                            startActivity(
+                                Intent.createChooser(share, "Fehler an Trainings-KI senden")
+                            )
                         },
 
                         onOpenTrainingPlatform = {
