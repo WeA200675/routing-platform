@@ -79,6 +79,15 @@ fun RoutingPlatformTheme(
             presentationDensity,
     ) {
         MaterialTheme(
+            shapes =
+                Shapes(
+                    extraSmall = RoundedCornerShape(12.dp),
+                    small = RoundedCornerShape(16.dp),
+                    medium = RoundedCornerShape(20.dp),
+                    large = RoundedCornerShape(24.dp),
+                    extraLarge = RoundedCornerShape(30.dp),
+                ),
+
             colorScheme =
                 NavigationAccentColorPresentation
                     .colorScheme(
