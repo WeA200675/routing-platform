@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -319,9 +320,13 @@ internal fun NavigationScreen(
     onEnergyStopAccepted: (EnergyStopCandidate) -> Unit = {},
 
     onUserErrorLongPress: () -> Unit = {},
+    onRecordErrorVideo: () -> Unit = {},
+    onSendErrorToAi: () -> Unit = {},
 
     onOpenTrainingPlatform: () -> Unit = {},
 ) {
+    var errorCaptureOpen by remember { mutableStateOf(false) }
+
     var trainingDashboardOpen by
         remember {
             mutableStateOf(false)
@@ -416,6 +421,41 @@ internal fun NavigationScreen(
                 ""
             )
         }
+
+    if (errorCaptureOpen) {
+        AlertDialog(
+            onDismissRequest = { errorCaptureOpen = false },
+            title = { Text("Fehler dokumentieren") },
+            text = {
+                Text("Der Fehler wurde offline markiert. Du kannst optional ein kurzes Video aufnehmen oder den Vorfall an die Trainings-KI weitergeben.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        errorCaptureOpen = false
+                        onRecordErrorVideo()
+                    },
+                ) {
+                    Text("Video aufnehmen")
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            errorCaptureOpen = false
+                            onSendErrorToAi()
+                        },
+                    ) {
+                        Text("An KI senden")
+                    }
+                    TextButton(onClick = { errorCaptureOpen = false }) {
+                        Text("Später")
+                    }
+                }
+            },
+        )
+    }
 
     if (trainingDashboardOpen) {
         NavigationTrainingDashboardDialog(
@@ -539,7 +579,10 @@ internal fun NavigationScreen(
                         NavigationSessionState.Preview &&
                         !destinationPlannerBusy,
 
-                onUserErrorLongPress = onUserErrorLongPress,
+                onUserErrorLongPress = {
+                    onUserErrorLongPress()
+                    errorCaptureOpen = true
+                },
 
                 onMapLongPress = {
                         point ->
