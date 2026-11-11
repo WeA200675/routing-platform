@@ -500,9 +500,10 @@ fun RouteMap(
                                 userGestureActive =
                                     true
 
-                            currentMapInteractionChanged(
-                                true
-                            )
+                                currentMapInteractionChanged(
+                                    true
+                                )
+                            }
                         }
                     }
 
