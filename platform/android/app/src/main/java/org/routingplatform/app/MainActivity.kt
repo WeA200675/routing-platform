@@ -1443,8 +1443,8 @@ class MainActivity :
                                 type = "text/plain"
                                 putExtra(
                                     Intent.EXTRA_TEXT,
-                                    "Navigationsfehler melden. Route=\${snapshot.routeId}; " +
-                                        "Zeit=\${System.currentTimeMillis()}; " +
+                                    "Navigationsfehler melden. Route=${snapshot.routeId}; " +
+                                        "Zeit=${System.currentTimeMillis()}; " +
                                         "Repository=https://github.com/WeA200675/routing-platform",
                                 )
                             }
