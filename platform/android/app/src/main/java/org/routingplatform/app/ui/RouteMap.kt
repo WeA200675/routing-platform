@@ -404,8 +404,7 @@ fun RouteMap(
             MapLibreMap.OnMapLongClickListener? =
             if (
                 map !=
-                    null &&
-                mapSelectionEnabled
+                    null
             ) {
                 MapLibreMap
                     .OnMapLongClickListener {
