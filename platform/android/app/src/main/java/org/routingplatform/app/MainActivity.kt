@@ -3,6 +3,7 @@ package org.routingplatform.app
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.ClipData
 import android.net.Uri
 import android.provider.MediaStore
 import android.widget.Toast
@@ -1481,14 +1482,21 @@ class MainActivity :
                         },
 
                         onSendErrorToAi = {
+                            val videoUri = navigationDiagnosticsStore.latestUserErrorVideoUri()
                             val share = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
+                                type = if (videoUri != null) "video/mp4" else "text/plain"
                                 putExtra(
                                     Intent.EXTRA_TEXT,
-                                    "Navigationsfehler melden. Route=${snapshot.routeId}; " +
-                                        "Zeit=${System.currentTimeMillis()}; " +
+                                    "Navigationsfehler melden. Route=" + snapshot.routeId + "; " +
+                                        "Zeit=" + System.currentTimeMillis() + "; " +
                                         "Repository=https://github.com/WeA200675/routing-platform",
                                 )
+                                videoUri?.let {
+                                    val uri = Uri.parse(it)
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    clipData = ClipData.newRawUri("Navigationsfehler", uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
                             }
                             startActivity(
                                 Intent.createChooser(share, "Fehler an Trainings-KI senden")
