@@ -19,6 +19,7 @@ internal fun NavigationTrainingControls(
     onTrainingModeChanged: (NavigationTrainingMode) -> Unit,
     onIncident: (NavigationIncidentTrigger) -> Unit,
     onOpenDashboard: () -> Unit = {},
+    onOpenTrainingPlatform: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -68,7 +69,10 @@ internal fun NavigationTrainingControls(
     }
 
     androidx.compose.material3.TextButton(
-        onClick = onOpenDashboard,
+        onClick = {
+            onOpenDashboard()
+            onOpenTrainingPlatform()
+        },
     ) {
         Text("Lernplattform öffnen")
     }
