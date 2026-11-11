@@ -63,6 +63,8 @@ android {
     lint {
         abortOnError = true
         warningsAsErrors = false
+        // local.properties is machine-generated and may contain Windows paths.
+        disable += "PropertyEscape"
     }
 }
 
