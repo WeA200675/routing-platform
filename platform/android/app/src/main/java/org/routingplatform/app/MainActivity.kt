@@ -1389,6 +1389,15 @@ class MainActivity :
                             destinationPlannerMessage = "Energiestopp als Zwischenziel ausgewählt."
                         },
 
+                        onUserErrorLongPress = {
+                            navigationDiagnosticsStore.recordUserError(
+                                trigger = "long-press-navigation-error",
+                                routeId = snapshot.routeId,
+                                latitude = telemetry.lastObservedPosition?.latitude,
+                                longitude = telemetry.lastObservedPosition?.longitude,
+                            )
+                        },
+
                         onOpenTrainingPlatform = {
                             val url = when (val state = trainingConnectionManager.currentState()) {
                                 is org.routingplatform.app.training.TrainingConnectionState.Connected ->
