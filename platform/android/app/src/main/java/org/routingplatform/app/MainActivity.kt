@@ -1,6 +1,8 @@
 package org.routingplatform.app
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.WindowManager
@@ -1385,6 +1387,19 @@ class MainActivity :
                                 label = candidate.poi.title,
                             )
                             destinationPlannerMessage = "Energiestopp als Zwischenziel ausgewählt."
+                        },
+
+                        onOpenTrainingPlatform = {
+                            val url = when (val state = trainingConnectionManager.currentState()) {
+                                is org.routingplatform.app.training.TrainingConnectionState.Connected ->
+                                    state.endpoint.dashboardUrl
+                                else -> null
+                            }
+                            if (!url.isNullOrBlank()) {
+                                startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                )
+                            }
                         },
 
                         nightPresentation =
