@@ -818,6 +818,15 @@ fun RouteMap(
                     segmentFraction,
             )
 
+        // Subtle perspective in active navigation keeps the route readable
+        // while retaining the user's configured tilt as the lower bound.
+        val effectiveNavigationTiltDegrees =
+            if (showProgress) {
+                displayPreferences.mapTiltDegrees.coerceAtLeast(28.0)
+            } else {
+                displayPreferences.mapTiltDegrees
+            }
+
         style
             .getSourceAs<GeoJsonSource>(
                 PREVIEW_ROUTE_SOURCE_ID
@@ -1087,8 +1096,7 @@ fun RouteMap(
                             .zoom
                     )
                     .tilt(
-                        displayPreferences
-                            .mapTiltDegrees
+                        effectiveNavigationTiltDegrees
                     )
                     .bearing(
                         compassPresentation
