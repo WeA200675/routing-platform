@@ -459,6 +459,34 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": "invalid_json"})
             return
         name = self.path[len(prefix):].split("?", 1)[0]
+        if name == "error-reports":
+            if not isinstance(payload, dict):
+                self._send(400, {"error": "report_required"})
+                return
+            report_id = str(payload.get("report_id", "")).strip()
+            trigger = str(payload.get("trigger", "")).strip()
+            if not report_id or not trigger:
+                self._send(400, {"error": "report_id_and_trigger_required"})
+                return
+            metadata = payload.get("metadata")
+            if not isinstance(metadata, dict):
+                metadata = {}
+            event = {
+                "event_id": "user-error-" + report_id,
+                "type": "user-navigation-error",
+                "captured_at": int(payload.get("captured_at", int(time.time() * 1000))),
+                "size_bytes": min(max(int(payload.get("size_bytes", 0)), 0), 512 * 1024),
+                "payload": {
+                    "trigger": trigger,
+                    "route_id": metadata.get("route_id"),
+                    "latitude": metadata.get("latitude"),
+                    "longitude": metadata.get("longitude"),
+                    "video_uri": payload.get("video_uri"),
+                    "repository": "https://github.com/WeA200675/routing-platform",
+                },
+            }
+            payload = {"events": [event]}
+            name = "events"
         if name == "events":
             events = payload.get("events")
             if not isinstance(events, list) or len(events) > 256:
