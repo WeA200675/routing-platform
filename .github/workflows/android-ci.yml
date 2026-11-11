@@ -67,7 +67,6 @@ jobs:
             --no-daemon \
             --stacktrace \
             :app:testDebugUnitTest \
-            :app:testReleaseUnitTest \
             :app:lintDebug \
             :app:compileReleaseKotlin \
             :app:assembleDebug
