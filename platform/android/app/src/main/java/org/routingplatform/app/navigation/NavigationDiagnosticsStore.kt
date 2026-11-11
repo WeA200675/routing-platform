@@ -28,6 +28,31 @@ class NavigationDiagnosticsStore(context: Context) {
     private val prefs = context.getSharedPreferences("navigation-diagnostics", Context.MODE_PRIVATE)
 
     @Synchronized
+    fun recordUserError(
+        trigger: String,
+        routeId: String?,
+        latitude: Double?,
+        longitude: Double?,
+    ) {
+        val array = read()
+        array.put(JSONObject().apply {
+            put("provider_id", "user-error")
+            put("captured_at", System.currentTimeMillis())
+            put("success", false)
+            put("event_count", 1)
+            put("accepted_event_count", 0)
+            put("latency_ms", 0)
+            put("fallback_used", false)
+            put("error", trigger)
+            put("route_id", routeId)
+            put("latitude", latitude)
+            put("longitude", longitude)
+        })
+        while (array.length() > 500) array.remove(0)
+        prefs.edit().putString(KEY, array.toString()).apply()
+    }
+
+    @Synchronized
     fun record(entry: NavigationProviderDiagnostic) {
         val array = read()
         array.put(JSONObject().apply {
