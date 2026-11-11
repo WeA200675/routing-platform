@@ -1,6 +1,7 @@
 # Verification trigger: run the full Android test/lint/compile matrix on main.
 name: Android CI
 # Final verification trigger: rebuild APK after incident-capture integration
+# Artifact delivery trigger
 
 on:
   push:
