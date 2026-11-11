@@ -50,3 +50,12 @@ available in the installed SDK repository.
 
 Driver Voice and Arrival Experience remain presentation/runtime features;
 neither is permitted to bypass routing-core safety boundaries.
+
+
+## Ein-App-Erlebnis
+
+Die Routing-App ist der einzige Android-Installationspunkt. Trainingsfunktionen sind direkt in der Navigation unter **Lernen starten** und **Lernplattform öffnen** erreichbar; ein zweites APK ist nicht erforderlich. Die Trainingsplattform kann online über die Discovery-Konfiguration verbunden werden und bleibt bei fehlender Verbindung lokal bedienbar.
+
+### Routen-Vorschau
+
+In der Planung wird die Route einmal automatisch eingepasst. Danach bleiben manuelles Verschieben und Zoomen erhalten, auch wenn neue Fortschritts- oder Telemetriedaten eintreffen. Eine neue Route setzt die Vorschau bewusst einmal zurück, damit die neue Strecke vollständig sichtbar ist.
