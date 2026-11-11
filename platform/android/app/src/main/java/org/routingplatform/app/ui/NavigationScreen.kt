@@ -317,6 +317,8 @@ internal fun NavigationScreen(
     energyStopCandidate: EnergyStopCandidate? = null,
 
     onEnergyStopAccepted: (EnergyStopCandidate) -> Unit = {},
+
+    onOpenTrainingPlatform: () -> Unit = {},
 ) {
     var trainingDashboardOpen by
         remember {
@@ -865,6 +867,7 @@ internal fun NavigationScreen(
                     onOpenDashboard = {
                         trainingDashboardOpen = true
                     },
+                    onOpenTrainingPlatform = onOpenTrainingPlatform,
                 )
 
                 if (trainingMode.active) {
