@@ -135,6 +135,10 @@ fun RouteMap(
         (RoutePoint) -> Unit =
         {},
 
+    onUserErrorLongPress:
+        () -> Unit =
+        {},
+
     onReliabilityEvent:
         (NavigationReliabilityEvent) -> Unit =
         ::logNavigationMapReliabilityEvent,
@@ -158,6 +162,11 @@ fun RouteMap(
     val currentMapInteractionChanged by
         rememberUpdatedState(
             onMapInteractionChanged
+        )
+
+    val currentUserErrorLongPress by
+        rememberUpdatedState(
+            onUserErrorLongPress
         )
 
     val mapRecoveryPolicy =
@@ -402,15 +411,19 @@ fun RouteMap(
                     .OnMapLongClickListener {
                             point ->
 
-                        onMapLongPress(
-                            RoutePoint(
-                                latitude =
-                                    point.latitude,
+                        if (mapSelectionEnabled) {
+                            onMapLongPress(
+                                RoutePoint(
+                                    latitude =
+                                        point.latitude,
 
-                                longitude =
-                                    point.longitude,
+                                    longitude =
+                                        point.longitude,
+                                )
                             )
-                        )
+                        } else {
+                            currentUserErrorLongPress()
+                        }
 
                         true
                     }
