@@ -70,6 +70,6 @@ internal fun NavigationTrainingControls(
     androidx.compose.material3.TextButton(
         onClick = onOpenDashboard,
     ) {
-        Text("Details")
+        Text("Lernplattform öffnen")
     }
 }
