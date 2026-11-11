@@ -3,6 +3,8 @@ package org.routingplatform.app
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.provider.MediaStore
+import android.widget.Toast
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.WindowManager
@@ -522,6 +524,29 @@ class MainActivity :
                             applicationContext
                         )
                     )
+                }
+
+            var pendingErrorRouteId by
+                remember { mutableStateOf<String?>(null) }
+
+            val errorVideoLauncher =
+                rememberLauncherForActivityResult(
+                    contract =
+                        ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    result.data?.data?.let { uri ->
+                        navigationDiagnosticsStore.recordUserErrorVideo(
+                            trigger = "long-press-navigation-error-video",
+                            routeId = pendingErrorRouteId,
+                            videoUri = uri.toString(),
+                        )
+                        Toast.makeText(
+                            applicationContext,
+                            "Fehlervideo offline gespeichert",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    pendingErrorRouteId = null
                 }
 
             val permissionLauncher =
@@ -1396,6 +1421,18 @@ class MainActivity :
                                 latitude = telemetry.lastObservedPosition?.latitude,
                                 longitude = telemetry.lastObservedPosition?.longitude,
                             )
+                            pendingErrorRouteId = snapshot.routeId
+                            errorVideoLauncher.launch(
+                                Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
+                                    putExtra(MediaStore.EXTRA_DURATION_LIMIT, 15)
+                                    putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1)
+                                }
+                            )
+                            Toast.makeText(
+                                applicationContext,
+                                "Fehler markiert – optional bis zu 15 s Video aufnehmen",
+                                Toast.LENGTH_LONG,
+                            ).show()
                         },
 
                         onOpenTrainingPlatform = {
