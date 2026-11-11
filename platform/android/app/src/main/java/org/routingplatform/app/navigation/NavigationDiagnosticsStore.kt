@@ -69,6 +69,29 @@ class NavigationDiagnosticsStore(context: Context) {
         prefs.edit().putString(KEY, array.toString()).apply()
     }
 
+    @Synchronized
+    fun recordUserErrorVideo(
+        trigger: String,
+        routeId: String?,
+        videoUri: String,
+    ) {
+        val array = read()
+        array.put(JSONObject().apply {
+            put("provider_id", "user-error-video")
+            put("captured_at", System.currentTimeMillis())
+            put("success", true)
+            put("event_count", 1)
+            put("accepted_event_count", 1)
+            put("latency_ms", 0)
+            put("fallback_used", false)
+            put("error", trigger)
+            put("route_id", routeId)
+            put("video_uri", videoUri)
+        })
+        while (array.length() > 500) array.remove(0)
+        prefs.edit().putString(KEY, array.toString()).apply()
+    }
+
     fun readAll(): List<NavigationProviderDiagnostic> {
         val array = read()
         return buildList {
