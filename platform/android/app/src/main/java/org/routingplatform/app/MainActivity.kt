@@ -1,10 +1,14 @@
 package org.routingplatform.app
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
 import android.widget.Toast
+import android.os.Handler
+import android.os.Looper
+import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.WindowManager
@@ -528,6 +532,46 @@ class MainActivity :
 
             var pendingErrorRouteId by
                 remember { mutableStateOf<String?>(null) }
+
+            val screenRecorder =
+                remember { org.routingplatform.app.navigation.NavigationScreenRecorder(applicationContext) }
+
+            DisposableEffect(screenRecorder) {
+                onDispose { screenRecorder.cancel() }
+            }
+
+            val screenCaptureLauncher =
+                rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.StartActivityForResult()
+                ) { result ->
+                    val data = result.data
+                    if (result.resultCode == Activity.RESULT_OK && data != null &&
+                        screenRecorder.start(result.resultCode, data)
+                    ) {
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            screenRecorder.stop()?.let { uri ->
+                                navigationDiagnosticsStore.recordUserErrorVideo(
+                                    trigger = "long-press-navigation-screen-video",
+                                    routeId = pendingErrorRouteId,
+                                    videoUri = uri.toString(),
+                                )
+                                Toast.makeText(
+                                    applicationContext,
+                                    "Bildschirmvideo offline gespeichert",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                            pendingErrorRouteId = null
+                        }, 15_000L)
+                    } else {
+                        errorVideoLauncher.launch(
+                            Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
+                                putExtra(MediaStore.EXTRA_DURATION_LIMIT, 15)
+                                putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1)
+                            }
+                        )
+                    }
+                }
 
             val errorVideoLauncher =
                 rememberLauncherForActivityResult(
@@ -1430,11 +1474,10 @@ class MainActivity :
                         },
 
                         onRecordErrorVideo = {
-                            errorVideoLauncher.launch(
-                                Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
-                                    putExtra(MediaStore.EXTRA_DURATION_LIMIT, 15)
-                                    putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1)
-                                }
+                            val projectionManager =
+                                getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                            screenCaptureLauncher.launch(
+                                projectionManager.createScreenCaptureIntent()
                             )
                         },
 
