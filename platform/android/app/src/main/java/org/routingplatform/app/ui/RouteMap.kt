@@ -246,6 +246,13 @@ fun RouteMap(
             )
         }
 
+    // Preview camera is user-owned after the first automatic fit.
+    // Progress updates must never overwrite a deliberate pan/zoom.
+    var previewCameraUserAdjusted by
+        remember {
+            mutableStateOf(false)
+        }
+
     var mapLoadRetryCount by
         remember(
             styleDescriptor.styleUri
@@ -473,11 +480,13 @@ fun RouteMap(
                             reason ==
                             MapLibreMap
                                 .OnCameraMoveStartedListener
-                                .REASON_API_GESTURE &&
-                            !userGestureActive
+                                .REASON_API_GESTURE
                         ) {
-                            userGestureActive =
-                                true
+                            previewCameraUserAdjusted = true
+
+                            if (!userGestureActive) {
+                                userGestureActive =
+                                    true
 
                             currentMapInteractionChanged(
                                 true
@@ -761,6 +770,11 @@ fun RouteMap(
                 }
             }
         }
+    }
+
+    // A new route gets one automatic fit; the next progress update does not.
+    LaunchedEffect(points) {
+        previewCameraUserAdjusted = false
     }
 
     /*
@@ -1113,7 +1127,7 @@ fun RouteMap(
                             0.0
                         )
                         .build()
-            } else {
+            } else if (!previewCameraUserAdjusted) {
                 fitPreviewRoute(
                     map =
                         map,
@@ -1121,6 +1135,7 @@ fun RouteMap(
                     points =
                         points,
                 )
+                previewCameraUserAdjusted = true
             }
         }
     }
