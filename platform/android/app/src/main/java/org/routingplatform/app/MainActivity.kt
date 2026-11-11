@@ -564,12 +564,11 @@ class MainActivity :
                             pendingErrorRouteId = null
                         }, 15_000L)
                     } else {
-                        errorVideoLauncher.launch(
-                            Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
-                                putExtra(MediaStore.EXTRA_DURATION_LIMIT, 15)
-                                putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1)
-                            }
-                        )
+                        Toast.makeText(
+                            applicationContext,
+                            "Bildschirmaufnahme nicht freigegeben",
+                            Toast.LENGTH_SHORT,
+                        ).show()
                     }
                 }
 
