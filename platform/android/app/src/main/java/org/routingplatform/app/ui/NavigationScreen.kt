@@ -648,6 +648,8 @@ internal fun NavigationScreen(
         Surface(
             tonalElevation =
                 4.dp,
+            shape =
+                MaterialTheme.shapes.extraLarge,
         ) {
             Column(
                 modifier =
