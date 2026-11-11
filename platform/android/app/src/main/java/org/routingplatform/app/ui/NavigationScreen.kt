@@ -318,6 +318,8 @@ internal fun NavigationScreen(
 
     onEnergyStopAccepted: (EnergyStopCandidate) -> Unit = {},
 
+    onUserErrorLongPress: () -> Unit = {},
+
     onOpenTrainingPlatform: () -> Unit = {},
 ) {
     var trainingDashboardOpen by
@@ -536,6 +538,8 @@ internal fun NavigationScreen(
                     snapshot.state ==
                         NavigationSessionState.Preview &&
                         !destinationPlannerBusy,
+
+                onUserErrorLongPress = onUserErrorLongPress,
 
                 onMapLongPress = {
                         point ->
