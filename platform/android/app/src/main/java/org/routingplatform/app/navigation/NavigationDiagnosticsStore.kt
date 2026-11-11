@@ -92,6 +92,18 @@ class NavigationDiagnosticsStore(context: Context) {
         prefs.edit().putString(KEY, array.toString()).apply()
     }
 
+    @Synchronized
+    fun latestUserErrorVideoUri(): String? {
+        val array = read()
+        for (index in array.length() - 1 downTo 0) {
+            val item = array.optJSONObject(index) ?: continue
+            if (item.optString("provider_id") == "user-error-video") {
+                return item.optString("video_uri").takeIf { it.isNotBlank() }
+            }
+        }
+        return null
+    }
+
     fun readAll(): List<NavigationProviderDiagnostic> {
         val array = read()
         return buildList {
