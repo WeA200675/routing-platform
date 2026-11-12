@@ -444,6 +444,44 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error": "unknown_section", "section": name})
 
     def do_POST(self) -> None:  # noqa: N802
+        # Shadow decision endpoint. It never authorizes an active navigation
+        # action; the device-side safety kernel remains authoritative.
+        if self.path.split("?", 1)[0] == "/api/navigation/decision":
+            length = int(self.headers.get("Content-Length", "0"))
+            if length > 128 * 1024:
+                self._send(413, {"error": "payload_too_large"})
+                return
+            try:
+                payload = json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._send(400, {"error": "invalid_json"})
+                return
+            if not isinstance(payload, dict):
+                self._send(400, {"error": "decision_required"})
+                return
+            event_id = str(payload.get("event_id", "")).strip()
+            session_id = str(payload.get("session_id", "")).strip()
+            route_version = int(payload.get("route_version", 0))
+            if not event_id or not session_id or route_version < 0:
+                self._send(400, {"error": "event_id_session_id_route_version_required"})
+                return
+            STATE.record_activity("Shadow decision: " + event_id, "SHADOW")
+            STATE.persist()
+            self._send(200, STATE.envelope({
+                "schema_version": "navigation-shadow-decision-v1",
+                "event_id": event_id,
+                "session_id": session_id,
+                "route_version": route_version,
+                "origin": "CLOUD",
+                "mode": "ADVISE",
+                "kind": "WAIT_FOR_EVIDENCE",
+                "confidence": 0.0,
+                "evidence": ["cloud-shadow-received"],
+                "expires_at_epoch_ms": int(time.time() * 1000) + 5_000,
+                "safety_class": 1,
+                "model_version": "training-shadow-v1",
+            }))
+            return
         prefix = "/api/training/"
         if not self.path.startswith(prefix):
             self._send(404, {"error": "not_found"})

@@ -205,29 +205,6 @@ class NavigationRouteLifecycleController(
             activeRequest
                 ?: return
 
-        /*
-         * Automatic rerouting through unresolved via points is not
-         * enabled yet because we cannot prove which via points are
-         * still ahead of the vehicle.
-         */
-        if (
-            previousRequest
-                .viaPoints
-                .isNotEmpty()
-        ) {
-            onTelemetry(
-                NavigationRouteAcquisitionTelemetry(
-                    state =
-                        NavigationRouteAcquisitionState.RerouteFailed,
-
-                    message =
-                        "Automatisches Rerouting mit Via-Punkten nicht freigegeben",
-                )
-            )
-
-            return
-        }
-
         val current =
             snapshotProvider()
 
@@ -247,7 +224,13 @@ class NavigationRouteLifecycleController(
                     decision.origin,
 
                 viaPoints =
-                    emptyList(),
+                    // Preserve only unresolved intermediate/special destinations.
+                    // Already passed stops are removed using route progress;
+                    // future WC, fuel and charging stops remain in order.
+                    NavigationViaPointProgressPolicy.remaining(
+                        request = previousRequest,
+                        snapshot = current,
+                    ),
             )
 
         rerouteInFlight =

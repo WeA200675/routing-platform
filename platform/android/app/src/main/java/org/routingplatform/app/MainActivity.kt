@@ -72,6 +72,14 @@ import org.routingplatform.app.places.AndroidFavoriteDestinationStore
 import org.routingplatform.app.places.AndroidGeocoderDestinationSearchSource
 import org.routingplatform.app.places.DestinationSearchHandle
 import org.routingplatform.app.places.DestinationSearchResult
+import org.routingplatform.app.places.NavigationNeedIntentParser
+import org.routingplatform.app.places.PoiCategory
+import org.routingplatform.app.places.AndroidGeocoderPoiSearchSource
+import org.routingplatform.app.places.NavigationPoiSearchCoordinator
+import org.routingplatform.app.places.FallbackPoiSearchSource
+import org.routingplatform.app.places.PoiSearchRequest
+import org.routingplatform.app.places.NavigationPoiCache
+import org.routingplatform.app.places.CachingPoiSearchSource
 import org.routingplatform.app.places.FavoriteDestinationCollection
 import org.routingplatform.app.profile.AndroidUserProfileStore
 import org.routingplatform.app.profile.ExperiencePackRuntimeResolver
@@ -221,6 +229,19 @@ class MainActivity :
                     )
                 }
 
+            val poiSearchCoordinator = remember {
+                NavigationPoiSearchCoordinator(
+                    FallbackPoiSearchSource(
+                        listOf(
+                            CachingPoiSearchSource(
+                                cache = NavigationPoiCache(),
+                                upstream = AndroidGeocoderPoiSearchSource(applicationContext),
+                            )
+                        )
+                    )
+                )
+            }
+
             var destinationSearchHandle by
                 remember {
                     mutableStateOf<
@@ -251,6 +272,11 @@ class MainActivity :
                     mutableStateOf(
                         false
                     )
+                }
+
+            var destinationSearchGeneration by
+                remember {
+                    mutableIntStateOf(0)
                 }
 
             val planningLocationController =
@@ -686,6 +712,8 @@ class MainActivity :
                     destinationSearchHandle
                         ?.cancel()
 
+                    val requestGeneration = ++destinationSearchGeneration
+
                     destinationSearchHandle =
                         null
 
@@ -693,13 +721,75 @@ class MainActivity :
                         true
 
                     destinationPlannerMessage =
-                        "Zielsuche lÃ¤uft â¦"
+                            if (NavigationNeedIntentParser.parse(query)?.category != null) {
+                                "Bedarfssuche lÃ¤uft (entlang der Route) â¦"
+                            } else {
+                                "Zielsuche lÃ¤uft â¦"
+                            }
+
+                    val parsedNeed = NavigationNeedIntentParser.parse(query)
+                    val providerQuery = parsedNeed?.category?.let { category ->
+                        when (category) {
+                            PoiCategory.TOILET -> "Toilette WC"
+                            PoiCategory.FUEL -> "Tankstelle"
+                            PoiCategory.CHARGING -> "Ladestation Ladesäule"
+                            PoiCategory.PARKING -> "Parkplatz"
+                            PoiCategory.REST_AREA -> "Raststätte Rastplatz"
+                            PoiCategory.RESTAURANT -> "Restaurant Bäckerei"
+                            PoiCategory.WORKSHOP -> "Werkstatt"
+                            PoiCategory.HOTEL -> "Hotel"
+                            PoiCategory.PHARMACY -> "Apotheke"
+                            PoiCategory.SUPERMARKET -> "Supermarkt"
+                        }
+                    } ?: query
+
+                    if (parsedNeed?.category != null) {
+                        Thread {
+                            val result = runCatching {
+                                poiSearchCoordinator.search(
+                                    request = PoiSearchRequest(
+                                        query = providerQuery,
+                                        category = parsedNeed.category,
+                                        alongRoute = parsedNeed.alongRoute,
+                                        maxResults = 8,
+                                    ),
+                                    nowEpochMs = System.currentTimeMillis(),
+                                )
+                            }
+                            Handler(Looper.getMainLooper()).post {
+                                if (requestGeneration != destinationSearchGeneration) return@post
+                                destinationPlannerBusy = false
+                                result.fold(
+                                    onSuccess = { pois ->
+                                        destinationSearchResults = pois.map { poi ->
+                                            DestinationSearchResult(
+                                                id = poi.id,
+                                                primaryLabel = poi.name,
+                                                secondaryLabel = "${parsedNeed.category.name.lowercase()} · ${poi.source}",
+                                                point = RoutePoint(poi.latitude, poi.longitude),
+                                            )
+                                        }
+                                        destinationPlannerMessage = if (pois.isEmpty()) {
+                                            "Keine passenden POI-Treffer gefunden."
+                                        } else {
+                                            "${pois.size} POI-Treffer gefunden; als Zwischenziel übernehmbar."
+                                        }
+                                    },
+                                    onFailure = { error ->
+                                        destinationSearchResults = emptyList()
+                                        destinationPlannerMessage = error.message ?: "POI-Suche fehlgeschlagen."
+                                    },
+                                )
+                            }
+                        }.start()
+                        return@search
+                    }
 
                     destinationSearchHandle =
                         runCatching {
                             destinationSearchSource
                                 .search(
-                                    query
+                                    providerQuery
                                 ) {
                                         result ->
 
@@ -720,9 +810,17 @@ class MainActivity :
                                                 if (
                                                     results.isEmpty()
                                                 ) {
-                                                    "Keine passenden Ziele gefunden."
+                                                    if (parsedNeed?.category != null) {
+                                                        "Keine passenden Treffer entlang der Route gefunden."
+                                                    } else {
+                                                        "Keine passenden Ziele gefunden."
+                                                    }
                                                 } else {
-                                                    "${results.size} Zieltreffer gefunden."
+                                                    if (parsedNeed?.category != null) {
+                                                        "${results.size} passende Treffer gefunden; als Zwischenziel übernehmbar."
+                                                    } else {
+                                                        "${results.size} Zieltreffer gefunden."
+                                                    }
                                                 }
                                         },
 

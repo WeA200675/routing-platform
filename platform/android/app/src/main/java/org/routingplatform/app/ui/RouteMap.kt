@@ -115,6 +115,11 @@ fun RouteMap(
         NavigationObservedPositionPresentation? =
         null,
 
+    /** Short-horizon point used only to smooth camera motion during GNSS jitter. */
+    predictedCameraPosition:
+        RoutePoint? =
+        null,
+
     positionMarkerStyle:
         NavigationPositionMarkerStyle =
         NavigationPositionMarkerStyle.ARROW,
@@ -1075,6 +1080,8 @@ fun RouteMap(
                         it.cameraFollowAllowed
                     }
                     ?.position
+                    ?: predictedCameraPosition
+                        ?.takeIf { observedPosition?.cameraFollowAllowed == true }
                     ?: progressGeometry
                         .currentPosition
 

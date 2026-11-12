@@ -14,13 +14,19 @@ internal class NavigationRuntimeTrainingSession(
     private val liveEventProvider: ResilientLiveEventProvider,
     bridge: TrainingRuntimeBridge,
     syncCoordinator: TrainingSyncCoordinator,
+    cloudBaseUrl: String? = null,
 ) : AutoCloseable {
     private val executor = Executors.newSingleThreadScheduledExecutor()
     private val scheduler = NavigationRuntimeCycleScheduler(
         executor = executor,
         cycle = NavigationRuntimeCycle(
             liveRuntime = NavigationLiveRuntimeCoordinator(liveEventProvider),
-            intelligence = NavigationRuntimeIntelligence(),
+            intelligence = NavigationRuntimeIntelligence(
+                dualAi = DualAiTrainingCoordinator(
+                    cloud = cloudBaseUrl?.let(::HttpCloudTrainingShadow)
+                        ?: CloudTrainingShadow.NOOP,
+                ),
+            ),
         ),
     )
     private val binding = NavigationRuntimeLifecycleBinding(

@@ -34,6 +34,7 @@ class NavigationRuntimeCycle(
         }
         val decision = intelligence.evaluate(
             nowElapsedMs = nowElapsedMs,
+            nowEpochMs = nowEpochMs,
             lastPositionElapsedMs = lastPositionElapsedMs,
             lastProgressElapsedMs = lastProgressElapsedMs,
             navigationActive = navigationActive,

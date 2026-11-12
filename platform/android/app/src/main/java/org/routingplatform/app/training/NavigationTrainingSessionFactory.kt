@@ -88,6 +88,7 @@ internal object NavigationTrainingSessionFactory {
             liveEventProvider = ResilientLiveEventProvider(liveEventProviders),
             bridge = bridge,
             syncCoordinator = TrainingSyncCoordinator(bridge),
+            cloudBaseUrl = apiBaseUrl,
         )
         return NavigationRuntimeTrainingSessionHandle(session, bridge)
     }
