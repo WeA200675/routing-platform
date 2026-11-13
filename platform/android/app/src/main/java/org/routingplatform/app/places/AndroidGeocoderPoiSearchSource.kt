@@ -1,4 +1,4 @@
-package org.routingplatform.app.places
+﻿package org.routingplatform.app.places
 
 import android.content.Context
 import android.location.Geocoder
@@ -36,3 +36,4 @@ class AndroidGeocoderPoiSearchSource(
         }
     }
 }
+

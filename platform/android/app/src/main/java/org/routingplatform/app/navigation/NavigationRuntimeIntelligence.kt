@@ -1,4 +1,4 @@
-package org.routingplatform.app.navigation
+﻿package org.routingplatform.app.navigation
 
 data class NavigationRuntimeIntelligenceState(
     val lastDecision: NavigationDecisionTelemetry? = null,
@@ -6,7 +6,7 @@ data class NavigationRuntimeIntelligenceState(
     val dualAi: DualAiTrainingResult? = null,
 )
 
-class NavigationRuntimeIntelligence(
+internal class NavigationRuntimeIntelligence(
     private val decisionCoordinator: NavigationDecisionCoordinator = NavigationDecisionCoordinator(),
     private val telemetryBuilder: NavigationDecisionTelemetryBuilder = NavigationDecisionTelemetryBuilder(),
     private val dualAi: DualAiTrainingCoordinator = DualAiTrainingCoordinator(),
@@ -81,3 +81,4 @@ class NavigationRuntimeIntelligence(
 
     fun currentState(): NavigationRuntimeIntelligenceState = state
 }
+
