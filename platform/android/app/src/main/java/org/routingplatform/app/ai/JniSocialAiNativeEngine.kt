@@ -1,4 +1,4 @@
-package org.routingplatform.app.ai
+﻿package org.routingplatform.app.ai
 
 /**
  * Concrete JNI adapter for the separately built and reviewed local llama runtime.
@@ -20,7 +20,7 @@ class JniSocialAiNativeEngine(
     override val artifactSha256: String
         get() = nativeArtifactSha256()
 
-    override fun loadModel(localPath: String, contextTokens: Int): Boolean {
+    override val runtimeBuildId: String get() = engineId`r`n    override val runtimeArtifactSha256: String get() = artifactSha256`r`n`r`n    override fun loadModel(localPath: String, contextTokens: Int): Boolean {
         require(localPath.isNotBlank())
         require(contextTokens > 0)
         return nativeLoadModel(localPath, contextTokens)
@@ -42,3 +42,4 @@ class JniSocialAiNativeEngine(
     private external fun nativeUnloadModel()
     private external fun nativeGenerate(prompt: String, maximumOutputTokens: Int): String
 }
+
