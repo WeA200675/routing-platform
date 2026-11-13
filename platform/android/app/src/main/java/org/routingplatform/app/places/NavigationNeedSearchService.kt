@@ -31,3 +31,4 @@ internal sealed interface NavigationNeedSearchResult {
     data class Invalid(val reason: String) : NavigationNeedSearchResult
 }
 
+
