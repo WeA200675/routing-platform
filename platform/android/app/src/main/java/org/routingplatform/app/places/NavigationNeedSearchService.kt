@@ -1,4 +1,4 @@
-package org.routingplatform.app.places
+﻿package org.routingplatform.app.places
 
 /** Bridges natural-language needs to ranked POI results and trip-stop actions. */
 internal class NavigationNeedSearchService(
@@ -9,7 +9,7 @@ internal class NavigationNeedSearchService(
         nowEpochMs: Long,
     ): NavigationNeedSearchResult {
         val intent = NavigationNeedIntentParser.parse(text)
-            ?: return NavigationNeedSearchResult.Invalid("Bitte beschreibe das gewünschte Ziel.")
+            ?: return NavigationNeedSearchResult.Invalid("Bitte beschreibe das gewÃ¼nschte Ziel.")
         val pois = coordinator.search(
             request = NavigationNeedIntentParser.toSearchRequest(intent),
             nowEpochMs = nowEpochMs,
@@ -30,3 +30,4 @@ internal sealed interface NavigationNeedSearchResult {
     data class Empty(val intent: NavigationNeedIntent) : NavigationNeedSearchResult
     data class Invalid(val reason: String) : NavigationNeedSearchResult
 }
+
