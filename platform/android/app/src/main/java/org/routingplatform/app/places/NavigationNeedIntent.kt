@@ -1,4 +1,4 @@
-package org.routingplatform.app.places
+﻿package org.routingplatform.app.places
 
 /** Generic natural-language need used for all searchable route stops. */
 data class NavigationNeedIntent(
@@ -16,21 +16,40 @@ object NavigationNeedIntentParser {
         val category = when {
             listOf("wc", "toilette", "toiletten", "restroom").any(normalized::contains) -> PoiCategory.TOILET
             listOf("tankstelle", "diesel", "benzin", "kraftstoff").any(normalized::contains) -> PoiCategory.FUEL
-            listOf("ladesäule", "ladestation", "laden", "charging").any(normalized::contains) -> PoiCategory.CHARGING
+            listOf("ladesÃ¤ule", "ladestation", "laden", "charging").any(normalized::contains) -> PoiCategory.CHARGING
             listOf("parkplatz", "parken").any(normalized::contains) -> PoiCategory.PARKING
-            listOf("raststätte", "rastplatz", "pause").any(normalized::contains) -> PoiCategory.REST_AREA
-            listOf("bäcker", "bäckerei", "essen", "restaurant").any(normalized::contains) -> PoiCategory.RESTAURANT
+            listOf("raststÃ¤tte", "rastplatz", "pause").any(normalized::contains) -> PoiCategory.REST_AREA
+            listOf("bÃ¤cker", "bÃ¤ckerei", "essen", "restaurant").any(normalized::contains) -> PoiCategory.RESTAURANT
             listOf("apotheke").any(normalized::contains) -> PoiCategory.PHARMACY
             listOf("supermarkt", "einkaufen").any(normalized::contains) -> PoiCategory.SUPERMARKET
             listOf("werkstatt", "reparatur").any(normalized::contains) -> PoiCategory.WORKSHOP
-            listOf("hotel", "übernachtung").any(normalized::contains) -> PoiCategory.HOTEL
+            listOf("hotel", "Ã¼bernachtung").any(normalized::contains) -> PoiCategory.HOTEL
             else -> null
         }
-        val openNow = listOf("offen", "geöffnet", "jetzt").any(normalized::contains)
+        val openNow = listOf("offen", "geÃ¶ffnet", "jetzt").any(normalized::contains)
         val detour = when {
-            listOf("ohne umweg", "kein umweg", "direkt").any(normalized::contains) ||
-                (normalized.contains("ohne") && normalized.contains("umweg")) -> 300
-            listOf("kurzer umweg", "möglichst nah").any(normalized::contains) -> 600
+            listOf(
+                "ohne großen umweg",
+                "ohne grossen umweg",
+                "kein großer umweg",
+                "kein grosser umweg",
+            ).any(normalized::contains) -> 900
+
+            listOf(
+                "ohne umweg",
+                "kein umweg",
+                "direkt",
+            ).any(normalized::contains) ||
+                (normalized.contains("ohne") && normalized.contains("umweg") &&
+                    !normalized.contains("groß") &&
+                    !normalized.contains("gross")) -> 300
+
+            listOf(
+                "kurzer umweg",
+                "möglichst nah",
+                "moeglichst nah",
+            ).any(normalized::contains) -> 600
+
             else -> 900
         }
         return NavigationNeedIntent(
@@ -50,3 +69,4 @@ object NavigationNeedIntentParser {
             maxResults = 20,
         )
 }
+
