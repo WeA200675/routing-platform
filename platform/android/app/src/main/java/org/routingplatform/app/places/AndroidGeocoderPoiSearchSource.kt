@@ -16,7 +16,7 @@ class AndroidGeocoderPoiSearchSource(
         if (query.isBlank()) return emptyList()
         val addresses = runCatching {
             @Suppress("DEPRECATION")
-            geocoder.getFromLocationName(query, request.maxResults.coerceIn(1, 20))
+            geocoder.getFromLocationName(query, request.maxResults.coerceIn(1, 20)).orEmpty()
         }.getOrDefault(emptyList())
         val category = request.category ?: PoiCategory.REST_AREA
         val now = System.currentTimeMillis()
@@ -36,5 +36,6 @@ class AndroidGeocoderPoiSearchSource(
         }
     }
 }
+
 
 

@@ -1,4 +1,4 @@
-package org.routingplatform.app.navigation
+﻿package org.routingplatform.app.navigation
 
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
@@ -56,3 +56,4 @@ data class NavigationRuntimeCycleInputs(
     val batteryPercent: Int,
     val nearestLiveEventDistanceMeters: Double?,
 )
+

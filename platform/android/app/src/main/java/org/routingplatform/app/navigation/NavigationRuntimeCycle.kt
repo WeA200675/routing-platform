@@ -6,7 +6,7 @@ data class NavigationRuntimeCycleResult(
     val nextRefreshInMs: Long,
 )
 
-internal class NavigationRuntimeCycle(
+class NavigationRuntimeCycle(
     private val liveRuntime: NavigationLiveRuntimeCoordinator,
     private val intelligence: NavigationRuntimeIntelligence,
 ) {
@@ -48,4 +48,5 @@ internal class NavigationRuntimeCycle(
         )
     }
 }
+
 
