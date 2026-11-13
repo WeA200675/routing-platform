@@ -8,7 +8,7 @@
  */
 class JniSocialAiNativeEngine(
     private val nativeLibraryName: String = "social_ai_llama",
-) : SocialAiNativeEngine {
+) : SocialAiNativeEngine, SocialAiRuntimeBuildIdentified, SocialAiRuntimeArtifactIdentified {
     init {
         require(nativeLibraryName == "social_ai_llama") { "Only the reviewed Social AI runtime library is allowed." }
         System.loadLibrary(nativeLibraryName)
@@ -42,4 +42,5 @@ class JniSocialAiNativeEngine(
     private external fun nativeUnloadModel()
     private external fun nativeGenerate(prompt: String, maximumOutputTokens: Int): String
 }
+
 
