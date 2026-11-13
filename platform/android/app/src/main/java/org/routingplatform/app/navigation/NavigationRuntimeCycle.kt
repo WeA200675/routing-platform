@@ -1,4 +1,4 @@
-package org.routingplatform.app.navigation
+﻿package org.routingplatform.app.navigation
 
 data class NavigationRuntimeCycleResult(
     val liveContext: NavigationLiveRuntimeSnapshot,
@@ -6,7 +6,7 @@ data class NavigationRuntimeCycleResult(
     val nextRefreshInMs: Long,
 )
 
-class NavigationRuntimeCycle(
+internal class NavigationRuntimeCycle(
     private val liveRuntime: NavigationLiveRuntimeCoordinator,
     private val intelligence: NavigationRuntimeIntelligence,
 ) {
@@ -48,3 +48,4 @@ class NavigationRuntimeCycle(
         )
     }
 }
+

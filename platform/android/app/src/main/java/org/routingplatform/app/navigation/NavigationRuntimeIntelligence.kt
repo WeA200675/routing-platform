@@ -1,6 +1,6 @@
 ﻿package org.routingplatform.app.navigation
 
-data class NavigationRuntimeIntelligenceState(
+internal data class NavigationRuntimeIntelligenceState(
     val lastDecision: NavigationDecisionTelemetry? = null,
     val pendingRecoveryRequestId: Long? = null,
     val dualAi: DualAiTrainingResult? = null,
@@ -40,15 +40,15 @@ internal class NavigationRuntimeIntelligence(
             capturedAtEpochMs = nowEpochMs,
             origin = AiDecisionOrigin.LOCAL,
             mode = AiDecisionMode.ACT,
-            kind = if (decision.lastDecision?.recalculationRequested == true) {
+            kind = if (decision.recalculationRequested == true) {
                 AiDecisionKind.REROUTE
             } else {
                 AiDecisionKind.CONTINUE
             },
-            confidence = if (decision.lastDecision?.recalculationRequested == true) 0.9 else 0.8,
+            confidence = if (decision.recalculationRequested == true) 0.9 else 0.8,
             evidence = buildSet {
                 add("local-navigation-decision")
-                decision.lastDecision?.reason?.let { add(it) }
+                decision.reason?.let { add(it) }
             },
             expiresAtEpochMs = nowEpochMs + 5_000L,
             safetyClass = 1,
@@ -81,4 +81,5 @@ internal class NavigationRuntimeIntelligence(
 
     fun currentState(): NavigationRuntimeIntelligenceState = state
 }
+
 
