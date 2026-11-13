@@ -1,11 +1,11 @@
-package org.routingplatform.app.navigation
+﻿package org.routingplatform.app.navigation
 
 /**
  * Runs local navigation decisions immediately and submits the same immutable
  * decision context to the VM as a shadow-training request. The VM can advise,
  * but only the local safety decision can activate navigation.
  */
-internal class DualAiTrainingCoordinator(
+class DualAiTrainingCoordinator(
     private val cloud: CloudTrainingShadow = CloudTrainingShadow.NOOP,
 ) {
     fun evaluate(
@@ -35,13 +35,13 @@ internal class DualAiTrainingCoordinator(
     }
 }
 
-internal data class DualAiTrainingResult(
+data class DualAiTrainingResult(
     val accepted: NavigationDecisionEnvelope?,
     val cloudAdvice: NavigationDecisionEnvelope?,
     val rejection: DecisionRejection?,
 )
 
-internal interface CloudTrainingShadow {
+interface CloudTrainingShadow {
     fun evaluate(
         twin: NavigationTwinState,
         local: NavigationDecisionEnvelope,
@@ -72,3 +72,4 @@ internal interface CloudTrainingShadow {
         }
     }
 }
+

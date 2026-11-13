@@ -6,7 +6,7 @@ data class NavigationRuntimeIntelligenceState(
     val dualAi: DualAiTrainingResult? = null,
 )
 
-internal class NavigationRuntimeIntelligence(
+class NavigationRuntimeIntelligence(
     private val decisionCoordinator: NavigationDecisionCoordinator = NavigationDecisionCoordinator(),
     private val telemetryBuilder: NavigationDecisionTelemetryBuilder = NavigationDecisionTelemetryBuilder(),
     private val dualAi: DualAiTrainingCoordinator = DualAiTrainingCoordinator(),
@@ -81,6 +81,7 @@ internal class NavigationRuntimeIntelligence(
 
     fun currentState(): NavigationRuntimeIntelligenceState = state
 }
+
 
 
 
