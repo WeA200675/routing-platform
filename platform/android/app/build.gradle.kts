@@ -106,7 +106,8 @@ dependencies {
 
     implementation("androidx.camera:camera-camera2:1.6.2")
     implementation("androidx.camera:camera-lifecycle:1.6.2")
-    implementation("androidx.camera:camera-view:1.6.2")`r`n    implementation("androidx.work:work-runtime-ktx:2.11.0")
+    implementation("androidx.camera:camera-view:1.6.2")
+    implementation("androidx.work:work-runtime-ktx:2.11.0")
     implementation("com.google.mlkit:text-recognition:16.0.1")
 
     testImplementation(
@@ -121,4 +122,5 @@ dependencies {
         "androidx.test:core:1.7.0"
     )
 }
+
 
