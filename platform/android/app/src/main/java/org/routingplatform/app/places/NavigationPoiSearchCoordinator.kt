@@ -1,7 +1,7 @@
-package org.routingplatform.app.places
+﻿package org.routingplatform.app.places
 
 class NavigationPoiSearchCoordinator(
-    private val source: FallbackPoiSearchSource,
+    private val source: PoiSearchSource,
 ) {
     fun search(
         request: PoiSearchRequest,
@@ -14,3 +14,4 @@ class NavigationPoiSearchCoordinator(
             weights = weights,
         ).take(request.maxResults.coerceAtLeast(1))
 }
+
