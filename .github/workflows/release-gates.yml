@@ -29,4 +29,5 @@ jobs:
           test -f app/src/main/java/org/routingplatform/app/runtime/RuntimeCapabilityMatrix.kt
           test -f app/src/main/java/org/routingplatform/app/ai/SocialAiRuntimeAdmission.kt
           test -f app/src/main/assets/g620/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
-          test -f app/src/main/jniLibs/arm64-v8a/libsocial_ai_llama.so
+          test -f app/src/main/cpp/social_ai_llama_jni.cpp
+          test -f app/src/main/cpp/CMakeLists.txt
