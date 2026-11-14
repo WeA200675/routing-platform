@@ -58,7 +58,8 @@ This audit does not claim the app is fixed yet. The current branch is intentiona
 
 - `9b646de`: MapLibre initialization is isolated before Compose; failure now shows a visible degraded startup screen instead of terminating silently.
 - `0576805`: `JniNavigationCoreBridge` no longer lets a missing/broken `routing_platform_jni` library crash construction. Native calls return a validated degraded snapshot and preserve a diagnostic instead.
-- The route bootstrap fallback now benefits from the bridge's non-throwing snapshot path, so a native initialization failure cannot recurse through `currentSnapshot()` and crash the launcher.
+- `c7f8bb2`: Route bootstrap now builds its own validated degraded snapshot and no longer calls back into the native bridge in its error path.
+- `f0f8b40`: Native route installation and replacement are explicitly guarded when the JNI library is unavailable.
 
 ## Remaining verification gates
 
