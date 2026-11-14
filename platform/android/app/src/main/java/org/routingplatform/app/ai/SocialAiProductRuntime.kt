@@ -22,6 +22,13 @@ class SocialAiProductRuntime(
         return SocialAiProductionRouting(active)
     }
 
+    /**
+     * Read-only capability probe. It never stages the model and never changes
+     * runtime state, so the UI can report a truthful status before training.
+     */
+    fun probeAdmission(): SocialAiAdmissionResult =
+        SocialAiRuntimeAdmission.probe(context)
+
     /** Loads the integrity-checked local model during route idle time. */
     @Synchronized
     fun warmUp() {
