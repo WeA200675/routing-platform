@@ -120,15 +120,7 @@ dependencies {
     androidTestImplementation(
         "androidx.test:core:1.7.0"
     )
-
-
 }
-tasks.configureEach {
-    if (name.startsWith("merge") && name.endsWith("JniLibFolders")) {
-        dependsOn(buildLocalLlmRuntime)
-    }
-}
-
 
 // The local Qwen runtime is compiled from a pinned llama.cpp revision and packaged only
 // for arm64-v8a. Disable with -PwithLocalLlm=false for deterministic fallback-only builds.
@@ -153,5 +145,4 @@ tasks.configureEach {
     if (name.startsWith("merge") && name.endsWith("JniLibFolders")) {
         dependsOn(buildLocalLlmRuntime)
     }
-}
 }
