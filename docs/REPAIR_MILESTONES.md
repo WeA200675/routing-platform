@@ -65,7 +65,11 @@ Status: **teilweise vorhanden, Integration offen**
 - Navigationsereignisse, Upload und Cloud-Normalisierung müssen im realen Lauf verifiziert werden.
 
 ## Meilenstein 8 — Verifikation und Auslieferung
-Status: **offen**
+Status: **teilweise umgesetzt**
+
+- Release-Gate-Skript ergänzt.
+- Manueller GitHub-Release-Gate-Workflow ergänzt.
+- Platzhalter-JNI wird absichtlich als Release-Fehler blockiert.
 
 - GitHub-Actions-Build,
 - Unit-, Instrumentierungs- und Offline-Tests,
