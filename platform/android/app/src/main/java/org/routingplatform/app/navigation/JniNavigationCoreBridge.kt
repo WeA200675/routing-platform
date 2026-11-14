@@ -8,32 +8,38 @@ class JniNavigationCoreBridge :
         NavigationRouteContract? =
         null
 
+    @Volatile
+    private var nativeAvailable: Boolean = false
+
     init {
-        System.loadLibrary(
-            LIBRARY_NAME
-        )
+        nativeAvailable = runCatching {
+            System.loadLibrary(LIBRARY_NAME)
+            true
+        }.getOrDefault(false)
     }
+
+    fun isNativeAvailable(): Boolean = nativeAvailable
 
     override fun currentSnapshot():
         NavigationUiSnapshot =
-        finalizeNativeSnapshot(
-            nativeCurrentSnapshot()
-                .toUiSnapshot()
-        )
+        if (!nativeAvailable) fallbackSnapshot("native-library-unavailable")
+        else runCatching {
+            finalizeNativeSnapshot(nativeCurrentSnapshot().toUiSnapshot())
+        }.getOrElse { fallbackSnapshot(it.message ?: "native-snapshot-failed") }
 
     override fun startNavigation():
         NavigationUiSnapshot =
-        finalizeNativeSnapshot(
-            nativeStartNavigation()
-                .toUiSnapshot()
-        )
+        if (!nativeAvailable) fallbackSnapshot("native-library-unavailable")
+        else runCatching {
+            finalizeNativeSnapshot(nativeStartNavigation().toUiSnapshot())
+        }.getOrElse { fallbackSnapshot(it.message ?: "native-start-failed") }
 
     override fun stopNavigation():
         NavigationUiSnapshot =
-        finalizeNativeSnapshot(
-            nativeStopNavigation()
-                .toUiSnapshot()
-        )
+        if (!nativeAvailable) fallbackSnapshot("native-library-unavailable")
+        else runCatching {
+            finalizeNativeSnapshot(nativeStopNavigation().toUiSnapshot())
+        }.getOrElse { fallbackSnapshot(it.message ?: "native-stop-failed") }
 
     override fun updateProgress(
         shapeSegmentIndex: Int,
@@ -48,13 +54,36 @@ class JniNavigationCoreBridge :
             "segmentFraction must be in [0, 1]."
         }
 
-        return finalizeNativeSnapshot(
-            nativeUpdateProgress(
-                shapeSegmentIndex,
-                segmentFraction,
-            ).toUiSnapshot()
-        )
+        if (!nativeAvailable) return fallbackSnapshot("native-library-unavailable")
+        return runCatching {
+            finalizeNativeSnapshot(
+                nativeUpdateProgress(shapeSegmentIndex, segmentFraction).toUiSnapshot()
+            )
+        }.getOrElse { fallbackSnapshot(it.message ?: "native-progress-failed") }
     }
+
+    private fun fallbackSnapshot(reason: String): NavigationUiSnapshot =
+        NavigationUiSnapshot(
+            sessionId = "degraded-$reason",
+            state = NavigationSessionState.Preview,
+            routeId = "degraded-route",
+            routeDistanceM = 1.0,
+            routeDurationS = 1.0,
+            geometry = listOf(RoutePoint(0.0, 0.0), RoutePoint(0.0, 0.00001)),
+            progressFraction = 0.0,
+            remainingDistanceM = 1.0,
+            remainingDurationS = 1.0,
+            currentManeuver = null,
+            nextManeuver = null,
+            distanceToCurrentManeuverEndM = 0.0,
+            arrived = false,
+            routeDiagnostics = listOf(
+                NavigationRouteDiagnostic(
+                    code = "NATIVE_BRIDGE_UNAVAILABLE",
+                    message = reason,
+                )
+            ),
+        )
 
     fun installRoute(
         route:
