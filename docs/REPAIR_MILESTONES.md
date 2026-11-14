@@ -24,8 +24,11 @@ Status: **umgesetzt**
 Commit: `c7f8bb2`
 
 ## Meilenstein 3 — KI-Zulassung und Wahrheitsgrenze
-Status: **teilweise umgesetzt**
+Status: **weitgehend umgesetzt**
 
+- llama.cpp wird jetzt aus einer gepinnten Source-Revision gebaut.
+- JNI lädt echte Modelle und führt echte Token-Decodierung aus.
+- Die vorherige Platzhalter-Bibliothek wurde aus dem Recovery-Branch entfernt.
 - Zentrale `RuntimeCapabilityMatrix` ergänzt.
 - Gemeinsames `SocialAiRuntimeAdmission` ergänzt.
 - Read-only Admission-Probe im Produkt-Runtime verfügbar.
@@ -69,7 +72,8 @@ Status: **teilweise umgesetzt**
 
 - Release-Gate-Skript ergänzt.
 - Manueller GitHub-Release-Gate-Workflow ergänzt.
-- Platzhalter-JNI wird absichtlich als Release-Fehler blockiert.
+- Source-basierte llama.cpp-Inferenz wird durch das Release-Gate geprüft.
+- Modell, JNI und CMake-Pin werden vor Release geprüft.
 
 - GitHub-Actions-Build,
 - Unit-, Instrumentierungs- und Offline-Tests,
