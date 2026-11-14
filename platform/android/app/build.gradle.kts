@@ -1,3 +1,6 @@
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -120,4 +123,63 @@ dependencies {
     androidTestImplementation(
         "androidx.test:core:1.7.0"
     )
+}
+
+// The local Qwen runtime is compiled from a pinned llama.cpp revision and packaged only
+// for arm64-v8a. Disable with -PwithLocalLlm=false for deterministic fallback-only builds.
+val withLocalLlm = providers.gradleProperty("withLocalLlm").orNull?.toBoolean() != false
+val generatedLlmJniLibs = layout.buildDirectory.dir("generated/jniLibs/localLlm")
+android.sourceSets.getByName("main").jniLibs.srcDir(generatedLlmJniLibs.get().asFile)
+val localLlmNdkPath = providers.environmentVariable("ANDROID_NDK_HOME")
+    .orElse(providers.environmentVariable("ANDROID_HOME").map { "$it/ndk/28.2.13676358" })
+
+abstract class BuildLocalLlmRuntime : DefaultTask() {
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @get:Input
+    abstract val enabledForBuild: Property<Boolean>
+
+    @get:Input
+    abstract val ndkPath: Property<String>
+
+    @get:Input
+    abstract val workDirectory: Property<String>
+
+    @get:Input
+    abstract val outputDirectory: Property<String>
+
+    @get:Input
+    abstract val builderScript: Property<String>
+
+    @get:OutputDirectory
+    abstract val generatedJniDirectory: DirectoryProperty
+
+    @TaskAction
+    fun buildRuntime() {
+        if (!enabledForBuild.get()) return
+        execOperations.exec {
+            commandLine(
+                "python3",
+                builderScript.get(),
+                "--work-dir", workDirectory.get(),
+                "--ndk", ndkPath.get(),
+                "--output", outputDirectory.get(),
+            )
+        }
+    }
+}
+
+val buildLocalLlmRuntime = tasks.register("buildLocalLlmRuntime", BuildLocalLlmRuntime::class.java) {
+    enabledForBuild.set(withLocalLlm)
+    ndkPath.set(localLlmNdkPath)
+    workDirectory.set(layout.buildDirectory.dir("local-llm").map { it.asFile.absolutePath })
+    outputDirectory.set(generatedLlmJniLibs.map { it.asFile.absolutePath })
+    builderScript.set(rootProject.file("../../tools/g620/build_local_llm_android.py").absolutePath)
+    generatedJniDirectory.set(generatedLlmJniLibs)
+}
+tasks.configureEach {
+    if (name.startsWith("merge") && name.endsWith("JniLibFolders")) {
+        dependsOn(buildLocalLlmRuntime)
+    }
 }

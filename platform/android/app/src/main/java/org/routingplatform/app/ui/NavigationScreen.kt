@@ -324,6 +324,7 @@ internal fun NavigationScreen(
     onSendErrorToAi: () -> Unit = {},
 
     onOpenTrainingPlatform: () -> Unit = {},
+    onOpenLocalAi: () -> Unit = {},
 ) {
     var errorCaptureOpen by remember { mutableStateOf(false) }
 
@@ -744,6 +745,8 @@ internal fun NavigationScreen(
                             )
                     )
                 }
+
+                TextButton(onClick = onOpenLocalAi) { Text("Lokale KI") }
 
                 Text(
                     text =
