@@ -63,6 +63,7 @@ class SocialAiProductRuntime(private val context: Context) : AutoCloseable {
         require(SocialAiModelIntegrity.verify(artifact, MODEL_METADATA)) { "Die Modellprüfung ist fehlgeschlagen." }
         val native = engine ?: JniSocialAiNativeEngine().also { engine = it }
         require(native.engineId == RUNTIME_REVISION) { "Die native KI-Laufzeit ist nicht die freigegebene Version." }
+        require(native.artifactSha256.equals(RUNTIME_SOURCE_SHA256, ignoreCase = true)) { "Die native KI-Laufzeit besteht die Herkunftsprüfung nicht." }
         val active = VerifiedGgufLocalBackend(
             backendId = BACKEND_ID,
             runtimeMetadata = RUNTIME_METADATA,
