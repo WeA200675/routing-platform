@@ -1,3 +1,6 @@
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -131,6 +134,9 @@ val localLlmNdkPath = providers.environmentVariable("ANDROID_NDK_HOME")
     .orElse(providers.environmentVariable("ANDROID_HOME").map { "$it/ndk/28.2.13676358" })
 
 abstract class BuildLocalLlmRuntime : DefaultTask() {
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
     @get:Input
     abstract val enabledForBuild: Property<Boolean>
 
@@ -152,7 +158,7 @@ abstract class BuildLocalLlmRuntime : DefaultTask() {
     @TaskAction
     fun buildRuntime() {
         if (!enabledForBuild.get()) return
-        project.exec {
+        execOperations.exec {
             commandLine(
                 "python3",
                 builderScript.get(),
