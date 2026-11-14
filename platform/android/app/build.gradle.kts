@@ -129,17 +129,48 @@ val generatedLlmJniLibs = layout.buildDirectory.dir("generated/jniLibs/localLlm"
 android.sourceSets.getByName("main").jniLibs.srcDir(generatedLlmJniLibs.get().asFile)
 val localLlmNdkPath = providers.environmentVariable("ANDROID_NDK_HOME")
     .orElse(providers.environmentVariable("ANDROID_HOME").map { "$it/ndk/28.2.13676358" })
-val buildLocalLlmRuntime = tasks.register("buildLocalLlmRuntime", Exec::class.java) {
-    val outputDir = generatedLlmJniLibs.get().asFile
-    outputs.dir(outputDir)
-    onlyIf { withLocalLlm }
-    commandLine(
-        "python3",
-        rootProject.file("../../tools/g620/build_local_llm_android.py").absolutePath,
-        "--work-dir", layout.buildDirectory.dir("local-llm").get().asFile.absolutePath,
-        "--ndk", localLlmNdkPath.get(),
-        "--output", outputDir.absolutePath,
-    )
+
+abstract class BuildLocalLlmRuntime : DefaultTask() {
+    @get:Input
+    abstract val enabledForBuild: Property<Boolean>
+
+    @get:Input
+    abstract val ndkPath: Property<String>
+
+    @get:Input
+    abstract val workDirectory: Property<String>
+
+    @get:Input
+    abstract val outputDirectory: Property<String>
+
+    @get:Input
+    abstract val builderScript: Property<String>
+
+    @get:OutputDirectory
+    abstract val generatedJniDirectory: DirectoryProperty
+
+    @TaskAction
+    fun buildRuntime() {
+        if (!enabledForBuild.get()) return
+        project.exec {
+            commandLine(
+                "python3",
+                builderScript.get(),
+                "--work-dir", workDirectory.get(),
+                "--ndk", ndkPath.get(),
+                "--output", outputDirectory.get(),
+            )
+        }
+    }
+}
+
+val buildLocalLlmRuntime = tasks.register("buildLocalLlmRuntime", BuildLocalLlmRuntime::class.java) {
+    enabledForBuild.set(withLocalLlm)
+    ndkPath.set(localLlmNdkPath)
+    workDirectory.set(layout.buildDirectory.dir("local-llm").map { it.asFile.absolutePath })
+    outputDirectory.set(generatedLlmJniLibs.map { it.asFile.absolutePath })
+    builderScript.set(rootProject.file("../../tools/g620/build_local_llm_android.py").absolutePath)
+    generatedJniDirectory.set(generatedLlmJniLibs)
 }
 tasks.configureEach {
     if (name.startsWith("merge") && name.endsWith("JniLibFolders")) {
