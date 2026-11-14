@@ -90,6 +90,10 @@ class JniNavigationCoreBridge :
             NavigationRouteContract,
     ): NavigationUiSnapshot {
 
+        if (!nativeAvailable) {
+            return fallbackSnapshot("native-library-unavailable")
+        }
+
         val payload =
             NavigationRouteNativeCodec
                 .encode(
