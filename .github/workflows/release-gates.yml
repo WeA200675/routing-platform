@@ -1,0 +1,33 @@
+name: Release Gates
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  release-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with LFS
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify local AI release gate
+        shell: bash
+        run: bash tools/verify-release-gates.sh
+
+      - name: Verify Android source contracts
+        working-directory: platform/android
+        shell: bash
+        run: |
+          test -f app/src/main/java/org/routingplatform/app/runtime/RuntimeCapabilityMatrix.kt
+          test -f app/src/main/java/org/routingplatform/app/ai/SocialAiRuntimeAdmission.kt
+          test -f app/src/main/assets/g620/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf
+          test -f app/src/main/cpp/social_ai_llama_jni.cpp
+          test -f app/src/main/cpp/CMakeLists.txt

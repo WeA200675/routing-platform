@@ -6,10 +6,13 @@ on:
   push:
     branches:
       - main
+      - g620-integration-local
+      - recovery/startup-crash-refactor
       - "g6.*/*"
   pull_request:
     branches:
       - main
+      - g620-integration-local
   workflow_dispatch:
 
 permissions:

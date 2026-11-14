@@ -2,7 +2,7 @@ name: Android and core verification
 
 on:
   push:
-    branches: [main]
+    branches: [main, g620-integration-local, recovery/startup-crash-refactor]
   pull_request:
     branches: [main]
 

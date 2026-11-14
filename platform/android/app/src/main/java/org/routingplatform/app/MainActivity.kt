@@ -105,9 +105,26 @@ class MainActivity :
             savedInstanceState
         )
 
-        MapLibre.getInstance(
-            this
-        )
+        val mapLibreFailure = runCatching {
+            MapLibre.getInstance(this)
+        }.exceptionOrNull()
+
+        if (mapLibreFailure != null) {
+            android.util.Log.e(
+                "RoutingPlatformStartup",
+                "MapLibre initialization failed; entering degraded startup mode.",
+                mapLibreFailure,
+            )
+            val message = android.widget.TextView(this).apply {
+                text = "Routing Platform konnte die Kartenbibliothek nicht initialisieren.\\n\\n" +
+                    "Die Diagnose wurde im Systemprotokoll gespeichert.\\n\\n" +
+                    (mapLibreFailure.message ?: "Unbekannter Kartenfehler")
+                textSize = 16f
+                setPadding(48, 64, 48, 64)
+            }
+            setContentView(message)
+            return
+        }
 
         setContent {
             val trainingConnectionManager =

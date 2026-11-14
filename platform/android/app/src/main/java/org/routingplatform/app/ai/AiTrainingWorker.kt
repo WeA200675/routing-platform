@@ -500,16 +500,22 @@ class AiTrainingWorker(context: Context, parameters: WorkerParameters) : Worker(
             }
         }
 
-        val model = File(applicationContext.filesDir, MODEL_FILE)
-        if (!model.isFile || sha256(model) != MODEL_SHA256) {
+        val admission = SocialAiRuntimeAdmission.probe(applicationContext)
+        if (!admission.accepted) {
             AiTrainingStore.update(applicationContext, sessionId) {
-                it.copy(status = "Fehler", message = "Verifiziertes lokales Modell fehlt. Öffne zuerst den KI-Gerätetest und starte danach den Lauf erneut.")
+                it.copy(
+                    status = "Fehler",
+                    message = "Lokale KI nicht freigegeben: ${admission.state} — ${admission.detail}".take(240),
+                )
             }
             return Result.failure()
         }
 
+        val model = File(applicationContext.filesDir, MODEL_FILE)
         val engine = runCatching { JniSocialAiNativeEngine() }.getOrElse {
-            AiTrainingStore.update(applicationContext, sessionId) { s -> s.copy(status = "Fehler", message = "Lokale native KI-Laufzeit ist in diesem Build nicht verfügbar.") }
+            AiTrainingStore.update(applicationContext, sessionId) { s ->
+                s.copy(status = "Fehler", message = "Lokale native KI-Laufzeit ist nach der Admission-Prüfung nicht verfügbar.")
+            }
             return Result.failure()
         }
         val cases = AiTrainingStore.casesForTrack(applicationContext, track)
