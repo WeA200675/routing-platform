@@ -126,7 +126,7 @@ dependencies {
 // for arm64-v8a. Disable with -PwithLocalLlm=false for deterministic fallback-only builds.
 val withLocalLlm = providers.gradleProperty("withLocalLlm").orNull?.toBoolean() != false
 val generatedLlmJniLibs = layout.buildDirectory.dir("generated/jniLibs/localLlm")
-android.sourceSets.getByName("main").jniLibs.srcDir(generatedLlmJniLibs)
+android.sourceSets.getByName("main").jniLibs.srcDir(generatedLlmJniLibs.get().asFile)
 val localLlmNdkPath = providers.environmentVariable("ANDROID_NDK_HOME")
     .orElse(providers.environmentVariable("ANDROID_HOME").map { "$it/ndk/28.2.13676358" })
 val buildLocalLlmRuntime = tasks.register("buildLocalLlmRuntime", Exec::class.java) {
