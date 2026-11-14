@@ -12,6 +12,7 @@ on:
   pull_request:
     branches:
       - main
+      - g620-integration-local
   workflow_dispatch:
 
 permissions:
