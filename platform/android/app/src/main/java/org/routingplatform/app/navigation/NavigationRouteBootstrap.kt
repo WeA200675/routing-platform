@@ -70,19 +70,36 @@ object NavigationRouteBootstrap {
                 error ->
 
             NavigationRouteBootstrapResult(
-                snapshot =
-                    bridge.currentSnapshot(),
-
-                productionRouteReady =
-                    false,
-
+                snapshot = degradedSnapshot(error),
+                productionRouteReady = false,
                 errorMessage =
                     "Produktionsroute nicht verfügbar: " +
-                        (
-                            error.message
-                                ?: "unbekannter Ladefehler"
-                        ),
+                        (error.message ?: "unbekannter Ladefehler"),
             )
         }
     }
+
+    private fun degradedSnapshot(error: Throwable): NavigationUiSnapshot =
+        NavigationUiSnapshot(
+            sessionId = "bootstrap-degraded",
+            state = NavigationSessionState.Preview,
+            routeId = "bootstrap-degraded-route",
+            routeDistanceM = 1.0,
+            routeDurationS = 1.0,
+            geometry = listOf(RoutePoint(0.0, 0.0), RoutePoint(0.0, 0.00001)),
+            progressFraction = 0.0,
+            remainingDistanceM = 1.0,
+            remainingDurationS = 1.0,
+            currentManeuver = null,
+            nextManeuver = null,
+            distanceToCurrentManeuverEndM = 0.0,
+            arrived = false,
+            routeDiagnostics = listOf(
+                NavigationRouteDiagnostic(
+                    code = "ROUTE_BOOTSTRAP_FAILED",
+                    message = error.message ?: "unbekannter Ladefehler",
+                )
+            ),
+        )
+
 }
