@@ -105,17 +105,34 @@ object SocialAiModelInstaller {
     ): SocialAiModelInstallResult {
         val parent = destination.parentFile ?: return rejected("Invalid model destination.")
         if (!parent.exists() && !parent.mkdirs()) return rejected("Model directory cannot be created.")
-        if (parent.usableSpace - stagedArtifact.length() < minimumFreeBytesAfterInstall) return rejected("Insufficient storage for model installation.")
+        val stagedIsLocal = runCatching {
+            stagedArtifact.canonicalFile.parentFile == parent.canonicalFile
+        }.getOrDefault(false)
         val temporary = File(parent, destination.name + ".installing")
         val backup = File(parent, destination.name + ".previous")
         temporary.delete()
         backup.delete()
+        val promotionSource = if (stagedIsLocal) stagedArtifact else temporary
+        if (!stagedIsLocal && parent.usableSpace < stagedArtifact.length() + minimumFreeBytesAfterInstall) {
+            return rejected("Insufficient storage for atomic model installation.")
+        }
+        if (stagedIsLocal && parent.usableSpace < minimumFreeBytesAfterInstall) {
+            return rejected("Insufficient free storage remains after model download.")
+        }
         try {
-            stagedArtifact.inputStream().use { input -> temporary.outputStream().buffered().use { input.copyTo(it) } }
-            if (expectedSizeBytes != null && temporary.length() != expectedSizeBytes) return rejected("Copied model size verification failed.")
-            if (!verify(temporary, metadata)) return rejected("Copied model failed integrity verification.")
+            if (!stagedIsLocal) {
+                stagedArtifact.inputStream().use { input ->
+                    temporary.outputStream().buffered().use { output -> input.copyTo(output) }
+                }
+            }
+            if (expectedSizeBytes != null && promotionSource.length() != expectedSizeBytes) {
+                return rejected("Prepared model size verification failed.")
+            }
+            if (!verify(promotionSource, metadata)) return rejected("Prepared model failed integrity verification.")
             if (destination.exists()) move(destination, backup)
-            try { move(temporary, destination) } catch (error: Exception) {
+            try {
+                move(promotionSource, destination)
+            } catch (error: Exception) {
                 if (backup.exists()) move(backup, destination)
                 throw error
             }
