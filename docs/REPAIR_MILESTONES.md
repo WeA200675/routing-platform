@@ -24,8 +24,12 @@ Status: **umgesetzt**
 Commit: `c7f8bb2`
 
 ## Meilenstein 3 — KI-Zulassung und Wahrheitsgrenze
-Status: **in Bearbeitung**
+Status: **teilweise umgesetzt**
 
+- Zentrale `RuntimeCapabilityMatrix` ergänzt.
+- Gemeinsames `SocialAiRuntimeAdmission` ergänzt.
+- Read-only Admission-Probe im Produkt-Runtime verfügbar.
+- Unit-Tests für Capability-Sicherheitsregeln ergänzt.
 - Das lokale Modell und die Native-Laufzeit werden nur nach Integritätsprüfung zugelassen.
 - Die vorhandene `social_ai_llama_jni.cpp`-Implementierung ist aktuell fail-closed und liefert keine echte Inferenz.
 - Die App darf diese Laufzeit daher nicht als aktiv ausweisen.
