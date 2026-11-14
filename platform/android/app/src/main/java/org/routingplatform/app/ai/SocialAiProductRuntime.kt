@@ -19,8 +19,8 @@ class SocialAiProductRuntime(private val context: Context) : AutoCloseable {
     fun modelFile(): File = File(context.filesDir, MODEL_FILE)
 
     fun setupState(): SocialAiSetupState = when {
-        !modelFile().isFile || modelFile().length() != MODEL_BYTES -> SocialAiSetupState.ModelMissing
         !runCatching { System.loadLibrary("social_ai_llama") }.isSuccess -> SocialAiSetupState.NativeRuntimeMissing
+        !modelFile().isFile || modelFile().length() != MODEL_BYTES -> SocialAiSetupState.ModelMissing
         !runCatching { SocialAiModelIntegrity.verify(modelFile(), MODEL_METADATA) }.getOrDefault(false) ->
             SocialAiSetupState.Unavailable("Das gespeicherte Modell besteht die Integritätsprüfung nicht.")
         else -> SocialAiSetupState.Ready
