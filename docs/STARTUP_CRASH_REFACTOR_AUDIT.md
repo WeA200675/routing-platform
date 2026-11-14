@@ -52,3 +52,14 @@ Unit tests cover contracts and parser behavior, but the current repository does 
 ## Explicit non-claim
 
 This audit does not claim the app is fixed yet. The current branch is intentionally a recovery branch until the device-start path is verified.
+
+
+## Applied recovery commits
+
+- `9b646de`: MapLibre initialization is isolated before Compose; failure now shows a visible degraded startup screen instead of terminating silently.
+- `0576805`: `JniNavigationCoreBridge` no longer lets a missing/broken `routing_platform_jni` library crash construction. Native calls return a validated degraded snapshot and preserve a diagnostic instead.
+- The route bootstrap fallback now benefits from the bridge's non-throwing snapshot path, so a native initialization failure cannot recurse through `currentSnapshot()` and crash the launcher.
+
+## Remaining verification gates
+
+The recovery branch still requires a GitHub Actions Android compile/test run and a device launch test. The local-AI JNI implementation remains intentionally fail-closed; it must not be presented as active until a real llama.cpp implementation is linked and admitted by the runtime gate.
