@@ -121,12 +121,23 @@ dependencies {
         "androidx.test:core:1.7.0"
     )
 
+
+}
+tasks.configureEach {
+    if (name.startsWith("merge") && name.endsWith("JniLibFolders")) {
+        dependsOn(buildLocalLlmRuntime)
+    }
+}
+
+
 // The local Qwen runtime is compiled from a pinned llama.cpp revision and packaged only
 // for arm64-v8a. Disable with -PwithLocalLlm=false for deterministic fallback-only builds.
 val withLocalLlm = providers.gradleProperty("withLocalLlm").orNull?.toBoolean() != false
 val generatedLlmJniLibs = layout.buildDirectory.dir("generated/jniLibs/localLlm")
-sourceSets.getByName("main").jniLibs.srcDir(generatedLlmJniLibs)
-val buildLocalLlmRuntime by tasks.registering(Exec::class) {
+android.sourceSets.getByName("main").jniLibs.srcDir(generatedLlmJniLibs)
+val localLlmNdkPath = providers.environmentVariable("ANDROID_NDK_HOME")
+    .orElse(providers.environmentVariable("ANDROID_HOME").map { "$it/ndk/28.2.13676358" })
+val buildLocalLlmRuntime = tasks.register("buildLocalLlmRuntime", Exec::class.java) {
     val outputDir = generatedLlmJniLibs.get().asFile
     outputs.dir(outputDir)
     onlyIf { withLocalLlm }
@@ -134,7 +145,7 @@ val buildLocalLlmRuntime by tasks.registering(Exec::class) {
         "python3",
         rootProject.file("../../tools/g620/build_local_llm_android.py").absolutePath,
         "--work-dir", layout.buildDirectory.dir("local-llm").get().asFile.absolutePath,
-        "--ndk", android.ndkDirectory.absolutePath,
+        "--ndk", localLlmNdkPath.get(),
         "--output", outputDir.absolutePath,
     )
 }
@@ -143,5 +154,4 @@ tasks.configureEach {
         dependsOn(buildLocalLlmRuntime)
     }
 }
-
 }
