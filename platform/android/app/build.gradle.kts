@@ -33,6 +33,15 @@ android {
             "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // CI/debug APK uses a separate package ID so it can be installed alongside
+    // an existing release or locally signed build without uninstalling user data.
+    buildTypes {
+        getByName("debug") {
+            applicationIdSuffix = ".llmtest"
+            versionNameSuffix = "-llmtest"
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
