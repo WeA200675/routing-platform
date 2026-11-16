@@ -1,0 +1,49 @@
+name: Training backend safety checks
+
+on:
+  pull_request:
+    paths:
+      - 'backend/training_api.py'
+      - 'backend/training_job_store.py'
+      - 'tools/test_training*.py'
+      - 'tools/test_replay_fail_closed.py'
+      - '.github/workflows/training-backend-safety.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/training_api.py'
+      - 'backend/training_job_store.py'
+      - 'tools/test_training*.py'
+      - 'tools/test_replay_fail_closed.py'
+      - '.github/workflows/training-backend-safety.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backend-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and unit tests
+        env:
+          PYTHONPATH: .
+          PYTHONDONTWRITEBYTECODE: '1'
+          TRAINING_STATE_PATH: ${{ runner.temp }}/routing-training-api-state.json
+        run: |
+          python -m py_compile backend/training_api.py backend/training_job_store.py
+          python -m unittest -v \
+            tools.test_training_job_store \
+            tools.test_replay_fail_closed \
+            tools.test_training_state_persistence \
+            tools.test_provider_diagnostics \
+            tools.test_audit_integrity
+      - name: HTTP integration smoke test
+        env:
+          PYTHONPATH: .
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python tools/test_training_diagnostics_e2e.py
