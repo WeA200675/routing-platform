@@ -19,6 +19,8 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+from backend.training_job_store import TrainingJobStore, QueueFullError
+
 SCHEMA_VERSION = "training-center-v1"
 DIALOGUE_SCHEMA = "training-dialogue-v1"
 DISCOVERY_SCHEMA = "training-discovery-v1"
@@ -284,9 +286,16 @@ class TrainingState:
 
 
 STATE = TrainingState()
+# Explicit opt-in only. Existing deployments keep their original storage until
+# operators have tested migration and rollback. Never silently mix stores.
+JOB_STORE = TrainingJobStore(os.environ['TRAINING_JOB_DB_PATH']) if os.environ.get('TRAINING_JOB_DB_PATH') else None
 
 
 def section(name: str) -> dict[str, Any]:
+    if name == "jobs":
+        if JOB_STORE is None:
+            return STATE.envelope({"enabled": False, "status": "not_configured"})
+        return STATE.envelope({"enabled": True, "status": "blocked_no_replay_runner", "counts": JOB_STORE.counts()})
     if name == "overview":
         return STATE.envelope({
             "performance_gain": None,
@@ -493,9 +502,26 @@ class Handler(BaseHTTPRequestHandler):
             payload = {"events": [event]}
             name = "events"
         if name == "events":
+            if not isinstance(payload, dict):
+                self._send(400, {"error": "events_object_required"})
+                return
             events = payload.get("events")
             if not isinstance(events, list) or len(events) > 256:
                 self._send(400, {"error": "events_required_or_too_many"})
+                return
+            if JOB_STORE is not None:
+                try:
+                    result = JOB_STORE.submit_batch(events)
+                except QueueFullError:
+                    self._send(503, {"error": "queue_full", "retryable": True})
+                    return
+                except ValueError as exc:
+                    self._send(400, {"error": "invalid_events", "detail": str(exc)})
+                    return
+                except OSError:
+                    self._send(503, {"error": "storage_unavailable", "retryable": True})
+                    return
+                self._send(202, STATE.envelope({**result, "durable": True, "storage": "sqlite", "verification_status": "blocked_no_replay_runner"}))
                 return
             accepted = 0
             with STATE._lock:
