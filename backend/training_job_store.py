@@ -7,6 +7,7 @@ replay can be recorded without a verifiable evidence digest.
 from __future__ import annotations
 
 import hashlib
+from contextlib import contextmanager
 import json
 import sqlite3
 import time
@@ -36,13 +37,24 @@ class TrainingJobStore:
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
+    @contextmanager
     def _connect(self):
+        """Open a transactional connection and always release its resources.
+
+        sqlite3.Connection.__exit__ commits or rolls back but does not close
+        the connection. Every job-store operation must close it explicitly,
+        including exceptions and early returns.
+        """
         connection = sqlite3.connect(self.path, timeout=15, isolation_level=None)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA busy_timeout=15000")
-        connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute("PRAGMA synchronous=FULL")
-        return connection
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA busy_timeout=15000")
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("PRAGMA synchronous=FULL")
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def _init_db(self):
         with self._connect() as db:
