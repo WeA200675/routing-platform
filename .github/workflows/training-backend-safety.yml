@@ -9,12 +9,16 @@ on:
       - 'backend/valhalla_replay.py'
       - 'tools/test_training*.py'
       - 'tools/test_replay_fail_closed.py'
+      - 'tools/test_trace_regression.py'
+      - 'tools/test_valhalla_replay.py'
       - '.github/workflows/training-backend-safety.yml'
   push:
     branches: [main]
     paths:
       - 'backend/training_api.py'
       - 'backend/training_job_store.py'
+      - 'backend/trace_regression.py'
+      - 'backend/valhalla_replay.py'
       - 'tools/test_training*.py'
       - 'tools/test_replay_fail_closed.py'
       - '.github/workflows/training-backend-safety.yml'
