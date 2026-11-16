@@ -106,6 +106,35 @@ class TrainingJobStoreTest(unittest.TestCase):
         reopened = TrainingJobStore(self.path)
         self.assertEqual(reopened.counts(), {"queued": 2})
 
+    def test_exhausted_lease_is_blocked_until_explicit_requeue(self):
+        store = TrainingJobStore(self.path, max_pending=2, lease_seconds=30, max_attempts=2)
+        store.submit(self.event("exhausted"))
+        first = store.claim()
+        self.assertEqual(first["attempt"], 1)
+        with store._connect() as db:
+            db.execute("UPDATE jobs SET lease_until=0 WHERE event_id='exhausted'")
+        second = store.claim()
+        self.assertEqual(second["attempt"], 2)
+        with store._connect() as db:
+            db.execute("UPDATE jobs SET lease_until=0 WHERE event_id='exhausted'")
+        self.assertIsNone(store.claim())
+        status = store.status("exhausted")
+        self.assertEqual(status["state"], "blocked_no_runner")
+        self.assertEqual(status["last_error"], "retry_exhausted")
+        self.assertEqual(status["attempts"], 2)
+        self.assertTrue(store.requeue_blocked("exhausted"))
+        self.assertEqual(store.claim()["attempt"], 1)
+
+    def test_exhausted_job_does_not_starve_new_job(self):
+        store = TrainingJobStore(self.path, max_pending=2, lease_seconds=30, max_attempts=1)
+        store.submit(self.event("old"))
+        store.claim()
+        with store._connect() as db:
+            db.execute("UPDATE jobs SET lease_until=0 WHERE event_id='old'")
+        store.submit(self.event("new"))
+        self.assertEqual(store.claim()["event_id"], "new")
+        self.assertEqual(store.status("old")["state"], "blocked_no_runner")
+
     def test_expired_lease_reclaimed(self):
         self.store.submit(self.event("one"))
         first = self.store.claim()
