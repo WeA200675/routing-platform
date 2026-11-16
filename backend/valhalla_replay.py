@@ -49,9 +49,12 @@ def _directions(response: dict[str, Any]) -> list[str]:
         raise InvalidReplayEvidence("Valhalla response missing legs")
     # Valhalla maneuver type numbers are API-defined. Reject unknown codes
     # instead of guessing the turn direction.
-    left = {4, 7, 10, 15, 16, 20, 22}
-    right = {5, 8, 11, 17, 18, 21, 23}
-    straight = {1, 2, 3, 6, 9, 12, 13, 14, 19, 24, 25, 26, 27, 28, 29, 30}
+    # Valhalla maneuver enum: START=1, DESTINATION=4, RIGHT=10,
+    # LEFT=15, RAMP_RIGHT=18, RAMP_LEFT=19, EXIT_RIGHT=20,
+    # EXIT_LEFT=21, STAY_RIGHT=23, STAY_LEFT=24.
+    left = {3, 6, 13, 14, 15, 16, 19, 21, 24}
+    right = {2, 5, 9, 10, 11, 12, 18, 20, 23}
+    straight = {1, 4, 7, 8, 17, 22, 25, 26, 27, 28, 29, 30}
     directions = []
     for leg in legs:
         maneuvers = leg.get("maneuvers") if isinstance(leg, dict) else None
