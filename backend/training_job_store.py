@@ -93,6 +93,51 @@ class TrainingJobStore:
             db.execute("COMMIT")
             return "queued", True
 
+    def submit_batch(self, events: list[dict[str, Any]]) -> dict[str, Any]:
+        """Atomically accept a batch; no partial success or silent event loss.
+
+        A duplicate with identical content is idempotent. Any malformed event,
+        conflicting ID, or full queue rolls back the *whole* batch.
+        """
+        if not isinstance(events, list) or not 1 <= len(events) <= 256:
+            raise ValueError("events must contain 1..256 objects")
+        prepared = []
+        for event in events:
+            if not isinstance(event, dict):
+                raise ValueError("event must be an object")
+            event_id = event.get("event_id")
+            if not isinstance(event_id, str) or not (1 <= len(event_id) <= 200):
+                raise ValueError("invalid event_id")
+            if not isinstance(event.get("type"), str) or not event["type"]:
+                raise ValueError("invalid event type")
+            if not isinstance(event.get("payload", {}), dict):
+                raise ValueError("invalid event payload")
+            serialized = json.dumps(event, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+            if len(serialized.encode("utf-8")) > MAX_EVENT_BYTES:
+                raise ValueError("event exceeds size limit")
+            prepared.append((event_id, serialized, hashlib.sha256(serialized.encode("utf-8")).hexdigest()))
+        accepted = 0
+        duplicates = 0
+        now = int(time.time())
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            count = db.execute("SELECT COUNT(*) FROM jobs WHERE state NOT IN ('passed','failed','quarantined')").fetchone()[0]
+            for event_id, serialized, digest in prepared:
+                existing = db.execute("SELECT payload_sha256 FROM jobs WHERE event_id=?", (event_id,)).fetchone()
+                if existing:
+                    if existing["payload_sha256"] != digest:
+                        raise ValueError("event_id reused with different content")
+                    duplicates += 1
+                    continue
+                if count >= self.max_pending:
+                    raise QueueFullError("pending job capacity reached; retry later")
+                db.execute("""INSERT INTO jobs(event_id,payload,payload_sha256,state,created_at,updated_at)
+                    VALUES(?,?,?,'queued',?,?)""", (event_id, serialized, digest, now, now))
+                count += 1
+                accepted += 1
+            db.execute("COMMIT")
+        return {"accepted": accepted, "duplicates": duplicates, "queue_count": count}
+
     def claim(self) -> dict[str, Any] | None:
         now = int(time.time())
         with self._connect() as db:
