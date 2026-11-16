@@ -302,6 +302,7 @@ def section(name: str) -> dict[str, Any]:
             return STATE.envelope({"enabled": False, "status": "not_configured"})
         return STATE.envelope({"enabled": True, "status": "blocked_no_replay_runner", "counts": JOB_STORE.counts()})
     if name == "overview":
+        counts = JOB_STORE.counts() if JOB_STORE else {}
         return STATE.envelope({
             "performance_gain": None,
             "learning_factor": None,
@@ -314,60 +315,44 @@ def section(name: str) -> dict[str, Any]:
             },
             "verification_status": "blocked_no_replay_runner",
             "pipeline": {
-                "ingest": STATE.total_events,
+                "ingest": sum(counts.values()) if JOB_STORE else STATE.total_events,
                 "quality_checked": None,
-                "replay_ready": STATE.queue_count,
+                "replay_ready": counts.get("queued", 0) if JOB_STORE else STATE.queue_count,
                 "shadow": None,
                 "canary": None,
             },
         })
     if name == "knowledge":
         return STATE.envelope({
-            "sources": [
-                {"name": "routing", "quality": 0.96},
-                {"name": "traffic", "quality": 0.84},
-                {"name": "hazards", "quality": 0.71},
-                {"name": "surprise-content", "quality": 0.88},
-            ],
-            "patterns": 42,
-            "confirmed_improvements": 17,
-            "quarantined_conflicts": 12,
-            "domains": {
-                "navigation": 0.94,
-                "maneuvers": 0.97,
-                "voice": 0.91,
-                "gps": 0.86,
-                "fallback": 0.62,
-            },
+            "sources": [], "patterns": None, "confirmed_improvements": None,
+            "quarantined_conflicts": STATE.quarantined_count,
+            "domains": {"navigation": None, "maneuvers": None, "voice": None,
+                        "gps": None, "fallback": None},
+            "verification_status": "not_measured",
         })
     if name == "experiments":
         return STATE.envelope({
-            "candidates": [
-                {"id": "active-013", "status": "active", "score": 0.968},
-                {"id": "shadow-014", "status": "blocked", "score": 0.964},
-                {"id": "shadow-015", "status": "waiting", "score": 0.0},
-            ],
-            "replay": {
-                "left_right": {"passed": 48, "total": 48},
-                "voice_timing": {"passed": 41, "total": 44},
-                "gps_jitter": {"passed": 32, "total": 35},
-                "fallback": {"passed": 18, "total": 24},
-            },
+            "candidates": [], "replay": {},
+            "verification_status": "no_independent_replay",
         })
     if name == "operations":
+        counts = JOB_STORE.counts() if JOB_STORE else {}
         return STATE.envelope({
-            "runtime_mode": "SHADOW",
-            "active_release": "stable-013",
-            "rollback_target": "stable-012",
+            "runtime_mode": "INGEST_ONLY",
+            "active_release": None,
+            "rollback_target": None,
             "storage": {
-                "used_bytes": STATE.used_bytes,
-                "max_bytes": STATE.max_bytes,
-                "queue_count": STATE.queue_count,
-                "synced_count": STATE.synced_count,
-                "headroom_ratio": max(0.0, 1.0 - STATE.used_bytes / STATE.max_bytes),
+                "used_bytes": None if JOB_STORE else STATE.used_bytes,
+                "max_bytes": None if JOB_STORE else STATE.max_bytes,
+                "queue_count": sum(value for key, value in counts.items()
+                                   if key not in ("passed", "failed", "quarantined"))
+                               if JOB_STORE else STATE.queue_count,
+                "synced_count": None,
+                "headroom_ratio": None,
             },
-            "cloud": {"reachable": True, "sync_ratio": 0.962},
+            "cloud": {"reachable": None, "sync_ratio": None},
             "alerts": STATE.regressions,
+            "verification_status": "not_measured",
         })
     if name == "diagnostics":
         with STATE._lock:
@@ -404,14 +389,11 @@ def section(name: str) -> dict[str, Any]:
 
     if name == "history":
         return STATE.envelope({
-            "performance": [
-                {"captured_at": 1, "value": 0.821},
-                {"captured_at": 2, "value": 0.887},
-                {"captured_at": 3, "value": 0.968},
-            ],
+            "performance": [],
             "activities": STATE.activities,
             "map_events": [],
-            "versions": ["stable-011", "stable-012", "stable-013", "shadow-014"],
+            "versions": [],
+            "verification_status": "not_measured",
         })
     raise KeyError(name)
 
