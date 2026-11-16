@@ -71,8 +71,10 @@ def main():
         _, processed = request(base + "/api/training/diagnostics")
         pipeline = processed["provider_diagnostics"]["processing"]
         assert pipeline["normalized"] >= 1, pipeline
-        assert pipeline["replay"] >= 1, pipeline
-        assert pipeline["regression_passed"] >= 1, pipeline
+        assert pipeline["verification_status"] == "blocked_no_replay_runner", pipeline
+        assert pipeline["replay"] is None, pipeline
+        assert pipeline["regression_passed"] is None, pipeline
+        assert pipeline["queue"] >= 1, pipeline
 
         retry_status, retry = request(
             base + "/api/training/events",
