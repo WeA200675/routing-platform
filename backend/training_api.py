@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import signal
+import sqlite3
 from pathlib import Path
 import threading
 import time
@@ -518,7 +519,7 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError as exc:
                     self._send(400, {"error": "invalid_events", "detail": str(exc)})
                     return
-                except OSError:
+                except (OSError, sqlite3.Error):
                     self._send(503, {"error": "storage_unavailable", "retryable": True})
                     return
                 self._send(202, STATE.envelope({**result, "durable": True, "storage": "sqlite", "verification_status": "blocked_no_replay_runner"}))
