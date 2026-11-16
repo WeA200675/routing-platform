@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Transactional queue invariants; run with python3 -m unittest -v tools.test_training_job_store."""
+import tempfile
+import unittest
+from pathlib import Path
+
+from backend.training_job_store import (
+    InvalidTransitionError, QueueFullError, TrainingJobStore,
+)
+
+
+class TrainingJobStoreTest(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.path = Path(self.directory.name) / "jobs.sqlite3"
+        self.store = TrainingJobStore(self.path, max_pending=2, lease_seconds=30)
+
+    @staticmethod
+    def event(event_id):
+        return {"event_id": event_id, "type": "navigation-error", "payload": {"reason": "wrong-turn"}}
+
+    def test_idempotency_and_conflicting_duplicate(self):
+        self.assertEqual(self.store.submit(self.event("one")), ("queued", True))
+        self.assertEqual(self.store.submit(self.event("one")), ("queued", False))
+        conflict = self.event("one")
+        conflict["payload"]["reason"] = "other"
+        with self.assertRaises(ValueError):
+            self.store.submit(conflict)
+        self.assertEqual(self.store.counts(), {"queued": 1})
+
+    def test_capacity_is_fail_closed_not_fifo_data_loss(self):
+        self.store.submit(self.event("one"))
+        self.store.submit(self.event("two"))
+        with self.assertRaises(QueueFullError):
+            self.store.submit(self.event("three"))
+        self.assertEqual(self.store.counts()["queued"], 2)
+
+    def test_restart_preserves_pending(self):
+        self.store.submit(self.event("one"))
+        reopened = TrainingJobStore(self.path)
+        self.assertEqual(reopened.status("one")["state"], "queued")
+        self.assertEqual(reopened.claim()["event_id"], "one")
+
+    def test_verified_evidence_required_for_pass(self):
+        self.store.submit(self.event("one"))
+        claimed = self.store.claim()
+        with self.assertRaises(ValueError):
+            self.store.complete("one", claimed["lease_token"], passed=True,
+                                evidence=b"", result={"verified": True, "passed": True})
+        with self.assertRaises(ValueError):
+            self.store.complete("one", claimed["lease_token"], passed=True,
+                                evidence=b"replay", result={"verified": False, "passed": True})
+        with self.assertRaises(InvalidTransitionError):
+            self.store.complete("one", "wrong", passed=True,
+                                evidence=b"replay", result={"verified": True, "passed": True})
+        self.assertEqual(self.store.status("one")["state"], "replaying")
+        self.store.complete("one", claimed["lease_token"], passed=True,
+                            evidence=b"real replay result", result={"verified": True, "passed": True, "delta": 0.1})
+        self.assertEqual(self.store.status("one")["state"], "passed")
+        self.assertIsNotNone(self.store.status("one")["evidence_sha256"])
+        with self.assertRaises(InvalidTransitionError):
+            self.store.complete("one", claimed["lease_token"], passed=True,
+                                evidence=b"again", result={"verified": True, "passed": True})
+
+    def test_block_and_explicit_requeue(self):
+        self.store.submit(self.event("one"))
+        job = self.store.claim()
+        self.store.block("one", job["lease_token"])
+        self.assertEqual(self.store.status("one")["state"], "blocked_no_runner")
+        self.assertIsNone(self.store.claim())
+        self.assertTrue(self.store.requeue_blocked("one"))
+        self.assertEqual(self.store.claim()["attempt"], 2)
+
+    def test_expired_lease_reclaimed(self):
+        self.store.submit(self.event("one"))
+        first = self.store.claim()
+        with self.store._connect() as db:
+            db.execute("UPDATE jobs SET lease_until=0 WHERE event_id='one'")
+        second = self.store.claim()
+        self.assertNotEqual(first["lease_token"], second["lease_token"])
+        with self.assertRaises(InvalidTransitionError):
+            self.store.complete("one", first["lease_token"], passed=True,
+                                evidence=b"evidence", result={"verified": True, "passed": True})
+
+
+if __name__ == "__main__":
+    unittest.main()
