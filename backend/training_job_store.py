@@ -162,6 +162,11 @@ class TrainingJobStore:
             raise ValueError("nonempty replay evidence required")
         if not isinstance(result, dict) or not result:
             raise ValueError("structured regression result required")
+        # No trusted replay attestor is wired to this store yet. Never let an
+        # arbitrary caller set verified=true and promote a navigation result.
+        # Persisting a passing/failed replay will be enabled only after an
+        # independently checked execution artifact and trusted worker exist.
+        raise InvalidTransitionError("trusted replay attestation not configured")
         if result.get("verified") is not True or result.get("passed") is not passed:
             raise ValueError("verified result must match decision")
         digest = hashlib.sha256(evidence).hexdigest()
