@@ -22,3 +22,18 @@ The new store is a standalone module, **not yet the production API persistence b
 ## Rollout
 
 Work only on the GitHub draft PR until all gates pass. The Oracle VM's `fix/real-training-pipeline` worktree is a **different local branch**. Do not deploy this PR by overwriting its working files, and do not merge to `main` without green tests and an explicit migration plan.
+
+## Milestone 3 — Recorded-trace regression (implemented as advisory only)
+
+- `backend/trace_regression.py` compares recorded reference and candidate maneuvers with matching route, map and input identifiers.
+- Wrong left/right direction, late voice cues, GPS deviation, and fallback usage are explicit failure conditions.
+- Missing observations, duplicate IDs, inconsistent map versions and nonfinite measurements are rejected.
+- The output has `verified=false` and `promotion_eligible=false` even when the trace comparison passes. **This is not a Valhalla replay** and cannot authorize a navigation change.
+- All known hardcoded dashboard quality, knowledge, experiment, cloud and history metrics in `backend/training_api.py` have been replaced with empty or unknown values. Dashboard clients must gracefully render null and empty data.
+
+## Important remaining risks
+
+- The standalone job store's `complete()` accepts a caller-provided `verified=true` assertion; it does **not** independently validate a Valhalla execution. Restrict it to a trusted worker boundary before deployment.
+- The SQLite opt-in API and legacy state journal currently coexist. Provider diagnostic aggregation in SQLite mode is not migrated; a migration/reconciliation strategy is mandatory.
+- PostgreSQL adapter, Valhalla executor, evidence persistence, replay attestation, and LLM analysis are **not implemented**.
+- Tests have been authored; GitHub Actions status and integration against the Oracle ARM environment have not been independently verified.
