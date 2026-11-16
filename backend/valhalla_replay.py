@@ -12,6 +12,7 @@ import json
 import math
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 from typing import Any, Callable
 
 from backend.trace_regression import InvalidReplayEvidence
@@ -89,7 +90,10 @@ def replay(fixture: dict[str, Any], *, endpoint: str = "http://127.0.0.1:8002",
     ):
         raise InvalidReplayEvidence("reference directions required")
     locations = _coordinates(fixture)
-    if endpoint.rstrip("/") != "http://127.0.0.1:8002" and not endpoint.startswith("http://localhost:"):
+    parsed = urlsplit(endpoint)
+    if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost")
+            or not parsed.port or parsed.username or parsed.password
+            or parsed.path not in ("", "/") or parsed.query or parsed.fragment):
         raise ReplayUnavailable("only explicitly local Valhalla endpoints permitted")
     if timeout <= 0 or timeout > 60:
         raise ValueError("timeout outside safe bounds")
