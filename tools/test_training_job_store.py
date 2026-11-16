@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Transactional queue invariants; run with python3 -m unittest -v tools.test_training_job_store."""
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -19,6 +20,19 @@ class TrainingJobStoreTest(unittest.TestCase):
     @staticmethod
     def event(event_id):
         return {"event_id": event_id, "type": "navigation-error", "payload": {"reason": "wrong-turn"}}
+
+    def test_connection_closes_after_success_and_failure(self):
+        with self.store._connect() as connection:
+            connection.execute("SELECT 1")
+        with self.assertRaises(sqlite3.ProgrammingError):
+            connection.execute("SELECT 1")
+
+        with self.assertRaisesRegex(RuntimeError, "deliberate failure"):
+            with self.store._connect() as failed_connection:
+                failed_connection.execute("SELECT 1")
+                raise RuntimeError("deliberate failure")
+        with self.assertRaises(sqlite3.ProgrammingError):
+            failed_connection.execute("SELECT 1")
 
     def test_idempotency_and_conflicting_duplicate(self):
         self.assertEqual(self.store.submit(self.event("one")), ("queued", True))
