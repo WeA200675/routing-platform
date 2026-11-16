@@ -37,3 +37,19 @@ Work only on the GitHub draft PR until all gates pass. The Oracle VM's `fix/real
 - The SQLite opt-in API and legacy state journal currently coexist. Provider diagnostic aggregation in SQLite mode is not migrated; a migration/reconciliation strategy is mandatory.
 - PostgreSQL adapter, Valhalla executor, evidence persistence, replay attestation, and LLM analysis are **not implemented**.
 - Tests have been authored; GitHub Actions status and integration against the Oracle ARM environment have not been independently verified.
+
+## Milestone 4 — Read-only Valhalla route replay adapter
+
+- `backend/valhalla_replay.py` posts a strictly validated route fixture to a loopback-only Valhalla `/route` endpoint and compares returned maneuver directions to an explicitly supplied reference sequence.
+- It emits deterministic SHA-256 hashes for the fixture, request and raw response, plus mismatch status. It does **not** modify navigation, train a model or automatically accept results.
+- `verified=false` and `promotion_eligible=false` are mandatory until map tile hash, Valhalla binary/build, fixture provenance and reference-label provenance are independently attested.
+- Unit tests use an injected fake transport and cover wrong turns, missing maneuvers, invalid coordinates, remote endpoint rejection and unavailable service. **They do not establish that a real Valhalla instance is installed or responds correctly on the Oracle VM.**
+- Maneuver code classification follows the Valhalla enum and requires an integration test against the exact pinned Valhalla version before release.
+
+### Remaining mandatory work
+
+1. Pin and attest the Valhalla build, configuration and tile archive checksum, then execute integration tests on Oracle ARM with actual fixtures.
+2. Build a trusted replay worker that stores immutable evidence and independently validates completion before releasing the currently locked `complete()` transition.
+3. Add PostgreSQL transactional persistence and an explicit migration/rollback route from the legacy journal.
+4. Add bounded, privacy-preserving LLM diagnosis as advisory output only, followed by shadow-mode evaluations.
+5. Confirm GitHub Actions checks on the latest commit; earlier commits passing does not establish the newest commit passed.
