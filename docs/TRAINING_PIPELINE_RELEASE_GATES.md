@@ -3,7 +3,7 @@
 ## Delivered on this branch
 
 - `backend/training_job_store.py`: SQLite WAL transactional **fallback** store. It persists jobs before acknowledging enqueue, rejects conflicting duplicate IDs, enforces a bounded nonterminal backlog, and uses expiring lease tokens to recover interrupted work. It does **not** silently delete pending jobs.
-- A job can reach `passed` or `failed` only with a nonempty evidence blob, structured result, matching decision, and active lease. The store records an SHA-256 digest. **The caller is not yet a trusted replay verifier**; `verified: true` is a contract assertion, not cryptographic proof of navigation correctness.
+- The store now refuses all replay completion (even a caller-supplied `verified: true`) until a trusted independent attestor is connected. SHA-256 evidence fields are reserved for the future verified execution pipeline.
 - `backend/training_api.py` no longer increments replay or regression success counters for schema-valid events without a replay runner; valid events remain pending. Overview unknown metrics are `null`, and the diagnostic response separates historical unverified counts.
 - Automated tests cover deduplication, queue capacity, restart, expired leases, blocked jobs, evidence requirements, and HTTP smoke behavior.
 
@@ -33,7 +33,7 @@ Work only on the GitHub draft PR until all gates pass. The Oracle VM's `fix/real
 
 ## Important remaining risks
 
-- The standalone job store's `complete()` accepts a caller-provided `verified=true` assertion; it does **not** independently validate a Valhalla execution. Restrict it to a trusted worker boundary before deployment.
+- The standalone job store's `complete()` rejects all completion until an independently verified Valhalla execution and trusted worker boundary are implemented.
 - The SQLite opt-in API and legacy state journal currently coexist. Provider diagnostic aggregation in SQLite mode is not migrated; a migration/reconciliation strategy is mandatory.
 - PostgreSQL adapter, Valhalla executor, evidence persistence, replay attestation, and LLM analysis are **not implemented**.
 - Tests have been authored; GitHub Actions status and integration against the Oracle ARM environment have not been independently verified.
