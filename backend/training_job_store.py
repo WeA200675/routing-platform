@@ -28,12 +28,13 @@ class InvalidTransitionError(RuntimeError):
 
 
 class TrainingJobStore:
-    def __init__(self, path: str | Path, *, max_pending: int = 10000, lease_seconds: int = 120):
-        if max_pending < 1 or lease_seconds < 1:
+    def __init__(self, path: str | Path, *, max_pending: int = 10000, lease_seconds: int = 120, max_attempts: int = 5):
+        if max_pending < 1 or lease_seconds < 1 or max_attempts < 1:
             raise ValueError("invalid queue limits")
         self.path = str(path)
         self.max_pending = max_pending
         self.lease_seconds = lease_seconds
+        self.max_attempts = max_attempts
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
@@ -154,9 +155,18 @@ class TrainingJobStore:
         now = int(time.time())
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            # Expired leases must not be reclaimed forever after worker crashes.
+            # Quarantine exhausted jobs as blocked; preserve payload for review.
+            db.execute("""UPDATE jobs SET state='blocked_no_runner',
+                lease_token=NULL,lease_until=NULL,last_error='retry_exhausted',
+                updated_at=? WHERE (state='replaying' AND lease_until <= ?
+                OR state='queued') AND attempts >= ?""",
+                (now, now, self.max_attempts))
             row = db.execute("""SELECT * FROM jobs
-                WHERE state='queued' OR (state='replaying' AND lease_until <= ?)
-                ORDER BY created_at,event_id LIMIT 1""", (now,)).fetchone()
+                WHERE (state='queued' AND attempts < ?)
+                   OR (state='replaying' AND lease_until <= ? AND attempts < ?)
+                ORDER BY created_at,event_id LIMIT 1""",
+                (self.max_attempts, now, self.max_attempts)).fetchone()
             if row is None:
                 db.execute("COMMIT")
                 return None
