@@ -42,26 +42,21 @@ class TrainingJobStoreTest(unittest.TestCase):
         self.assertEqual(reopened.status("one")["state"], "queued")
         self.assertEqual(reopened.claim()["event_id"], "one")
 
-    def test_verified_evidence_required_for_pass(self):
+    def test_no_completion_without_trusted_attestor(self):
         self.store.submit(self.event("one"))
         claimed = self.store.claim()
-        with self.assertRaises(ValueError):
-            self.store.complete("one", claimed["lease_token"], passed=True,
-                                evidence=b"", result={"verified": True, "passed": True})
-        with self.assertRaises(ValueError):
-            self.store.complete("one", claimed["lease_token"], passed=True,
-                                evidence=b"replay", result={"verified": False, "passed": True})
-        with self.assertRaises(InvalidTransitionError):
-            self.store.complete("one", "wrong", passed=True,
-                                evidence=b"replay", result={"verified": True, "passed": True})
+        for evidence, result in [
+            (b"", {"verified": True, "passed": True}),
+            (b"replay", {"verified": False, "passed": True}),
+            (b"replay", {"verified": True, "passed": True}),
+            (b"replay", {"verified": True, "passed": False}),
+        ]:
+            with self.subTest(result=result):
+                with self.assertRaises((ValueError, InvalidTransitionError)):
+                    self.store.complete("one", claimed["lease_token"],
+                                        passed=result["passed"], evidence=evidence, result=result)
         self.assertEqual(self.store.status("one")["state"], "replaying")
-        self.store.complete("one", claimed["lease_token"], passed=True,
-                            evidence=b"real replay result", result={"verified": True, "passed": True, "delta": 0.1})
-        self.assertEqual(self.store.status("one")["state"], "passed")
-        self.assertIsNotNone(self.store.status("one")["evidence_sha256"])
-        with self.assertRaises(InvalidTransitionError):
-            self.store.complete("one", claimed["lease_token"], passed=True,
-                                evidence=b"again", result={"verified": True, "passed": True})
+        self.assertIsNone(self.store.status("one")["evidence_sha256"])
 
     def test_block_and_explicit_requeue(self):
         self.store.submit(self.event("one"))
