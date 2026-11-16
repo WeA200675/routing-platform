@@ -20,7 +20,11 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from backend.training_job_store import TrainingJobStore, QueueFullError
+try:
+    from backend.training_job_store import TrainingJobStore, QueueFullError
+except ModuleNotFoundError:
+    # Support the existing systemd ExecStart invoking this file directly.
+    from training_job_store import TrainingJobStore, QueueFullError
 
 SCHEMA_VERSION = "training-center-v1"
 DIALOGUE_SCHEMA = "training-dialogue-v1"
