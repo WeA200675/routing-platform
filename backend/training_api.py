@@ -209,46 +209,47 @@ class TrainingState:
         thread.start()
 
     def _worker_loop(self) -> None:
-        while self.worker_running:
-            batch: list[dict[str, Any]] = []
-            with self._lock:
-                if self.pending_events:
-                    batch = self.pending_events[:32]
-                    del self.pending_events[:32]
-                    self.queue_count = max(0, self.queue_count - len(batch))
-            if not batch:
-                time.sleep(0.1)
-                continue
+        """Fail closed: do not claim a replay until a real runner is installed.
 
+        Valid events remain durable and pending. Invalid events are quarantined.
+        This worker intentionally does not execute navigation or model changes.
+        """
+        while self.worker_running:
             activities: list[tuple[str, str]] = []
             with self._lock:
-                for event in batch:
-                    valid = (
-                        isinstance(event, dict)
-                        and isinstance(event.get("event_id"), str)
-                        and isinstance(event.get("type"), str)
-                        and isinstance(event.get("payload", {}), dict)
-                    )
-                    self.normalized_count += 1
-                    if valid:
-                        self.replay_count += 1
-                        self.regression_passed += 1
-                        status = "PASS"
-                    else:
-                        self.regression_failed += 1
-                        self.quarantined_count += 1
-                        self.quarantined_events.append({
-                            "event_id": event.get("event_id"),
-                            "reason": "invalid_schema",
-                            "captured_at": int(time.time() * 1000),
-                            "event": event,
-                        })
-                        del self.quarantined_events[:-100]
-                        status = "QUARANTINE"
-                    activities.append((str(event.get("event_id", "event")), status))
-
-            self.record_activities(activities)
-            self.persist()
+                if not self.pending_events:
+                    pass
+                else:
+                    retained: list[dict[str, Any]] = []
+                    for event in self.pending_events:
+                        valid = (
+                            isinstance(event, dict)
+                            and isinstance(event.get("event_id"), str)
+                            and bool(event.get("event_id"))
+                            and isinstance(event.get("type"), str)
+                            and isinstance(event.get("payload", {}), dict)
+                        )
+                        if valid:
+                            retained.append(event)
+                        else:
+                            self.quarantined_count += 1
+                            self.quarantined_events.append({
+                                "event_id": event.get("event_id") if isinstance(event, dict) else None,
+                                "reason": "invalid_schema",
+                                "captured_at": int(time.time() * 1000),
+                                "event": event,
+                            })
+                            activities.append((str(event.get("event_id", "event")) if isinstance(event, dict) else "event", "QUARANTINE"))
+                    if activities:
+                        self.pending_events = retained
+                        self.queue_count = len(retained)
+                        self.quarantined_events = self.quarantined_events[-100:]
+            if activities:
+                self.record_activities(activities)
+                self.persist()
+            # No replay runner: retain valid jobs without busy-looping or
+            # manufacturing a passing regression.
+            time.sleep(0.5)
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
         with self._lock:
@@ -288,21 +289,22 @@ STATE = TrainingState()
 def section(name: str) -> dict[str, Any]:
     if name == "overview":
         return STATE.envelope({
-            "performance_gain": 0.184,
-            "learning_factor": 0.82,
-            "performance_baseline": 0.0,
+            "performance_gain": None,
+            "learning_factor": None,
+            "performance_baseline": None,
             "quality": {
-                "maneuver_accuracy": 0.968,
-                "voice_timing": 0.941,
-                "gps_stability": 0.916,
-                "fallback_rate": 0.024,
+                "maneuver_accuracy": None,
+                "voice_timing": None,
+                "gps_stability": None,
+                "fallback_rate": None,
             },
+            "verification_status": "blocked_no_replay_runner",
             "pipeline": {
-                "ingest": 1248,
-                "quality_checked": 934,
-                "replay_ready": 712,
-                "shadow": 14,
-                "canary": 0,
+                "ingest": STATE.total_events,
+                "quality_checked": None,
+                "replay_ready": STATE.queue_count,
+                "shadow": None,
+                "canary": None,
             },
         })
     if name == "knowledge":
@@ -372,10 +374,13 @@ def section(name: str) -> dict[str, Any]:
                 "recent": entries[-20:],
                 "processing": {
                     "worker_running": STATE.worker_running,
+                    "verification_status": "blocked_no_replay_runner",
                     "queue": STATE.queue_count,
                     "normalized": STATE.normalized_count,
-                    "replay": STATE.replay_count,
-                    "regression_passed": STATE.regression_passed,
+                    "replay": None,
+                    "regression_passed": None,
+                    "historical_unverified_replay_count": STATE.replay_count,
+                    "historical_unverified_regression_passed": STATE.regression_passed,
                     "regression_failed": STATE.regression_failed,
                     "quarantined": STATE.quarantined_count,
                     "recent_quarantine": STATE.quarantined_events[-20:],
