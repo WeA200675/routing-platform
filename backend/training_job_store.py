@@ -167,20 +167,6 @@ class TrainingJobStore:
         # Persisting a passing/failed replay will be enabled only after an
         # independently checked execution artifact and trusted worker exist.
         raise InvalidTransitionError("trusted replay attestation not configured")
-        if result.get("verified") is not True or result.get("passed") is not passed:
-            raise ValueError("verified result must match decision")
-        digest = hashlib.sha256(evidence).hexdigest()
-        now = int(time.time())
-        with self._connect() as db:
-            db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT state,lease_token,lease_until FROM jobs WHERE event_id=?", (event_id,)).fetchone()
-            if not row or row["state"] != "replaying" or row["lease_token"] != lease_token or row["lease_until"] < now:
-                raise InvalidTransitionError("missing, stale or expired replay lease")
-            db.execute("""UPDATE jobs SET state=?,evidence_sha256=?,result_json=?,
-                lease_token=NULL,lease_until=NULL,updated_at=? WHERE event_id=?""",
-                ("passed" if passed else "failed", digest,
-                 json.dumps(result, sort_keys=True, allow_nan=False), now, event_id))
-            db.execute("COMMIT")
 
     def block(self, event_id: str, lease_token: str, reason: str = "no_replay_runner") -> None:
         if not reason:
