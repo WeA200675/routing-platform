@@ -206,9 +206,11 @@ class TrainingJobStore:
     def requeue_blocked(self, event_id: str) -> bool:
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            changed = db.execute("""UPDATE jobs SET state='queued',attempts=0,last_error=NULL,updated_at=?
+            changed = db.execute("""UPDATE jobs SET state='queued',
+                attempts=CASE WHEN attempts >= ? THEN 0 ELSE attempts END,
+                last_error=NULL,updated_at=?
                 WHERE event_id=? AND state='blocked_no_runner'""",
-                (int(time.time()), event_id)).rowcount
+                (self.max_attempts, int(time.time()), event_id)).rowcount
             db.execute("COMMIT")
             return changed == 1
 
