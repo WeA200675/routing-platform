@@ -38,6 +38,7 @@ jobs:
           python -m py_compile backend/training_api.py backend/training_job_store.py
           python -m unittest -v \
             tools.test_training_job_store \
+            tools.test_training_durable_http \
             tools.test_replay_fail_closed \
             tools.test_training_state_persistence \
             tools.test_provider_diagnostics \
