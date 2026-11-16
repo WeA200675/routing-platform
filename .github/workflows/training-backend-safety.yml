@@ -6,6 +6,7 @@ on:
       - 'backend/training_api.py'
       - 'backend/training_job_store.py'
       - 'backend/trace_regression.py'
+      - 'backend/valhalla_replay.py'
       - 'tools/test_training*.py'
       - 'tools/test_replay_fail_closed.py'
       - '.github/workflows/training-backend-safety.yml'
@@ -36,11 +37,12 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
           TRAINING_STATE_PATH: ${{ runner.temp }}/routing-training-api-state.json
         run: |
-          python -m py_compile backend/training_api.py backend/training_job_store.py backend/trace_regression.py
+          python -m py_compile backend/training_api.py backend/training_job_store.py backend/trace_regression.py backend/valhalla_replay.py
           python -m unittest -v \
             tools.test_training_job_store \
             tools.test_training_durable_http \
             tools.test_trace_regression \
+            tools.test_valhalla_replay \
             tools.test_replay_fail_closed \
             tools.test_training_state_persistence \
             tools.test_provider_diagnostics \
