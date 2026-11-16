@@ -72,6 +72,31 @@ class TrainingJobStoreTest(unittest.TestCase):
         self.assertTrue(self.store.requeue_blocked("one"))
         self.assertEqual(self.store.claim()["attempt"], 2)
 
+    def test_atomic_batch_rolls_back_on_conflict(self):
+        self.store.submit(self.event("one"))
+        conflicting = self.event("one")
+        conflicting["payload"]["reason"] = "different"
+        with self.assertRaises(ValueError):
+            self.store.submit_batch([self.event("two"), conflicting])
+        self.assertIsNone(self.store.status("two"))
+        self.assertEqual(self.store.counts(), {"queued": 1})
+
+    def test_atomic_batch_rolls_back_on_capacity(self):
+        with self.assertRaises(QueueFullError):
+            self.store.submit_batch([self.event("one"), self.event("two"), self.event("three")])
+        self.assertEqual(self.store.counts(), {})
+
+    def test_atomic_batch_deduplicates_within_batch(self):
+        result = self.store.submit_batch([self.event("one"), self.event("one")])
+        self.assertEqual(result["accepted"], 1)
+        self.assertEqual(result["duplicates"], 1)
+        self.assertEqual(self.store.counts(), {"queued": 1})
+
+    def test_batch_recovery_after_restart(self):
+        self.store.submit_batch([self.event("one"), self.event("two")])
+        reopened = TrainingJobStore(self.path)
+        self.assertEqual(reopened.counts(), {"queued": 2})
+
     def test_expired_lease_reclaimed(self):
         self.store.submit(self.event("one"))
         first = self.store.claim()
