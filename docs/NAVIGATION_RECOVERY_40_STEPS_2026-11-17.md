@@ -18,9 +18,9 @@ Branch: `fix/verified-training-pipeline`. No merge to `main`, public deployment 
 11. [x] Add Android HTTPS-only status client and offline fallback.
 12. [x] Add bounded HTTP gateway regression tests.
 13. [x] Include Journey files in CI push path filters and test command.
-14. [ ] Wire client into application lifecycle via non-blocking background dispatcher.
+14. [ ] Wire client into application lifecycle via non-blocking background dispatcher (standalone monitor committed; lifecycle wiring outstanding).
 15. [ ] Add user-configurable HTTPS backend endpoint and certificate validation.
-16. [ ] Add exponential backoff, bounded queue, jitter and connectivity state.
+16. [ ] Add exponential backoff, bounded queue, jitter and connectivity state (basic bounded backoff and single-flight monitor committed; jitter and queue outstanding).
 
 ## P2 – Valhalla, POI and safety evidence (17–24)
 17. [x] Compare full-route duration, not geographic detour distance.
