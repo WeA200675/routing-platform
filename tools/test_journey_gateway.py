@@ -95,6 +95,46 @@ class JourneyGatewayTest(unittest.TestCase):
         self.assertEqual(status, 401)
         self.assertEqual(data["error"], "unauthorized")
 
+    def test_proxy_rejects_invalid_coordinates(self):
+        class Provider:
+            def route(self, **kwargs):
+                raise AssertionError("invalid coordinates reached router")
+        self.server.shutdown()
+        self.server.server_close()
+        self.worker.join(timeout=3)
+        self.server = JourneyGateway(("127.0.0.1", 0),
+                                     route_provider=Provider(), route_token="x" * 40)
+        self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.worker.start()
+        body = json.dumps({
+            "origin": {"latitude": 999, "longitude": 11},
+            "destination": {"latitude": 49, "longitude": 12}
+        })
+        status, data, _ = self.request("POST", "/api/navigation/v1/route", body,
+                                       {"Authorization": "Bearer " + "x" * 40})
+        self.assertEqual(status, 400)
+        self.assertEqual(data["error"], "invalid_route_request")
+
+    def test_proxy_failure_is_recoverable(self):
+        class Provider:
+            def route(self, **kwargs):
+                raise TimeoutError("Valhalla timed out")
+        self.server.shutdown()
+        self.server.server_close()
+        self.worker.join(timeout=3)
+        self.server = JourneyGateway(("127.0.0.1", 0),
+                                     route_provider=Provider(), route_token="x" * 40)
+        self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.worker.start()
+        body = json.dumps({
+            "origin": {"latitude": 48, "longitude": 11},
+            "destination": {"latitude": 49, "longitude": 12}
+        })
+        status, data, _ = self.request("POST", "/api/navigation/v1/route", body,
+                                       {"Authorization": "Bearer " + "x" * 40})
+        self.assertEqual(status, 503)
+        self.assertTrue(data["retryable"])
+
     def test_non_loopback_binding_refused(self):
         with self.assertRaises(ValueError):
             JourneyGateway(("0.0.0.0", 0))
