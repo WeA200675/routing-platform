@@ -1,6 +1,7 @@
 package org.routingplatform.app.navigation
 
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -50,9 +51,15 @@ internal class JourneyBackendClient(
                     JourneyBackendStatus.offline("invalid_content_type")
                 } else {
                     val body = connection.inputStream.use { stream ->
-                        val bytes = stream.readNBytes(8193)
-                        if (bytes.size > 8192) return JourneyBackendStatus.offline("oversized_response")
-                        bytes.toString(Charsets.UTF_8)
+                        val out = ByteArrayOutputStream()
+                        val buffer = ByteArray(2048)
+                        while (true) {
+                            val n = stream.read(buffer)
+                            if (n < 0) break
+                            if (out.size() + n > 8192) return JourneyBackendStatus.offline("oversized_response")
+                            out.write(buffer, 0, n)
+                        }
+                        out.toString("UTF-8")
                     }
                     val json = JSONObject(body)
                     if (json.optString("schema_version") != "journey-backend-v1") {
