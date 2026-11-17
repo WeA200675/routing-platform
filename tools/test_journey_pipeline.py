@@ -26,7 +26,7 @@ class Router:
         self.calls += 1
         if self.fail:
             raise TimeoutError("Valhalla unavailable")
-        return {"engineName": "valhalla", "durationS": self.via if via else 1000}
+        return {"engineName": "valhalla", "mapGraphVersion": "tiles-2026", "durationS": self.via if via else 1000}
 
 
 def poi(**changes):
