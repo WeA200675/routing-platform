@@ -3,7 +3,7 @@ import json
 import unittest
 from email.message import Message
 
-from backend.journey_route_client import LoopbackRouteProvider, LocalRouteUnavailable
+from backend.journey_route_client import LoopbackRouteProvider, LocalRouteUnavailable, MAX_ROUTE_RESPONSE_BYTES
 
 
 class Response:
@@ -64,9 +64,17 @@ class JourneyRouteClientTest(unittest.TestCase):
             client.route(origin=(48, 11), destination=(49, 12), via=[], family="fastest")
 
     def test_oversized_response_refused(self):
-        client = LoopbackRouteProvider(opener=Opener(Response(b"x" * (1024 * 1024 + 1))))
+        client = LoopbackRouteProvider(opener=Opener(Response(b"x" * (MAX_ROUTE_RESPONSE_BYTES + 1))))
         with self.assertRaises(LocalRouteUnavailable):
             client.route(origin=(48, 11), destination=(49, 12), via=[], family="fastest")
+
+    def test_large_valid_route_accepted(self):
+        payload = json.dumps({"engineName": "valhalla",
+                              "shape": "a" * (1024 * 1024 + 1)}).encode()
+        client = LoopbackRouteProvider(opener=Opener(Response(payload)))
+        result = client.route(origin=(48, 11), destination=(49, 12),
+                              via=[], family="fastest")
+        self.assertGreater(len(result["shape"]), 1024 * 1024)
 
     def test_invalid_timeout(self):
         with self.assertRaises(ValueError):
