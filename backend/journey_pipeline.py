@@ -43,6 +43,11 @@ def evaluate_journey(context: Context, journey: Journey, poi_source,
     """
     if not isinstance(candidate_limit, int) or isinstance(candidate_limit, bool) or not 1 <= candidate_limit <= 16:
         return {"reason": "invalid_candidate_limit", "options": []}
+    # Never hit POI storage or Valhalla when the policy is not due.
+    # Urgent user requests bypass the cooldown, but never evidence checks.
+    preflight = recommend(context, [])
+    if preflight["reason"] in ("invalid_context", "cooldown", "not_due"):
+        return preflight
     try:
         candidates = list(islice(poi_source.find_candidates(journey, limit=candidate_limit), candidate_limit + 1))
     except Exception:
