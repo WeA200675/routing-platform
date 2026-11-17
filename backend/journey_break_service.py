@@ -116,12 +116,12 @@ def recommend(context: Context, stops: list[Stop]) -> dict:
                     and stop.id not in seen and stop.source and stop.source_version
                     and stop.wc_evidence == "verified"):
                 continue
-            seen.add(stop.id)
             if before_only and not stop.before_congestion:
                 continue
             detour = stop.route.detour_seconds()
             if detour is None or detour > MAX_DETOUR_SECONDS:
                 continue
+            seen.add(stop.id)
             options.append({"id": stop.id, "name": stop.name,
                             "detour_seconds": detour, "wc_evidence": stop.wc_evidence})
         return sorted(options, key=lambda x: (x["detour_seconds"], x["id"]))[:3]
