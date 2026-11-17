@@ -92,6 +92,27 @@ class JourneyBreakServiceTest(unittest.TestCase):
     def test_invalid_remaining_distance(self):
         self.assertEqual(recommend(context(remaining_meters=float("nan")), [stop()])["reason"], "invalid_context")
 
+    def test_boolean_cooldown_rejected(self):
+        self.assertEqual(
+            recommend(context(seconds_since_last_offer=True), [stop()])["reason"],
+            "invalid_context")
+
+    def test_boolean_traffic_times_never_trigger(self):
+        for field in ("observed_at_epoch_seconds", "starts_in_seconds", "delay_seconds"):
+            data = dict(observed_at_epoch_seconds=9999, starts_in_seconds=120,
+                        delay_seconds=300, route_matched=True, source_verified=True)
+            data[field] = True
+            self.assertEqual(
+                recommend(context(driving_seconds=10, traffic=TrafficEvidence(**data)),
+                          [stop()])["reason"], "not_due", field)
+
+    def test_invalid_urgent_flag_rejected(self):
+        self.assertEqual(
+            recommend(context(urgent_wc=1), [stop()])["reason"], "invalid_context")
+
+    def test_invalid_stops_container_rejected(self):
+        self.assertEqual(recommend(context(), None)["reason"], "invalid_context")
+
     def test_three_options_maximum(self):
         stops = [stop(id=f"wc-{i}") for i in range(10)]
         self.assertEqual(len(recommend(context(), stops)["options"]), 3)
