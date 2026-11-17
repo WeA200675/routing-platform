@@ -131,6 +131,7 @@ class TrainingJobStore:
             prepared.append((event_id, serialized, hashlib.sha256(serialized.encode("utf-8")).hexdigest()))
         accepted = 0
         duplicates = 0
+        receipts = []
         now = int(time.time())
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -141,15 +142,17 @@ class TrainingJobStore:
                     if existing["payload_sha256"] != digest:
                         raise ValueError("event_id reused with different content")
                     duplicates += 1
+                    receipts.append({"event_id": event_id, "sha256": digest, "status": "duplicate"})
                     continue
                 if count >= self.max_pending:
                     raise QueueFullError("pending job capacity reached; retry later")
                 db.execute("""INSERT INTO jobs(event_id,payload,payload_sha256,state,created_at,updated_at)
                     VALUES(?,?,?,'queued',?,?)""", (event_id, serialized, digest, now, now))
                 count += 1
+                receipts.append({"event_id": event_id, "sha256": digest, "status": "accepted"})
                 accepted += 1
             db.execute("COMMIT")
-        return {"accepted": accepted, "duplicates": duplicates, "queue_count": count}
+        return {"accepted": accepted, "duplicates": duplicates, "queue_count": count, "receipts": receipts}
 
     def claim(self) -> dict[str, Any] | None:
         now = int(time.time())
