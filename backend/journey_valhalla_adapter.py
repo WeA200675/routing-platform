@@ -51,7 +51,8 @@ def compare_via_stop(route_provider, journey: Journey, stop: tuple[float, float]
         raise RouteComparisonUnavailable("map version not proven identical")
     if journey.via:
         raise RouteComparisonUnavailable("candidate insertion order not yet verified for existing waypoints")
-    if not (legal_access_and_return and same_direction and exit_ahead):
+    if not (legal_access_and_return is True and same_direction is True
+            and exit_ahead is True):
         raise RouteComparisonUnavailable("POI access not verified")
     def invoke(via):
         return route_provider.route(origin=journey.origin, destination=journey.destination,
