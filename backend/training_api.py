@@ -293,7 +293,25 @@ class TrainingState:
 STATE = TrainingState()
 # Explicit opt-in only. Existing deployments keep their original storage until
 # operators have tested migration and rollback. Never silently mix stores.
-JOB_STORE = TrainingJobStore(os.environ['TRAINING_JOB_DB_PATH']) if os.environ.get('TRAINING_JOB_DB_PATH') else None
+def create_job_store():
+    """Explicit storage selection. Never silently fall back on DB failures."""
+    backend = os.environ.get("TRAINING_JOB_BACKEND", "sqlite").strip().lower()
+    if backend == "sqlite":
+        path = os.environ.get("TRAINING_JOB_DB_PATH")
+        return TrainingJobStore(path) if path else None
+    if backend == "postgres":
+        dsn = os.environ.get("TRAINING_POSTGRES_DSN")
+        if not dsn:
+            raise RuntimeError("TRAINING_POSTGRES_DSN required for postgres backend")
+        try:
+            from backend.postgres_training_job_store import PostgresTrainingJobStore
+        except ModuleNotFoundError:
+            from postgres_training_job_store import PostgresTrainingJobStore
+        return PostgresTrainingJobStore(dsn)
+    raise ValueError("TRAINING_JOB_BACKEND must be sqlite or postgres")
+
+
+JOB_STORE = create_job_store()
 
 
 def section(name: str) -> dict[str, Any]:
