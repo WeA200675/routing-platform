@@ -135,9 +135,9 @@ class MainActivity :
                             when (val state = trainingConnectionManager.currentState()) {
                                 is org.routingplatform.app.training.TrainingConnectionState.Connected -> {
                                     org.routingplatform.app.navigation.DiagnosticsBackgroundSync.schedule(
-                                        applicationContext, state.endpoint.dashboardUrl,
+                                        applicationContext, state.endpoint.apiUrl,
                                     )
-                                    state.endpoint.dashboardUrl
+                                    state.endpoint.apiUrl
                                 }
                                 else -> null
                             }
