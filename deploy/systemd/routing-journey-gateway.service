@@ -1,0 +1,29 @@
+[Unit]
+Description=Routing Platform Journey Gateway (loopback only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=routing
+Group=routing
+WorkingDirectory=/opt/routing-platform
+EnvironmentFile=/etc/routing-platform/journey.env
+ExecStart=/usr/bin/python3 -m backend.journey_gateway --listen 127.0.0.1 --port 8791
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=120
+StartLimitBurst=10
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/routing-platform
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+LockPersonality=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
