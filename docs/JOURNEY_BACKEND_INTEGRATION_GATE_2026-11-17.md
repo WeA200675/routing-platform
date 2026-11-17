@@ -7,8 +7,16 @@ Status: **not production-ready**. All journey code is advisory-only; no route mu
 - `backend/journey_valhalla_adapter.py`: original-route vs. via-stop full-route comparison, `durationS` from the repository's real exporter contract.
 - `backend/journey_pipeline.py`: verified POI source → Valhalla adapter → policy.
 - `backend/journey_offline_poi.py`: bounded offline index, exact map version and pinned SHA-256; raw OSM POIs cannot be promoted automatically.
+- `backend/journey_route_client.py`: loopback-only, bounded HTTP client for the existing development route service. Its default port 8787 can conflict with the separate training API; run on an explicitly assigned loopback port when both services share a host. Never bind it publicly.
 - `backend/journey_api_contract.py`: strict schema validation (pure function, **not yet an HTTP endpoint**).
 - `tools/test_journey_*.py`: isolated regression tests, wired into `training-backend-safety.yml`.
+
+## Five-step follow-up (implemented in branch)
+1. Base route attestation is checked before detour routing, avoiding wasted work when the graph is unverified.
+2. A local HTTP adapter now speaks the existing `/v1/navigation/route` contract with no redirects or arbitrary remote hosts.
+3. Journey pipeline preflight skips IO when not due or in cooldown.
+4. Regression tests for these paths are added to the backend CI workflow.
+5. Release gates and the port conflict are documented here. No live routing or audited POI corpus has been verified yet.
 
 ## Mandatory blockers before real recommendations
 1. **Map-graph attestation**: route exporter currently provides `engineName`, `engineVersion` and `durationS`, but does **not** provide an independently verified `mapGraphVersion`. Adapter now requires the latter in **both** routing results. Until implemented, real routes are deliberately rejected. Do not fabricate this field from a client request, POI index, or constant.
@@ -25,7 +33,8 @@ PYTHONPATH=. python -m unittest -v \
   tools.test_journey_valhalla_adapter \
   tools.test_journey_api_contract \
   tools.test_journey_pipeline \
-  tools.test_journey_offline_poi
+  tools.test_journey_offline_poi \\
+  tools.test_journey_route_client
 ```
 
 ## Fallback
