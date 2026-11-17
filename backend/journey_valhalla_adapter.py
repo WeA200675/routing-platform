@@ -51,19 +51,18 @@ def compare_via_stop(route_provider, journey: Journey, stop: tuple[float, float]
         raise RouteComparisonUnavailable("map version not proven identical")
     if journey.via:
         raise RouteComparisonUnavailable("candidate insertion order not yet verified for existing waypoints")
-    if len(journey.via) >= 16:
-        raise RouteComparisonUnavailable("route waypoint limit reached")
     if not (legal_access_and_return and same_direction and exit_ahead):
         raise RouteComparisonUnavailable("POI access not verified")
     def invoke(via):
         return route_provider.route(origin=journey.origin, destination=journey.destination,
                                     via=list(via), family=journey.family)
     direct = invoke(journey.via)
-    # Candidate must be inserted in the correct order by the upstream route
-    # matcher. Appending is valid only when it verified the last segment.
+    direct_seconds = _seconds(direct, journey.map_version)
+    # Validate the direct route before invoking the potentially expensive
+    # detour. The upstream matcher must attest route order independently.
     detour = invoke(journey.via + (stop,))
     return RouteEvidence(
-        direct_seconds=_seconds(direct, journey.map_version),
+        direct_seconds=direct_seconds,
         via_seconds=_seconds(detour, journey.map_version),
         map_version=journey.map_version, via_map_version=verified_map_version,
         profile=journey.family, via_profile=journey.family,
