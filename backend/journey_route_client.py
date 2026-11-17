@@ -12,6 +12,9 @@ import urllib.request
 from urllib.parse import urlsplit
 
 
+MAX_ROUTE_RESPONSE_BYTES = 16 * 1024 * 1024
+
+
 class LocalRouteUnavailable(RuntimeError):
     pass
 
@@ -55,8 +58,8 @@ class LoopbackRouteProvider:
                     raise LocalRouteUnavailable("route service returned an error")
                 if response.headers.get_content_type() != "application/json":
                     raise LocalRouteUnavailable("unexpected response type")
-                body = response.read(1024 * 1024 + 1)
-                if len(body) > 1024 * 1024:
+                body = response.read(MAX_ROUTE_RESPONSE_BYTES + 1)
+                if len(body) > MAX_ROUTE_RESPONSE_BYTES:
                     raise LocalRouteUnavailable("route response exceeds limit")
                 data = json.loads(body.decode("utf-8"))
                 if not isinstance(data, dict):
