@@ -26,13 +26,22 @@ class NavigationDiagnosticsUploadQueue(context: Context) {
     init { migrateLegacy() }
 
     @Synchronized
-    fun enqueue(snapshot: JSONObject) {
+    fun enqueue(snapshot: JSONObject) = enqueueAll(listOf(snapshot))
+
+    /** Atomically persist every chunk, or none. Never drop the source on capacity failure. */
+    @Synchronized
+    fun enqueueAll(snapshots: List<JSONObject>) {
+        if (snapshots.isEmpty()) return
         val db = dbHelper.writableDatabase
         db.beginTransaction()
         try {
-            check(count(db) < MAX_PACKAGES) { "Diagnostics outbox full; original events retained" }
-            val values = ContentValues().apply { put("body", snapshot.toString()) }
-            check(db.insertOrThrow("snapshots", null, values) > 0)
+            check(snapshots.size <= MAX_PACKAGES - count(db)) {
+                "Diagnostics outbox full; original events retained"
+            }
+            for (snapshot in snapshots) {
+                val values = ContentValues().apply { put("body", snapshot.toString()) }
+                check(db.insertOrThrow("snapshots", null, values) > 0)
+            }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
