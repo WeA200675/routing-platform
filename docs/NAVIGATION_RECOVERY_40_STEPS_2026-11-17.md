@@ -5,7 +5,7 @@ Branch: `fix/verified-training-pipeline`. No merge to `main`, public deployment 
 ## P0 – recover a reliable Android navigation baseline (1–8)
 1. [ ] Record HEAD, green/red CI matrix and reproducible build provenance.
 2. [ ] Freeze the last known usable APK and SHA-256 as rollback.
-3. [ ] Reproduce clean Android debug build on supported toolchain.
+3. [ ] Reproduce clean Android debug build on supported toolchain (Android CI recovery branch trigger enabled; awaiting result).
 4. [ ] Resolve all Kotlin/JVM unit-test failures; attach exact logs.
 5. [ ] Restore offline map import and persisted map selection.
 6. [ ] Verify Valhalla route creation with Wi-Fi disconnected.
@@ -49,7 +49,7 @@ Branch: `fix/verified-training-pipeline`. No merge to `main`, public deployment 
 36. [ ] Validate route recovery after WLAN/mobile handover and GPS loss.
 37. [ ] Verify speed warnings and lane guidance against offline data.
 38. [ ] Confirm route guidance works without cloud, training or Journey service.
-39. [ ] Build signed or explicitly debug-labelled APK with SHA-256 and rollback.
+39. [ ] Build signed or explicitly debug-labelled APK with SHA-256 and rollback (CI debug APK artifact enabled on recovery branch; await successful run and compute SHA-256).
 40. [ ] Execute recorded road-test acceptance, triage blockers, then release gate.
 
 ## Evidence and fallback
@@ -59,3 +59,8 @@ Branch: `fix/verified-training-pipeline`. No merge to `main`, public deployment 
 - Local route service default 8787 conflicts with a training API commonly using the same port; assign separate ports explicitly.
 - No speculative POI recommendation, no auto-reroute, no network requirement for core navigation.
 - Next priority: P0 device/build recovery (steps 1–8) while integrating step 14 behind a disabled feature flag. Do not spend the next sprint polishing optional Journey UI while the base app is broken.
+
+## Deadline recovery run
+- Recovery branch now triggers `.github/workflows/android-ci.yml` on push. Its `verify` job runs Android unit tests, lint, release Kotlin compilation and `assembleDebug`; on success it uploads `routing-platform-debug-apk` for 14 days.
+- Retrieve the APK from GitHub Actions run artifacts; do not claim availability before the job is successful and the artifact exists.
+- Backend Journey service remains optional and deliberately degraded. The offline navigation smoke test is mandatory before driving.
