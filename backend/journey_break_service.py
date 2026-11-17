@@ -63,12 +63,12 @@ class TrafficEvidence:
     def actionable(self, now: int) -> bool:
         return (self.route_matched and self.source_verified
                 and isinstance(now, int) and not isinstance(now, bool)
-                and isinstance(self.observed_at_epoch_seconds, int)
+                and type(self.observed_at_epoch_seconds) is int
                 and 0 <= self.observed_at_epoch_seconds <= now
                 and now - self.observed_at_epoch_seconds <= MAX_TRAFFIC_AGE_SECONDS
-                and isinstance(self.starts_in_seconds, int)
+                and type(self.starts_in_seconds) is int
                 and 0 <= self.starts_in_seconds <= 1800
-                and isinstance(self.delay_seconds, int) and self.delay_seconds > 0)
+                and type(self.delay_seconds) is int and self.delay_seconds > 0)
 
 
 @dataclass(frozen=True)
@@ -94,8 +94,10 @@ def recommend(context: Context, stops: list[Stop]) -> dict:
             or isinstance(context.now_epoch_seconds, bool)
             or context.now_epoch_seconds < 0
             or (context.seconds_since_last_offer is not None and
-                (not isinstance(context.seconds_since_last_offer, int)
+                (type(context.seconds_since_last_offer) is not int
                  or context.seconds_since_last_offer < 0))
+            or not isinstance(context.urgent_wc, bool)
+            or not isinstance(stops, (list, tuple))
             or len(stops) > 500):
         return {"reason": "invalid_context", "options": []}
     if (not context.urgent_wc and context.seconds_since_last_offer is not None
