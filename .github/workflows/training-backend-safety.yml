@@ -18,7 +18,7 @@ on:
       - 'tools/test_valhalla_replay.py'
       - '.github/workflows/training-backend-safety.yml'
   push:
-    branches: [main]
+    branches: [main, fix/verified-training-pipeline]
     paths:
       - 'backend/training_api.py'
       - 'backend/training_job_store.py'
