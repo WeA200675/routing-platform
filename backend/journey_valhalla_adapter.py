@@ -44,6 +44,8 @@ def compare_via_stop(route_provider, journey: Journey, stop: tuple[float, float]
     if (not journey.map_version or not verified_map_version
             or journey.map_version != verified_map_version):
         raise RouteComparisonUnavailable("map version not proven identical")
+    if journey.via:
+        raise RouteComparisonUnavailable("candidate insertion order not yet verified for existing waypoints")
     if len(journey.via) >= 16:
         raise RouteComparisonUnavailable("route waypoint limit reached")
     if not (legal_access_and_return and same_direction and exit_ahead):
