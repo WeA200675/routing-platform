@@ -127,6 +127,8 @@ def main():
     parser.add_argument("--port", type=int, default=8791)
     args = parser.parse_args()
     route_token = os.environ.get("JOURNEY_ROUTE_BEARER_TOKEN", "")
+    if route_token and len(route_token) < 32:
+        raise SystemExit("JOURNEY_ROUTE_BEARER_TOKEN must contain at least 32 characters")
     route_provider = None
     if len(route_token) >= 32:
         from backend.journey_route_client import LoopbackRouteProvider
