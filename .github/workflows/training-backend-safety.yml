@@ -73,6 +73,7 @@ jobs:
             tools.test_training_durable_http \
             tools.test_trace_regression \
             tools.test_engineering_triage \
+            tools.test_journey_break_service \
             tools.test_valhalla_replay \
             tools.test_replay_fail_closed \
             tools.test_training_state_persistence \
