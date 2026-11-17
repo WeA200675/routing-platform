@@ -18,6 +18,7 @@ from ipaddress import ip_address
 SCHEMA = "journey-backend-v1"
 MAX_BODY = 64 * 1024
 MAX_ACTIVE_ROUTES = 1
+MAX_ROUTE_RESPONSE_BYTES = 16 * 1024 * 1024
 
 
 def status_payload(*, navigation_routing_enabled=False):
@@ -94,7 +95,7 @@ class JourneyHandler(BaseHTTPRequestHandler):
             if not isinstance(route, dict) or route.get("engineName") != "valhalla":
                 return self._json(502, {"error": "invalid_route_identity"})
             raw = json.dumps(route, allow_nan=False).encode("utf-8")
-            if len(raw) > 1024 * 1024:
+            if len(raw) > MAX_ROUTE_RESPONSE_BYTES:
                 return self._json(502, {"error": "route_too_large"})
             return self._json(200, route)
         except Exception:
