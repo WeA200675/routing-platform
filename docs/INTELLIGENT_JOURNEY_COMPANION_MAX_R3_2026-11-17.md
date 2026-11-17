@@ -55,3 +55,35 @@ Status: **Zielarchitektur / Umsetzungsauftrag, keine Produktfreigabe**. R1-Navig
 
 ## Autonome Entwicklungsregeln
 Arbeiten in kleinen testbaren Commits ausschließlich auf Entwicklungsbranch; unabhängige Tests vor Abschluss. R1-M1-Navigationsblocker und R1-M3-Datenintegrität haben Vorrang. Keine produktiven Deployments, main-Merges oder APK-Veröffentlichungen ohne explizite Freigabe. Bei fehlender Datenquelle oder Gerät ehrlich blockiert melden und unabhängige Arbeit fortsetzen.
+
+## R3.1 – Digitaler Reisezwilling, WC-Sofortmodus und nachweisbare Optimierung
+**Mehrwert statt Feature-Aufblähung:** Jede neue Funktion muss eine messbare Qualitätsverbesserung liefern und darf die Basisnavigation nicht destabilisieren.
+
+### Digitaler Reisezwilling (lokal, begrenzt)
+- Route in Abschnitte mit Zeit, Länge, Fahrtrichtung, Ausfahrten, POI-Evidenz und Verkehrslage zerlegen.
+- Für die nächsten relevanten Pausenfenster Szenarien normaler Verkehr, Stau, Stauauflösung und verpasste Ausfahrt berechnen; kein dauerhaftes LLM-Sampling und keine erfundenen Wahrscheinlichkeiten.
+- „Letzte gute Gelegenheit“: explizit warnen, wenn nach dem letzten verifizierten WC ein längerer Abschnitt ohne belegte Alternativen folgt. Schwelle konfigurierbar, keine Panikmeldungen.
+- Bei unbekannter POI-Abdeckung keine Behauptung „kein WC auf den nächsten X km“; stattdessen „keine weiteren WCs in den vorhandenen Daten bestätigt“.
+- Alternative Routen dürfen die normale Navigation nicht unbemerkt verändern.
+
+### WC-Sofortmodus (bewusste Nutzeranforderung)
+- Große, schnell erreichbare Aktion „WC jetzt“ und optional verlässlicher Sprachbefehl.
+- Übersteuert die regulären >90-Minuten- und >60-km-Auslöser, nicht jedoch legale Zufahrt, bestätigten WC-Status und die Nutzerentscheidung.
+- Die automatische +600-Sekunden-Grenze bleibt Standard. Bei dringender expliziter Suche darf die UI zusätzlich längere Umwege **klar gekennzeichnet** anbieten, aber nur nach gesonderter Bestätigung; niemals stillschweigend die Grenze verändern.
+- Kein verifizierter WC-Treffer: verfügbare Alternativen klar mit „WC unbekannt“ kennzeichnen und ausdrücklich keine falsche Zusicherung machen.
+
+### Stau-Pause vs. Weiterfahren
+- Drei Varianten vergleichen: unverändert weiterfahren, bestätigter Halt vor Stau, alternative Route (falls Routingdaten vorhanden).
+- Zusätzliche Fahrzeit, Aufenthaltszeit und prognostizierte Ankunftszeit getrennt ausweisen; keine angebliche „Zeitersparnis“ allein durch Pausieren.
+- Für Verkehrsdaten Provenienz, Alter, Fahrtrichtung, Route-Matching und Prognoseunsicherheit berücksichtigen.
+- Keine Stau-optimierte Empfehlung, wenn das Risiko einer verpassten Ausfahrt oder einer fehlerhaften Verkehrslage zu hoch ist.
+
+### Priorisierung und Beweisbarkeit
+- Harte Sicherheitsschranken vor Ranking und Personalisierung.
+- Für jeden Vorschlag lokal speichern: Policy-Version, Route-/Map-/POI-Version, Triggergrund, geprüfte Kandidatenanzahl, Ablehnungsgründe, Umwegsekunden, WC-Evidenz, Nutzerentscheidung – ohne unnötige Rohkoordinaten.
+- Vor Aktivierung Replay-Testfälle für Stau, lange WC-Lücke, Sofortmodus, offline, Prozessneustart, falschseitige Raststätte, 600/601 Sekunden, unbekannte Evidenz und App-Absturz.
+- Erfolgsmaße: falsche WC-Zusagen = 0, illegale Zufahrten = 0, Vorschläge >600 Sekunden ohne explizite Ausnahme = 0, automatisch geänderte Zwischenziele = 0, keine Regression bei Sprachmanövern, CPU-/Akku-Budget.
+- Verbesserungen nur aus realen Daten oder reproduzierbaren Tests ableiten; LLM darf weder Straßen- noch WC-Evidenz halluzinieren.
+
+### Umsetzungsgrenze
+Dieser Abschnitt ist eine **Spezifikation**. Die neue Journey-Twin-/WC-Sofortmodus-Logik, Routing-Integration und Android-UI sind noch nicht implementiert oder verifiziert. Weiterhin G0–G6 in Reihenfolge und R1 vor R3.
