@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import hmac
 import json
 import os
 import signal
@@ -419,21 +420,53 @@ def section(name: str) -> dict[str, Any]:
 class Handler(BaseHTTPRequestHandler):
     server_version = "RoutingTrainingAPI/1"
 
+    def _allowed_origin(self) -> str | None:
+        origin = self.headers.get("Origin", "")
+        allowed = {item.strip() for item in
+                   os.environ.get("TRAINING_CORS_ORIGINS", "").split(",") if item.strip()}
+        return origin if origin in allowed else None
+
+    def _authorize_write(self) -> bool:
+        """Fail closed for PostgreSQL; optional token for legacy local mode."""
+        expected = os.environ.get("TRAINING_API_WRITE_TOKEN", "")
+        if not expected:
+            if os.environ.get("TRAINING_JOB_BACKEND", "sqlite").lower() == "postgres":
+                self._send(503, {"error": "write_auth_not_configured"})
+                return False
+            # Legacy behavior is restricted to loopback clients only.
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                self._send(403, {"error": "write_auth_required"})
+                return False
+            return True
+        provided = self.headers.get("Authorization", "")
+        if not hmac.compare_digest(provided, "Bearer " + expected):
+            self._send(401, {"error": "unauthorized"})
+            return False
+        return True
+
     def _send(self, status: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Accept")
+        origin = self._allowed_origin()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
     def do_OPTIONS(self) -> None:  # noqa: N802
+        origin = self._allowed_origin()
+        if not origin:
+            self._send(403, {"error": "origin_not_allowed"})
+            return
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Accept")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization")
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
@@ -467,7 +500,16 @@ class Handler(BaseHTTPRequestHandler):
         if not self.path.startswith(prefix):
             self._send(404, {"error": "not_found"})
             return
-        length = int(self.headers.get("Content-Length", "0"))
+        if not self._authorize_write():
+            return
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self._send(411, {"error": "valid_content_length_required"})
+            return
+        if length < 0:
+            self._send(400, {"error": "invalid_content_length"})
+            return
         if length > 256 * 1024:
             self._send(413, {"error": "payload_too_large"})
             return
@@ -523,10 +565,12 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError as exc:
                     self._send(400, {"error": "invalid_events", "detail": str(exc)})
                     return
-                except (OSError, sqlite3.Error):
+                except Exception:
+                    # Do not leak DSNs, credentials or driver diagnostics.
                     self._send(503, {"error": "storage_unavailable", "retryable": True})
                     return
-                self._send(202, STATE.envelope({**result, "durable": True, "storage": "sqlite", "verification_status": "blocked_no_replay_runner"}))
+                storage = os.environ.get("TRAINING_JOB_BACKEND", "sqlite").lower()
+                self._send(202, STATE.envelope({**result, "durable": True, "storage": storage, "verification_status": "blocked_no_replay_runner"}))
                 return
             accepted = 0
             with STATE._lock:
