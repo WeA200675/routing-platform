@@ -27,7 +27,10 @@ class NavigationDiagnosticsUploadWorker(
             return NavigationDiagnosticsUploadResult.Failed("Training API muss HTTPS verwenden")
         }
         return runCatching {
-            val payload = JSONObject().put("events", org.json.JSONArray().put(snapshot)).toString()
+            val events = snapshot.optJSONArray("events")
+                ?: return NavigationDiagnosticsUploadResult.Failed("Diagnostics snapshot has no events")
+            if (events.length() == 0) return NavigationDiagnosticsUploadResult.Failed("Empty diagnostics snapshot")
+            val payload = JSONObject().put("events", events).toString()
             val connection = (URL(baseUrl.trimEnd('/') + "/api/training/events")
                 .openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
@@ -43,7 +46,7 @@ class NavigationDiagnosticsUploadWorker(
             val response = if (code in 200..299) connection.inputStream.bufferedReader().use { it.readText() } else ""
             val ack = runCatching { JSONObject(response) }.getOrNull()
             if (code == 202 && ack?.optBoolean("durable", false) == true &&
-                ack.optInt("accepted", 0) + ack.optInt("duplicates", 0) == 1) {
+                ack.optInt("accepted", 0) + ack.optInt("duplicates", 0) == events.length()) {
                 queue.acknowledgeFirst()
                 NavigationDiagnosticsUploadResult.Uploaded(payload.length)
             } else {
