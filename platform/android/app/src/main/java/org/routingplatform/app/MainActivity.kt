@@ -133,8 +133,12 @@ class MainActivity :
                         ),
                         baseUrlProvider = {
                             when (val state = trainingConnectionManager.currentState()) {
-                                is org.routingplatform.app.training.TrainingConnectionState.Connected ->
+                                is org.routingplatform.app.training.TrainingConnectionState.Connected -> {
+                                    org.routingplatform.app.navigation.DiagnosticsBackgroundSync.schedule(
+                                        applicationContext, state.endpoint.dashboardUrl,
+                                    )
                                     state.endpoint.dashboardUrl
+                                }
                                 else -> null
                             }
                         },
