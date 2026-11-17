@@ -32,6 +32,7 @@ class JourneyGatewayTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(data["schema_version"], "journey-backend-v1")
         self.assertFalse(data["recommendations_enabled"])
+        self.assertFalse(data["navigation_routing_enabled"])
         self.assertEqual(cache, "no-store")
 
     def test_readiness_is_not_claimed(self):
@@ -75,6 +76,9 @@ class JourneyGatewayTest(unittest.TestCase):
                                        {"Authorization": "Bearer " + "x" * 40})
         self.assertEqual(status, 200)
         self.assertEqual(data["durationS"], 42)
+        _, status_data, _ = self.request("GET", "/api/journey/v1/status")
+        self.assertTrue(status_data["navigation_routing_enabled"])
+        self.assertFalse(status_data["recommendations_enabled"])
 
     def test_proxy_requires_authentication(self):
         class Provider:
