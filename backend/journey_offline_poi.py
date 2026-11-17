@@ -26,10 +26,11 @@ class OfflinePoiIndex:
             return []
         if type(limit) is not int or not 1 <= limit <= 16:
             return []
-        info = os.stat(self.path, follow_symlinks=False)
-        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_INDEX_BYTES:
-            raise ValueError("untrusted POI index file")
-        with open(self.path, "rb") as stream:
+        fd = os.open(self.path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_INDEX_BYTES:
+                raise ValueError("untrusted POI index file")
             raw = stream.read(MAX_INDEX_BYTES + 1)
         if len(raw) > MAX_INDEX_BYTES:
             raise ValueError("POI index too large")
