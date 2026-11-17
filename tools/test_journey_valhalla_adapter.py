@@ -32,8 +32,10 @@ class JourneyValhallaAdapterTest(unittest.TestCase):
                 result = super().route(**kwargs)
                 del result["mapGraphVersion"]
                 return result
+        router = UnattestedRouter()
         with self.assertRaises(RouteComparisonUnavailable):
-            compare(UnattestedRouter())
+            compare(router)
+        self.assertEqual(router.calls, 1)
 
     def test_full_route_difference(self):
         self.assertEqual(compare().detour_seconds(), 500)
