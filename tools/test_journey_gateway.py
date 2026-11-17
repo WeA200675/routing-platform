@@ -17,10 +17,10 @@ class JourneyGatewayTest(unittest.TestCase):
         self.server.server_close()
         self.worker.join(timeout=3)
 
-    def request(self, method, path, body=None):
+    def request(self, method, path, body=None, headers=None):
         conn = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=2)
         try:
-            conn.request(method, path, body=body)
+            conn.request(method, path, body=body, headers=headers or {})
             result = conn.getresponse()
             payload = json.loads(result.read().decode())
             return result.status, payload, result.getheader("Cache-Control")
@@ -49,6 +49,47 @@ class JourneyGatewayTest(unittest.TestCase):
     def test_unknown_route(self):
         status, data, _ = self.request("GET", "/private")
         self.assertEqual(status, 404)
+
+    def test_route_endpoint_default_off(self):
+        status, data, _ = self.request("POST", "/api/navigation/v1/route", "{}")
+        self.assertEqual(status, 503)
+        self.assertEqual(data["error"], "routing_disabled")
+
+    def test_authenticated_route_proxy(self):
+        class Provider:
+            def route(self, **kwargs):
+                return {"engineName": "valhalla", "durationS": 42}
+        self.server.shutdown()
+        self.server.server_close()
+        self.worker.join(timeout=3)
+        self.server = JourneyGateway(("127.0.0.1", 0),
+                                     route_provider=Provider(), route_token="x" * 40)
+        self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.worker.start()
+        body = json.dumps({
+            "origin": {"latitude": 48, "longitude": 11},
+            "destination": {"latitude": 49, "longitude": 12},
+            "viaPoints": [], "family": "fastest"
+        })
+        status, data, _ = self.request("POST", "/api/navigation/v1/route", body,
+                                       {"Authorization": "Bearer " + "x" * 40})
+        self.assertEqual(status, 200)
+        self.assertEqual(data["durationS"], 42)
+
+    def test_proxy_requires_authentication(self):
+        class Provider:
+            def route(self, **kwargs):
+                raise AssertionError("unauthenticated request reached router")
+        self.server.shutdown()
+        self.server.server_close()
+        self.worker.join(timeout=3)
+        self.server = JourneyGateway(("127.0.0.1", 0),
+                                     route_provider=Provider(), route_token="x" * 40)
+        self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.worker.start()
+        status, data, _ = self.request("POST", "/api/navigation/v1/route", "{}")
+        self.assertEqual(status, 401)
+        self.assertEqual(data["error"], "unauthorized")
 
     def test_non_loopback_binding_refused(self):
         with self.assertRaises(ValueError):
