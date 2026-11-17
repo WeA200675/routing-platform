@@ -6,6 +6,8 @@ by deployment tooling. Raw OSM points are NOT verified motorway access.
 from __future__ import annotations
 
 import json
+import hashlib
+import hmac
 import math
 import os
 import stat
@@ -17,11 +19,15 @@ MAX_INDEX_ENTRIES = 5000
 
 
 class OfflinePoiIndex:
-    def __init__(self, path: str, expected_map_version: str):
+    def __init__(self, path: str, expected_map_version: str, *, trusted_sha256: str = ""):
         self.path = path
         self.expected_map_version = expected_map_version
+        self.trusted_sha256 = trusted_sha256
 
     def find_candidates(self, journey, *, limit: int):
+        if (not self.trusted_sha256 or len(self.trusted_sha256) != 64
+                or any(ch not in "0123456789abcdef" for ch in self.trusted_sha256)):
+            return []
         if not self.expected_map_version or journey.map_version != self.expected_map_version:
             return []
         if type(limit) is not int or not 1 <= limit <= 16:
@@ -34,6 +40,9 @@ class OfflinePoiIndex:
             raw = stream.read(MAX_INDEX_BYTES + 1)
         if len(raw) > MAX_INDEX_BYTES:
             raise ValueError("POI index too large")
+        digest = hashlib.sha256(raw).hexdigest()
+        if not hmac.compare_digest(digest, self.trusted_sha256):
+            return []
         document = json.loads(raw.decode("utf-8"))
         if not isinstance(document, dict) or document.get("schema_version") != "journey-poi-v1":
             raise ValueError("invalid POI index schema")
