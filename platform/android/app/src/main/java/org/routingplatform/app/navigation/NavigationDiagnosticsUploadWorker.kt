@@ -3,6 +3,7 @@ package org.routingplatform.app.navigation
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import org.json.JSONObject
 
 sealed interface NavigationDiagnosticsUploadResult {
     data object NothingPending : NavigationDiagnosticsUploadResult
@@ -18,6 +19,7 @@ class NavigationDiagnosticsUploadWorker(
     private val queue: NavigationDiagnosticsUploadQueue,
     private val connectTimeoutMs: Int = 3_000,
     private val readTimeoutMs: Int = 5_000,
+    private val bearerToken: String? = null,
 ) {
     fun uploadNext(baseUrl: String): NavigationDiagnosticsUploadResult {
         val snapshot = queue.peek() ?: return NavigationDiagnosticsUploadResult.NothingPending
@@ -25,7 +27,7 @@ class NavigationDiagnosticsUploadWorker(
             return NavigationDiagnosticsUploadResult.Failed("Training API muss HTTPS verwenden")
         }
         return runCatching {
-            val payload = snapshot.toString()
+            val payload = JSONObject().put("events", org.json.JSONArray().put(snapshot)).toString()
             val connection = (URL(baseUrl.trimEnd('/') + "/api/training/events")
                 .openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
@@ -34,10 +36,14 @@ class NavigationDiagnosticsUploadWorker(
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Accept", "application/json")
+                bearerToken?.takeIf { it.isNotBlank() }?.let { setRequestProperty("Authorization", "Bearer $it") }
             }
             connection.outputStream.use { it.write(payload.toByteArray(StandardCharsets.UTF_8)) }
             val code = connection.responseCode
-            if (code in 200..299) {
+            val response = if (code in 200..299) connection.inputStream.bufferedReader().use { it.readText() } else ""
+            val ack = runCatching { JSONObject(response) }.getOrNull()
+            if (code == 202 && ack?.optBoolean("durable", false) == true &&
+                ack.optInt("accepted", 0) + ack.optInt("duplicates", 0) == 1) {
                 queue.acknowledgeFirst()
                 NavigationDiagnosticsUploadResult.Uploaded(payload.length)
             } else {
