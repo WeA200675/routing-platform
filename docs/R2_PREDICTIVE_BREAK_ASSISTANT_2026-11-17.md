@@ -102,3 +102,42 @@ Ziel: nicht nur einzelne Rastplätze finden, sondern Pausen als Teil der gesamte
 6. Feature-Flag bis Android-UI, Routing- und POI-Integration sowie Gerätetest erfolgreich sind.
 
 **Status:** R2.8 als Umsetzungsauftrag spezifiziert, keine fertige App-Funktion. R1-Stabilisierung bleibt priorisiert.
+
+## R2.9 – Adaptive Journey Intelligence: Prognose, Evidenz, kontrolliertes Lernen
+**Ziel:** Eine vorausschauende Pausenplanung mit reproduzierbarer Entscheidungsbegründung statt bloß zusätzlicher LLM-Prompts. R2.8 bleibt Grundlage, R1 hat Vorrang.
+
+### Architektur
+- `JourneyPlan`: Beim Routenstart entlang des Routenkorridors mögliche Pausenfenster und POI-Abstände vorberechnen, mit Route-/Map-Version und TTL.
+- `JourneyForecast`: Szenarien normaler Verkehr, Stau, Stauauflösung, Reroute; jeweils mit Datenquelle, Aktualität, Zeitfenster und Unsicherheitsstatus. Keine vorgetäuschten Eintrittswahrscheinlichkeiten.
+- `BreakPolicy`: deterministische Schwellen (>90 min, >60 km), Stau-Sonderfall, harte Umweggrenze <=600 Sekunden und Fahrtrichtungs-/Zufahrtsvalidierung. Nur dieser Teil darf Empfehlungen freigeben.
+- `CandidateEvidence`: WC-Status (belegt/unbekannt/nein), legale Zufahrt und Wiedereinfahrt, Umwegbeleg, POI-Quelle und Datenalter, Position relativ zum Stau. Fehlende harte Evidenz sperrt Kandidat.
+- `BreakRanker`: Nur unter freigegebenen Kandidaten nachvollziehbare gewichtete Priorisierung (Beispielgewichte WC 25, Zufahrt 30, Umweg 25, Datenalter 10, Stauposition 10). Gewichte sind Produktkonfiguration, keine statistisch kalibrierte Wahrscheinlichkeit; harte Regeln niemals durch Score überstimmen.
+- `SuggestionStateMachine`: `idle -> prefetch -> eligible -> offered -> accepted/deferred/dismissed -> cooldown`; Prozessneustart, Zielwechsel, verpasste Ausfahrt, Stauauflösung und Pause explizit behandeln.
+- `LearningFeedback`: nur lokale, freiwillige Präferenzsignale und anonymisierte Qualitätsmetriken; keine automatische Veränderung der Sicherheitsgrenzen.
+
+### Betriebs- und Fehlerstrategie
+- Vorladen ab ca. 65 Minuten, erst bei Trigger benachrichtigen; Stau kann Fahrzeitschwelle übersteuern, nicht harte Routen-/Umweg-Gates.
+- Cache invalidieren bei Reroute/Traffic-/Map-Update; begrenzte CPU-/Speicher-/Akku-Last; nach Fehlschlägen Circuit Breaker und kein blockierendes Re-Routing.
+- Bei unbekannter WC-Evidenz Kandidat als „WC unbekannt“ behandeln, nicht als bestätigtes WC; WC-Pflicht als Nutzerpräferenz respektieren.
+- Offline-POI/Valhalla primär; Online-POI/Traffic nur opt-in und mit Quellenalter; ohne belastbare Stauquelle keine Stauprognose behaupten.
+- Kein ungeprüftes LLM-Ergebnis als Geometrie, Öffnungsstatus, Fahrzeit oder Stauquelle übernehmen.
+- Bei Ausfall der gesamten Pausenfunktion Navigation unverändert weiterlaufen lassen.
+
+### Verbindliche zusätzliche Tests
+1. Schwellen 90/60 exakt und darüber; 600/601 Sekunden; unbekannte/negative/NaN-ETA.
+2. Stau erscheint, wandert, verschwindet; nur Kandidaten vor dem Stau, rechtzeitige Ausfahrts-Vorwarnung.
+3. Route mit/ohne POI vergleichen, inklusive Wiedereinstieg; falsche Autobahnseite ausschließen.
+4. Reproduzierbarer Score; harte Ausschlussregeln schlagen immer einen hohen Score.
+5. Keine Vorschlagsflut nach Reroute, Neustart, Ablehnung und wiederholtem Traffic-Update.
+6. Offline-/Low-Memory-/Akku-Budget, fehlender POI-Index, stale traffic, kein LLM.
+7. Nachweisbare User-Bestätigung vor jedem Zwischenziel und dokumentierter Feldtest.
+
+### Umsetzungsreihenfolge
+A. Entscheidungszustände und Evidenzmodell mit isolierten Unit-Tests.
+B. Lokale POI-Indexierung und vollständige Valhalla-via-POI-Zeitberechnung.
+C. Stauquellenadapter und prognostische Fenster mit Datenalter-Prüfung.
+D. UI/Voice mit einfacher, fahrgeeigneter Bestätigung und Persistenz.
+E. Feedback-/Qualitätsmetriken, Replay-Fixtures und Regressionstests.
+F. Feature-Flag aktivieren erst nach CI, Offline-Smoke und Gerätetest.
+
+**Status:** Architektur und Gates spezifiziert; die neuen R2.9-Module sind noch nicht implementiert.
