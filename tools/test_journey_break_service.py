@@ -59,6 +59,13 @@ class JourneyBreakServiceTest(unittest.TestCase):
     def test_exit_must_be_ahead(self):
         self.assertEqual(recommend(context(), [stop(route=route(exit_ahead=False))])["options"], [])
 
+    def test_route_legality_attestation_requires_literal_true(self):
+        for field in ("access_verified", "same_direction", "exit_ahead"):
+            for value in (1, "true", None):
+                self.assertEqual(
+                    recommend(context(), [stop(route=route(**{field: value}))])["options"],
+                    [], (field, value))
+
     def test_wc_must_be_verified(self):
         self.assertEqual(recommend(context(), [stop(wc_evidence="unknown")])["options"], [])
 
