@@ -36,7 +36,7 @@ class LoopbackRouteProvider:
             raise ValueError("invalid routing timeout")
         self.url = url
         self.timeout_seconds = timeout_seconds
-        self.opener = opener or urllib.request.build_opener(_NoRedirect())
+        self.opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
 
     def route(self, *, origin, destination, via, family):
         request_data = {
