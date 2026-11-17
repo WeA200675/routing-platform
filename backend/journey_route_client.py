@@ -17,7 +17,7 @@ class LocalRouteUnavailable(RuntimeError):
 
 
 class LoopbackRouteProvider:
-    def __init__(self, url="http://127.0.0.1:8766/v1/navigation/route", *,
+    def __init__(self, url="http://127.0.0.1:8787/v1/navigation/route", *,
                  timeout_seconds=15, opener=None):
         parts = urlsplit(url)
         if (parts.scheme != "http" or parts.username or parts.password
