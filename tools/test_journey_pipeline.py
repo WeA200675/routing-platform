@@ -96,6 +96,19 @@ class JourneyPipelineTest(unittest.TestCase):
     def test_invalid_candidate_limit(self):
         self.assertEqual(run(limit=0)["reason"], "invalid_candidate_limit")
 
+    def test_not_due_avoids_all_io(self):
+        router = Router()
+        result = run(router=router, context=Context(10, 100, 10000))
+        self.assertEqual(result["reason"], "not_due")
+        self.assertEqual(router.calls, 0)
+
+    def test_cooldown_avoids_all_io(self):
+        router = Router()
+        result = run(router=router, context=Context(5401, 60001, 10000,
+                                                   seconds_since_last_offer=1))
+        self.assertEqual(result["reason"], "cooldown")
+        self.assertEqual(router.calls, 0)
+
     def test_no_candidate(self):
         self.assertEqual(run([])["options"], [])
 
