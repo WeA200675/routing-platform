@@ -16,6 +16,9 @@ on:
       - 'backend/journey_route_client.py'
       - 'backend/journey_gateway.py'
       - 'tools/test_journey_gateway.py'
+      - 'tools/journey_production_preflight.py'
+      - 'tools/test_journey_production_preflight.py'
+      - 'deploy/systemd/routing-*.service'
       - 'tools/test_journey_route_client.py'
       - 'tools/test_journey_offline_poi.py'
       - 'tools/test_journey_pipeline.py'
@@ -43,6 +46,9 @@ on:
       - 'backend/journey_route_client.py'
       - 'backend/journey_gateway.py'
       - 'tools/test_journey_gateway.py'
+      - 'tools/journey_production_preflight.py'
+      - 'tools/test_journey_production_preflight.py'
+      - 'deploy/systemd/routing-*.service'
       - 'backend/journey_offline_poi.py'
       - 'backend/journey_pipeline.py'
       - 'backend/journey_api_contract.py'
@@ -94,7 +100,7 @@ jobs:
           TRAINING_STATE_PATH: ${{ runner.temp }}/routing-training-api-state.json
           TRAINING_TEST_POSTGRES_DSN: postgresql://training_test:test_only_password@127.0.0.1:5432/training_test
         run: |
-          python -m py_compile backend/training_api.py backend/training_job_store.py backend/postgres_training_job_store.py backend/trace_regression.py backend/valhalla_replay.py backend/engineering_triage.py backend/journey_break_service.py backend/journey_valhalla_adapter.py backend/journey_api_contract.py backend/journey_pipeline.py backend/journey_offline_poi.py backend/journey_route_client.py backend/journey_gateway.py
+          python -m py_compile backend/training_api.py backend/training_job_store.py backend/postgres_training_job_store.py backend/trace_regression.py backend/valhalla_replay.py backend/engineering_triage.py backend/journey_break_service.py backend/journey_valhalla_adapter.py backend/journey_api_contract.py backend/journey_pipeline.py backend/journey_offline_poi.py backend/journey_route_client.py backend/journey_gateway.py tools/journey_production_preflight.py
           python -m unittest -v \
             tools.test_training_job_store \
             tools.test_postgres_training_job_store \
@@ -109,6 +115,7 @@ jobs:
             tools.test_journey_offline_poi \
             tools.test_journey_route_client \
             tools.test_journey_gateway \
+            tools.test_journey_production_preflight \
             tools.test_valhalla_replay \
             tools.test_replay_fail_closed \
             tools.test_training_state_persistence \
