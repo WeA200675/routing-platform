@@ -12,7 +12,7 @@ class FakeRouter:
 
     def route(self, *, origin, destination, via, family):
         self.calls += 1
-        return {"engineName": "valhalla", "durationS":
+        return {"engineName": "valhalla", "mapGraphVersion": "tiles-1", "durationS":
                 self.via if via else self.direct}
 
 
@@ -26,6 +26,15 @@ def compare(router=None, **kwargs):
 
 
 class JourneyValhallaAdapterTest(unittest.TestCase):
+    def test_unattested_map_graph_fails_closed(self):
+        class UnattestedRouter(FakeRouter):
+            def route(self, **kwargs):
+                result = super().route(**kwargs)
+                del result["mapGraphVersion"]
+                return result
+        with self.assertRaises(RouteComparisonUnavailable):
+            compare(UnattestedRouter())
+
     def test_full_route_difference(self):
         self.assertEqual(compare().detour_seconds(), 500)
 
