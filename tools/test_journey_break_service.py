@@ -106,6 +106,16 @@ class JourneyBreakServiceTest(unittest.TestCase):
                 recommend(context(driving_seconds=10, traffic=TrafficEvidence(**data)),
                           [stop()])["reason"], "not_due", field)
 
+    def test_traffic_attestation_requires_literal_true(self):
+        for field in ("route_matched", "source_verified"):
+            data = dict(observed_at_epoch_seconds=9999, starts_in_seconds=120,
+                        delay_seconds=300, route_matched=True, source_verified=True)
+            for untrusted in (1, "verified", None):
+                data[field] = untrusted
+                self.assertEqual(
+                    recommend(context(driving_seconds=10, traffic=TrafficEvidence(**data)),
+                              [stop()])["reason"], "not_due", (field, untrusted))
+
     def test_invalid_urgent_flag_rejected(self):
         self.assertEqual(
             recommend(context(urgent_wc=1), [stop()])["reason"], "invalid_context")
