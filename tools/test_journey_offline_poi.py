@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 import tempfile
 import unittest
@@ -22,14 +23,17 @@ class OfflinePoiIndexTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.path = os.path.join(self.tmp.name, "pois.json")
         self.journey = Journey((48, 11), (49, 12), map_version="tiles-v1")
+        self.trusted_sha256 = ""
 
     def write(self, entries, version="tiles-v1"):
         with open(self.path, "w", encoding="utf-8") as f:
             json.dump(dict(schema_version="journey-poi-v1",
                            map_version=version, stops=entries), f)
+        with open(self.path, "rb") as f:
+            self.trusted_sha256 = hashlib.sha256(f.read()).hexdigest()
 
     def read(self, limit=16):
-        return OfflinePoiIndex(self.path, "tiles-v1").find_candidates(self.journey, limit=limit)
+        return OfflinePoiIndex(self.path, "tiles-v1", trusted_sha256=self.trusted_sha256).find_candidates(self.journey, limit=limit)
 
     def test_verified_candidate(self):
         self.write([entry()])
@@ -68,11 +72,24 @@ class OfflinePoiIndexTest(unittest.TestCase):
         alias = os.path.join(self.tmp.name, "alias.json")
         os.symlink(self.path, alias)
         with self.assertRaises((OSError, ValueError)):
-            OfflinePoiIndex(alias, "tiles-v1").find_candidates(self.journey, limit=16)
+            OfflinePoiIndex(alias, "tiles-v1", trusted_sha256=self.trusted_sha256).find_candidates(self.journey, limit=16)
+
+    def test_missing_trusted_digest_rejected(self):
+        self.write([entry()])
+        self.trusted_sha256 = ""
+        self.assertEqual(self.read(), [])
+
+    def test_modified_index_rejected(self):
+        self.write([entry()])
+        with open(self.path, "ab") as f:
+            f.write(b" ")
+        self.assertEqual(self.read(), [])
 
     def test_invalid_schema_rejected(self):
         with open(self.path, "w", encoding="utf-8") as f:
             f.write("{}")
+        with open(self.path, "rb") as f:
+            self.trusted_sha256 = hashlib.sha256(f.read()).hexdigest()
         with self.assertRaises(ValueError):
             self.read()
 
