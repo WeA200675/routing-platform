@@ -94,11 +94,22 @@ class NavigationDiagnosticsUploadQueue(context: Context) {
         db.beginTransaction()
         try {
             // A migration is only safe if it cannot duplicate or exceed the queue.
-            check(count(db) == 0) { "Legacy migration interrupted: manual recovery required" }
+            val existing = count(db)
+            check(existing == 0 || existing == old.length()) { "Legacy migration needs manual recovery" }
             check(old.length() <= MAX_PACKAGES)
-            for (index in 0 until old.length()) {
-                val item = old.getJSONObject(index)
-                db.insertOrThrow("snapshots", null, ContentValues().apply { put("body", item.toString()) })
+            if (existing == 0) {
+                for (index in 0 until old.length()) {
+                    val item = old.getJSONObject(index)
+                    db.insertOrThrow("snapshots", null, ContentValues().apply { put("body", item.toString()) })
+                }
+            } else {
+                db.rawQuery("SELECT body FROM snapshots ORDER BY id", null).use { cursor ->
+                    for (index in 0 until old.length()) {
+                        check(cursor.moveToNext() && cursor.getString(0) == old.getJSONObject(index).toString()) {
+                            "Legacy migration mismatch; source retained"
+                        }
+                    }
+                }
             }
             db.setTransactionSuccessful()
         } finally {
