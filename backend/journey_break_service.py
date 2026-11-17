@@ -61,7 +61,7 @@ class TrafficEvidence:
     source_verified: bool
 
     def actionable(self, now: int) -> bool:
-        return (self.route_matched and self.source_verified
+        return (self.route_matched is True and self.source_verified is True
                 and isinstance(now, int) and not isinstance(now, bool)
                 and type(self.observed_at_epoch_seconds) is int
                 and 0 <= self.observed_at_epoch_seconds <= now
