@@ -96,6 +96,11 @@ class JourneyBreakServiceTest(unittest.TestCase):
         stops = [stop(id=f"wc-{i}") for i in range(10)]
         self.assertEqual(len(recommend(context(), stops)["options"]), 3)
 
+    def test_invalid_duplicate_does_not_shadow_valid_candidate(self):
+        invalid = stop(route=route(access_verified=False))
+        valid = stop()
+        self.assertEqual(len(recommend(context(), [invalid, valid])["options"]), 1)
+
     def test_no_route_mutation_output(self):
         self.assertNotIn("new_route", recommend(context(), [stop()]))
         self.assertNotIn("accepted", recommend(context(), [stop()]))
