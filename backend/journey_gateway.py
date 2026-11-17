@@ -20,12 +20,13 @@ MAX_BODY = 64 * 1024
 MAX_ACTIVE_ROUTES = 1
 
 
-def status_payload():
+def status_payload(*, navigation_routing_enabled=False):
     return {
         "schema_version": SCHEMA,
         "service": "journey",
         "status": "degraded",
         "recommendations_enabled": False,
+        "navigation_routing_enabled": navigation_routing_enabled,
         "routing_graph_attested": False,
         "poi_audit_ready": False,
         "offline_fallback": "continue_navigation",
@@ -47,7 +48,8 @@ class JourneyHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path in ("/health", "/api/journey/v1/status"):
-            return self._json(200, status_payload())
+            return self._json(200, status_payload(
+                navigation_routing_enabled=self.server.route_enabled))
         if self.path == "/ready":
             return self._json(503, {"schema_version": SCHEMA, "ready": False,
                                     "reason": "evidence_pipeline_not_verified"})
