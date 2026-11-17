@@ -107,6 +107,7 @@ class PostgresTrainingJobStore:
             raise ValueError("events must contain 1..256 objects")
         prepared = [self._prepare(event) for event in events]
         accepted = duplicates = 0
+        receipts = []
         with self._connect() as db:
             db.execute("SELECT pg_advisory_xact_lock(782341902)")
             count = db.execute("""SELECT COUNT(*) FROM training_jobs
@@ -120,6 +121,7 @@ class PostgresTrainingJobStore:
                     if existing[0] != digest:
                         raise ValueError("event_id reused with different content")
                     duplicates += 1
+                    receipts.append({"event_id": event_id, "sha256": digest, "status": "duplicate"})
                     continue
                 if count >= self.max_pending:
                     raise QueueFullError("pending job capacity reached; retry later")
@@ -127,9 +129,10 @@ class PostgresTrainingJobStore:
                     (event_id,payload,payload_sha256,state,created_at,updated_at)
                     VALUES (%s,%s,%s,'queued',%s,%s)""",
                     (event_id, payload, digest, now, now))
+                receipts.append({"event_id": event_id, "sha256": digest, "status": "accepted"})
                 accepted += 1
                 count += 1
-        return {"accepted": accepted, "duplicates": duplicates, "queue_count": count}
+        return {"accepted": accepted, "duplicates": duplicates, "queue_count": count, "receipts": receipts}
 
     def claim(self) -> dict[str, Any] | None:
         now = int(time.time())
