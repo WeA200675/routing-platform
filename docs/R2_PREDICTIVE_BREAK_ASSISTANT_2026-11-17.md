@@ -59,3 +59,46 @@ Keine verifizierte Offline-POI-Datenquelle, kein integrierter Verkehrsdaten-Adap
 - Gerätetest bei realer Fahrt und dokumentierter Nutzerbestätigung als Release-Gate.
 
 **Status:** Konzeption ergänzt. Keine Behauptung einer bereits funktionsfähigen POI-, Traffic- oder UI-Anbindung.
+
+## R2.8 – Predictive Journey Intelligence (PJI)
+Ziel: nicht nur einzelne Rastplätze finden, sondern Pausen als Teil der gesamten Fahrt robust, vorausschauend und mit nachvollziehbarer Evidenz planen.
+
+### Zwei Ebenen statt Dauer-Neuberechnung
+- **Journey Planner** am Routenstart: grobe POI-Korridore, erwartete Fahrzeit, lange Abschnitte ohne WC und mögliche Pausenfenster indexieren. Kein permanentes Routing aller POIs.
+- **Local Decision Engine** unterwegs: nur nächsten relevanten Korridor bei Ereignissen (Fahrtzeit, Reroute, Verkehr, verpasste Ausfahrt) nachberechnen. Strikte CPU-/Akku-/Zeitbudgets; Cache mit Route-ID, Map-Version und Ablaufzeit.
+- **Vorbereitung vs. Empfehlung:** Vorladen ab ca. 65–75 Minuten (konfigurierbar), Anzeige regulär erst bei >90 Minuten UND >60 km. Stau darf die Fahrzeitschwelle übersteuern; harte 10-Minuten-Grenze und sichere Zufahrt gelten immer.
+
+### Stau und Haltepunkte als zeitabhängiges Problem
+- ETA zur Stauanfangsstelle, Ereignisalter, Quelle, Fahrtrichtung, Prognoseunsicherheit und ETA zum Rastplatz getrennt erfassen.
+- Nur Haltepunkte empfehlen, deren sichere Ausfahrt **vor** dem Stau liegt; Ausfahrts-Vorwarnpuffer dynamisch aus Fahrgeschwindigkeit und Manövervorlauf ableiten.
+- Verkehrszeitgewinn nur bei ausreichend belastbarer Prognose ausweisen; ein Rastplatzbesuch ist nicht automatisch eine Zeitersparnis.
+- Auflösung/Verlagerung des Staus führt zu Neubewertung, aber nicht zu wiederholten Pop-ups.
+
+### Evidenz- und Komfortbewertung
+- Hartes Gate: legal befahrbar, richtige Seite, erreichbare Zufahrt und Rückkehr, vollständige Route-via-POI mit Zusatzzeit <=600 Sekunden; 601 Sekunden = Ausschluss.
+- WC-Evidenz explizit: vorhanden/bestätigt, unbekannt, nicht vorhanden. Ein Rastplatz ohne verifizierte WC-Ausstattung ist **kein** bestätigter WC-Treffer.
+- Ranking unter den zulässigen Kandidaten: WC-Evidenz, Verkehrslage, minimale Zusatzzeit, sichere Abfahrt, Aktualität der POI-Daten, persönliche Präferenz. Höchstens drei begründete Alternativen.
+- Quellen und Datenalter im Diagnosestatus; keine Öffnungszeiten, Belegung oder Verfügbarkeit ohne belastbare Quelle.
+
+### Menschliche Kontrolle und lernende Präferenzen
+- Route bleibt unverändert, bis Nutzer ausdrücklich bestätigt. Ablehnen/Später/Keine Vorschläge für diese Fahrt sind jederzeit möglich.
+- Lernsignale ausschließlich aus bewussten Nutzerentscheidungen, optional und lokal gespeichert; nie stillschweigend Sicherheitsgrenzen verändern.
+- Fahrzeit nach bestätigter Pause oder ausreichend sicher erkannter längerer Pause zurücksetzen, nicht nach kurzen Stopps.
+- Fahrtstatus und Cooldown über Prozessneustart sicher wiederherstellen; keine Speicherung unnötiger Rohpositionen.
+
+### Fehlertoleranz
+- Ohne Internet: lokale POIs und lokales Routing, keine behaupteten Live-Staus.
+- Ohne POI-Index: keine erfundenen Haltepunkte, normale Navigation unverändert.
+- Ohne belastbare ETA/Abfahrtsgeometrie: keine Kandidatenfreigabe; eventuell allgemeiner Hinweis „Pause erwägen“ ohne falsches Ziel.
+- Bei LLM-Ausfall: deterministische Policy und statische Texte. Bei Worker-Abbruch: vorherige gültige Route unverändert.
+- Bei mehrfacher Fehlberechnung: Circuit Breaker, Telemetrie ohne GPS-Rohdaten, Reparaturticket an R2 Engineering Triage.
+
+### Messbare Abnahmekriterien
+1. Null automatische Zwischenziele; alle Vorschläge brauchen explizite Bestätigung.
+2. Null Vorschläge mit nachgewiesenem Umweg >600 Sekunden; fehlende ETA führt zu Ausschluss.
+3. Null als bestätigt dargestellte WCs ohne positive Evidenz.
+4. Testfälle: Stau hinter/vor Rastplatz, ETA-Änderung, verpasste Ausfahrt, Offline-Start, App-Neustart, GPS-Jitter, Zeitsprung, keine POIs, Reroute.
+5. Reproduzierbarer Vergleich: Auslösezeit, Ausfahrts-Vorlauf, Vorschlagsanzahl pro Fahrt, bestätigte/abgelehnte Vorschläge, falsche WC-Angaben, Akku-/CPU-Budget.
+6. Feature-Flag bis Android-UI, Routing- und POI-Integration sowie Gerätetest erfolgreich sind.
+
+**Status:** R2.8 als Umsetzungsauftrag spezifiziert, keine fertige App-Funktion. R1-Stabilisierung bleibt priorisiert.
