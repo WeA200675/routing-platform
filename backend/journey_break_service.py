@@ -26,7 +26,8 @@ class RouteEvidence:
     exit_ahead: bool
 
     def detour_seconds(self) -> float | None:
-        if not (self.access_verified and self.same_direction and self.exit_ahead):
+        if not (self.access_verified is True and self.same_direction is True
+                and self.exit_ahead is True):
             return None
         if not (self.map_version and self.profile
                 and self.map_version == self.via_map_version
