@@ -25,9 +25,14 @@ class Journey:
     map_version: str = ""
 
 
-def _seconds(route: dict) -> float:
+def _seconds(route: dict, expected_map_version: str) -> float:
     if not isinstance(route, dict) or route.get("engineName") != "valhalla":
         raise RouteComparisonUnavailable("unverified routing engine")
+    # Route identity must originate from the actual routing response, not the
+    # POI record or client request. Current exporters without this field
+    # remain safely disabled until graph identity is implemented.
+    if route.get("mapGraphVersion") != expected_map_version:
+        raise RouteComparisonUnavailable("route graph version not attested")
     # Exporter contracts may differ. Only accept a documented top-level
     # total for the entire route; never sum unverified leg guesses.
     value = route.get("durationS")
@@ -58,7 +63,8 @@ def compare_via_stop(route_provider, journey: Journey, stop: tuple[float, float]
     # matcher. Appending is valid only when it verified the last segment.
     detour = invoke(journey.via + (stop,))
     return RouteEvidence(
-        direct_seconds=_seconds(direct), via_seconds=_seconds(detour),
+        direct_seconds=_seconds(direct, journey.map_version),
+        via_seconds=_seconds(detour, journey.map_version),
         map_version=journey.map_version, via_map_version=verified_map_version,
         profile=journey.family, via_profile=journey.family,
         access_verified=legal_access_and_return, same_direction=same_direction,
