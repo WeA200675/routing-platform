@@ -1,0 +1,29 @@
+[Unit]
+Description=Routing Platform local Valhalla route bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=routing
+Group=routing
+WorkingDirectory=/opt/routing-platform
+EnvironmentFile=/etc/routing-platform/valhalla.env
+ExecStart=/usr/bin/python3 tools/navigation_route_service.py --listen 127.0.0.1 --port 8788 --executable /opt/routing-platform/bin/route-exporter --config /etc/routing-platform/valhalla.json
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=120
+StartLimitBurst=10
+TimeoutStopSec=35
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/routing-platform
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+LockPersonality=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
