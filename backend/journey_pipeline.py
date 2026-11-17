@@ -7,6 +7,7 @@ No route is changed and no candidate is presented without verified evidence.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import islice
 
 from backend.journey_break_service import Context, Stop, recommend
 from backend.journey_valhalla_adapter import (
@@ -43,7 +44,7 @@ def evaluate_journey(context: Context, journey: Journey, poi_source,
     if not isinstance(candidate_limit, int) or isinstance(candidate_limit, bool) or not 1 <= candidate_limit <= 16:
         return {"reason": "invalid_candidate_limit", "options": []}
     try:
-        candidates = list(poi_source.find_candidates(journey, limit=candidate_limit))
+        candidates = list(islice(poi_source.find_candidates(journey, limit=candidate_limit), candidate_limit + 1))
     except Exception:
         return {"reason": "poi_source_unavailable", "options": []}
     if len(candidates) > candidate_limit:
@@ -65,7 +66,7 @@ def evaluate_journey(context: Context, journey: Journey, poi_source,
                 same_direction=candidate.same_direction,
                 exit_ahead=candidate.exit_ahead,
             )
-        except (RouteComparisonUnavailable, ValueError, TypeError, TimeoutError, OSError):
+        except Exception:  # Route providers are untrusted IO boundaries; skip candidate.
             continue
         verified.append(Stop(
             id=candidate.id, name=candidate.name,
