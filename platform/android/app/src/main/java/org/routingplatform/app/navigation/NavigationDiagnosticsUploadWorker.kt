@@ -3,6 +3,7 @@ package org.routingplatform.app.navigation
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import org.json.JSONObject
 import org.json.JSONArray
 
@@ -22,17 +23,43 @@ class NavigationDiagnosticsUploadWorker(
     private val readTimeoutMs: Int = 5_000,
     private val bearerToken: String? = null,
 ) {
+    /** Matches Python json.dumps(sort_keys=True, ensure_ascii=False, separators=(",", ":")). */
+    private fun canonicalJson(value: Any?): String = when (value) {
+        null, JSONObject.NULL -> "null"
+        is JSONObject -> value.keys().asSequence().toList().sorted().joinToString(
+            separator = ",", prefix = "{", postfix = "}"
+        ) { key -> JSONObject.quote(key) + ":" + canonicalJson(value.get(key)) }
+        is JSONArray -> (0 until value.length()).joinToString(
+            separator = ",", prefix = "[", postfix = "]"
+        ) { index -> canonicalJson(value.get(index)) }
+        is String -> JSONObject.quote(value)
+        is Boolean -> value.toString()
+        is Number -> value.toString()
+        else -> error("Unsupported JSON type")
+    }
+
+    private fun digest(event: JSONObject): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(canonicalJson(event).toByteArray(StandardCharsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+
     private fun receiptsMatch(events: JSONArray, receipts: JSONArray?): Boolean {
         if (receipts == null || receipts.length() != events.length()) return false
-        val ids = (0 until events.length()).map { events.optJSONObject(it)?.optString("event_id") ?: return false }
-        if (ids.any { it.isBlank() } || ids.toSet().size != ids.size) return false
-        val received = (0 until receipts.length()).map { index ->
-            val item = receipts.optJSONObject(index) ?: return false
-            if (item.optString("status") !in setOf("accepted", "duplicate")) return false
-            if (!item.optString("sha256").matches(Regex("[0-9a-f]{64}"))) return false
-            item.optString("event_id")
+        val expected = mutableMapOf<String, String>()
+        for (index in 0 until events.length()) {
+            val event = events.optJSONObject(index) ?: return false
+            val id = event.optString("event_id")
+            if (id.isBlank() || expected.containsKey(id)) return false
+            expected[id] = digest(event)
         }
-        return received.toSet() == ids.toSet() && received.size == received.toSet().size
+        val received = mutableSetOf<String>()
+        for (index in 0 until receipts.length()) {
+            val item = receipts.optJSONObject(index) ?: return false
+            val id = item.optString("event_id")
+            if (item.optString("status") !in setOf("accepted", "duplicate") ||
+                !received.add(id) || expected[id] != item.optString("sha256")) return false
+        }
+        return received.size == expected.size
     }
 
     fun uploadNext(baseUrl: String): NavigationDiagnosticsUploadResult {
