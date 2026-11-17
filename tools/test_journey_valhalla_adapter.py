@@ -12,7 +12,7 @@ class FakeRouter:
 
     def route(self, *, origin, destination, via, family):
         self.calls += 1
-        return {"engineName": "valhalla", "totalDurationSeconds":
+        return {"engineName": "valhalla", "durationS":
                 self.via if via else self.direct}
 
 
