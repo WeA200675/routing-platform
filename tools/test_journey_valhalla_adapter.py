@@ -70,6 +70,14 @@ class JourneyValhallaAdapterTest(unittest.TestCase):
         with self.assertRaises(RouteComparisonUnavailable):
             compare(exit_ahead=False)
 
+    def test_spoofed_access_flags_rejected_before_routing(self):
+        for flag in ("legal_access_and_return", "same_direction", "exit_ahead"):
+            for value in (1, "true", None):
+                router = FakeRouter()
+                with self.assertRaises(RouteComparisonUnavailable):
+                    compare(router, **{flag: value})
+                self.assertEqual(router.calls, 0, (flag, value))
+
     def test_missing_total_duration_fails_closed(self):
         with self.assertRaises(RouteComparisonUnavailable):
             compare(FakeRouter(direct=None))
