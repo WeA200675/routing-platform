@@ -30,9 +30,9 @@ def _seconds(route: dict) -> float:
         raise RouteComparisonUnavailable("unverified routing engine")
     # Exporter contracts may differ. Only accept a documented top-level
     # total for the entire route; never sum unverified leg guesses.
-    value = route.get("totalDurationSeconds")
+    value = route.get("durationS")
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise RouteComparisonUnavailable("missing totalDurationSeconds")
+        raise RouteComparisonUnavailable("missing durationS")
     if not math.isfinite(value) or value <= 0:
         raise RouteComparisonUnavailable("invalid full-route duration")
     return float(value)
