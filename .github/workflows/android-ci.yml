@@ -73,10 +73,19 @@ jobs:
             :app:compileReleaseKotlin \
             :app:assembleDebug
 
+      - name: Generate debug APK SHA-256
+        shell: bash
+        run: |
+          find app/build/outputs/apk -type f -name '*.apk' -print0 |
+            xargs -0 -r sha256sum > app/build/outputs/apk/SHA256SUMS.txt
+          test -s app/build/outputs/apk/SHA256SUMS.txt
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: routing-platform-debug-apk
-          path: platform/android/app/build/outputs/apk/**/*.apk
+          path: |
+            platform/android/app/build/outputs/apk/**/*.apk
+            platform/android/app/build/outputs/apk/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
