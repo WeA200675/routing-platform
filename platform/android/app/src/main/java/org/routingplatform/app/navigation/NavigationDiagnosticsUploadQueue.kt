@@ -14,9 +14,9 @@ class NavigationDiagnosticsUploadQueue(context: Context) {
     @Synchronized
     fun enqueue(snapshot: JSONObject) {
         val queue = read()
+        require(queue.length() < MAX_PACKAGES) { "Diagnostics outbox full: refusing silent eviction" }
         queue.put(snapshot)
-        while (queue.length() > MAX_PACKAGES) queue.remove(0)
-        prefs.edit().putString(KEY, queue.toString()).apply()
+        check(prefs.edit().putString(KEY, queue.toString()).commit()) { "Diagnostics outbox write failed" }
     }
 
     @Synchronized
@@ -26,7 +26,7 @@ class NavigationDiagnosticsUploadQueue(context: Context) {
     fun acknowledgeFirst() {
         val queue = read()
         if (queue.length() > 0) queue.remove(0)
-        prefs.edit().putString(KEY, queue.toString()).apply()
+        check(prefs.edit().putString(KEY, queue.toString()).commit()) { "Diagnostics outbox ACK write failed" }
     }
 
     @Synchronized
