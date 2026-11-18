@@ -85,6 +85,21 @@ class NavigationVoicePlaybackRuntimeTest {
     }
 
     @Test
+    fun queuedPrepareSurvivesDistanceJitter() {
+        val speaker = FakeSpeaker(submission = NavigationSpeechSubmission.Queued)
+        val runtime = NavigationVoicePlaybackRuntime(speaker)
+        runtime.present(snapshot(distanceMeters = 180.0), voice())
+        val cleared = speaker.clearCount
+        runtime.present(snapshot(distanceMeters = 230.0), voice())
+        assertEquals(cleared, speaker.clearCount)
+        runtime.present(snapshot(distanceMeters = 180.0), voice())
+        assertEquals(1, speaker.submitted.size)
+        runtime.present(snapshot(distanceMeters = 230.0), voice(enabled = false))
+        assertTrue(speaker.clearCount > cleared)
+        assertEquals(1, speaker.stopCount)
+    }
+
+    @Test
     fun missingShapeIndicesStillDeduplicateSameManeuver() {
         val speaker = FakeSpeaker()
         val runtime = NavigationVoicePlaybackRuntime(speaker)
@@ -298,6 +313,7 @@ class NavigationVoicePlaybackRuntimeTest {
     ) : NavigationVoiceSpeaker {
         val submitted = mutableListOf<NavigationVoiceCue>()
         var stopCount = 0
+        var clearCount = 0
 
         override fun submit(
             cue: NavigationVoiceCue,
@@ -306,7 +322,9 @@ class NavigationVoicePlaybackRuntimeTest {
             return submission
         }
 
-        override fun clearPending() = Unit
+        override fun clearPending() {
+            clearCount += 1
+        }
 
         override fun stop() {
             stopCount += 1
