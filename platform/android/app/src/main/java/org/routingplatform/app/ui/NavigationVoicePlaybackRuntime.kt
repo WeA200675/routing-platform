@@ -104,7 +104,10 @@ internal class NavigationVoicePlaybackRuntime(
             )
 
         if (cue == null) {
-            speaker.clearPending()
+            // No new cue at this distance is not a cancellation. In particular,
+            // GPS jitter outside the prepare window must not discard speech
+            // already queued for the current maneuver. Session changes and
+            // disabled/arrived navigation explicitly clear the speaker above.
             return
         }
 
