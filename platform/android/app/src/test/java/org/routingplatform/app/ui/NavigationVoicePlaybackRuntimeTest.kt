@@ -162,6 +162,20 @@ class NavigationVoicePlaybackRuntimeTest {
     }
 
     @Test
+    fun fallbackGpsSpikeOutsideCompletionWindowDoesNotRepeatPrepare() {
+        val speaker = FakeSpeaker()
+        val runtime = NavigationVoicePlaybackRuntime(speaker)
+        val detailed = voice(verbosity = VoiceGuidanceVerbosity.Detailed)
+
+        runtime.present(snapshot(distanceMeters = 180.0, withShapeIndices = false), detailed)
+        runtime.present(snapshot(distanceMeters = 300.0, withShapeIndices = false), detailed)
+        runtime.present(snapshot(distanceMeters = 180.0, withShapeIndices = false), detailed)
+
+        assertEquals(1, speaker.submitted.size)
+        assertEquals(NavigationVoiceCueStage.Prepare, speaker.submitted.single().key.stage)
+    }
+
+    @Test
     fun identicalFallbackManeuverAfterDistanceResetCanSpeakAgain() {
         val speaker = FakeSpeaker()
         val runtime = NavigationVoicePlaybackRuntime(speaker)
