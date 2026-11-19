@@ -51,6 +51,10 @@ internal class NavigationVoicePlaybackRuntime(
          */
         const val FALLBACK_DISTANCE_RESET_METERS =
             75.0
+        // Only a maneuver that was already near its end can advance to a
+        // new fallback maneuver. A 180m -> 300m GPS jump is not progress.
+        const val FALLBACK_COMPLETION_WINDOW_METERS =
+            60.0
     }
 
     private var activeSessionId: String? = null
@@ -183,6 +187,8 @@ internal class NavigationVoicePlaybackRuntime(
                     ?.let {
                             previousDistance ->
 
+                        previousDistance in 0.0..FALLBACK_COMPLETION_WINDOW_METERS &&
+                        distanceMeters.isFinite() &&
                         distanceMeters >
                             previousDistance +
                                 FALLBACK_DISTANCE_RESET_METERS
