@@ -171,8 +171,13 @@ class NavigationVoicePlaybackRuntimeTest {
         runtime.present(snapshot(distanceMeters = 300.0, withShapeIndices = false), detailed)
         runtime.present(snapshot(distanceMeters = 180.0, withShapeIndices = false), detailed)
 
-        assertEquals(1, speaker.submitted.size)
-        assertEquals(NavigationVoiceCueStage.Prepare, speaker.submitted.single().key.stage)
+        // At 300 m Detailed guidance may legitimately emit an Early cue.
+        // The invariant is that the 180 m Prepare cue is not replayed when
+        // the same maneuver returns after the GPS distance spike.
+        assertEquals(
+            1,
+            speaker.submitted.count { it.key.stage == NavigationVoiceCueStage.Prepare },
+        )
     }
 
     @Test
