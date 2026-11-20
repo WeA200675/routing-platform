@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import ipaddress
 import os
 import subprocess
 import tempfile
@@ -555,6 +556,12 @@ def main():
     )
 
     arguments = parser.parse_args()
+
+    try:
+        if not ipaddress.ip_address(arguments.listen).is_loopback:
+            raise ValueError("not loopback")
+    except ValueError as exc:
+        raise SystemExit("development route service must bind to numeric loopback") from exc
 
     if not os.path.isfile(
         arguments.executable
