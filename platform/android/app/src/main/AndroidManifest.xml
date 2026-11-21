@@ -54,6 +54,10 @@
         <meta-data android:name="org.routingplatform.discovery.TRUSTED_PUBLIC_KEYS" android:value="" />
 
         <activity
+            android:name=".LocalAiActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
 

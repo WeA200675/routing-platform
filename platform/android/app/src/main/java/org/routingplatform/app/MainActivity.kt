@@ -1520,6 +1520,10 @@ class MainActivity :
                             }
                         },
 
+                        onOpenLocalAi = {
+                            startActivity(Intent(this@MainActivity, LocalAiActivity::class.java))
+                        },
+
                         nightPresentation =
                             nightPresentation,
 
