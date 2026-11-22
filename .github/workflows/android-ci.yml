@@ -76,9 +76,17 @@ jobs:
       - name: Generate debug APK SHA-256
         shell: bash
         run: |
-          find app/build/outputs/apk -type f -name '*.apk' -print0 |
-            xargs -0 -r sha256sum > app/build/outputs/apk/SHA256SUMS.txt
-          test -s app/build/outputs/apk/SHA256SUMS.txt
+          set -euo pipefail
+          apk_dir="app/build/outputs/apk/debug"
+          test -d "$apk_dir"
+          mapfile -d '' apks < <(find "$apk_dir" -maxdepth 1 -type f -name '*.apk' -print0)
+          test "${#apks[@]}" -eq 1
+          (
+            cd "$apk_dir"
+            sha256sum "$(basename "${apks[0]}")" > SHA256SUMS.txt
+            sha256sum --check --strict SHA256SUMS.txt
+            printf '%s\\n' "$GITHUB_SHA" > SOURCE_COMMIT.txt
+          )
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -86,6 +94,7 @@ jobs:
           name: routing-platform-debug-apk
           path: |
             platform/android/app/build/outputs/apk/**/*.apk
-            platform/android/app/build/outputs/apk/SHA256SUMS.txt
+            platform/android/app/build/outputs/apk/debug/SHA256SUMS.txt
+            platform/android/app/build/outputs/apk/debug/SOURCE_COMMIT.txt
           if-no-files-found: error
           retention-days: 14
