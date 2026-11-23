@@ -85,7 +85,7 @@ jobs:
             cd "$apk_dir"
             sha256sum "$(basename "${apks[0]}")" > SHA256SUMS.txt
             sha256sum --check --strict SHA256SUMS.txt
-            printf '%s\\n' "$GITHUB_SHA" > SOURCE_COMMIT.txt
+            printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT.txt
           )
 
       - name: Verify APK provenance and tamper-detection tests
