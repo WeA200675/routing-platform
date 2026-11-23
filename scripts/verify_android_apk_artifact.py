@@ -25,7 +25,10 @@ def verify(directory: pathlib.Path, expected_commit: str) -> str:
     if len(apks) != 1:
         raise ValueError("exactly one APK is required")
     expected_names = {apks[0].name, "SHA256SUMS.txt", "SOURCE_COMMIT.txt"}
-    if {item.name for item in entries} != expected_names:
+    names = {item.name for item in entries}
+    # Gradle places output-metadata.json next to the APK before artifact upload.
+    # GitHub upload includes only the APK and provenance manifests.
+    if names != expected_names and names != expected_names | {"output-metadata.json"}:
         raise ValueError("artifact has missing or unexpected files")
     source = (directory / "SOURCE_COMMIT.txt").read_text(encoding="ascii").strip()
     if source.lower() != expected_commit.lower():
