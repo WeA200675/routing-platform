@@ -43,7 +43,7 @@ class NavigationLiveProviderCircuit(
             state.suspendedUntil = 0L
         }
         // Ignore failures reported while suspended; they must not extend cooldown.
-        if (nowEpochMs < state.suspendedUntil) return
+        if (state.suspendedUntil > 0L && nowEpochMs < state.suspendedUntil) return
         if (state.failures < failureThreshold) state.failures++
         if (state.failures >= failureThreshold) {
             // Saturate instead of overflowing near Long.MAX_VALUE.
