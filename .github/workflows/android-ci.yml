@@ -88,6 +88,14 @@ jobs:
             printf '%s\\n' "$GITHUB_SHA" > SOURCE_COMMIT.txt
           )
 
+      - name: Verify APK provenance and tamper-detection tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ../../scripts/test_verify_android_apk_artifact.py
+          python3 ../../scripts/verify_android_apk_artifact.py \
+            app/build/outputs/apk/debug "$GITHUB_SHA"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
