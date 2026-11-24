@@ -104,6 +104,7 @@ dependencies {
         "org.maplibre.gl:android-sdk-opengl:13.4.1"
     )
 
+    implementation("androidx.work:work-runtime-ktx:2.10.5")
     implementation("androidx.camera:camera-camera2:1.6.2")
     implementation("androidx.camera:camera-lifecycle:1.6.2")
     implementation("androidx.camera:camera-view:1.6.2")

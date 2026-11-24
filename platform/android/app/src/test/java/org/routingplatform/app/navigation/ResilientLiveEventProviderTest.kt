@@ -24,6 +24,53 @@ class ResilientLiveEventProviderTest {
         assertEquals(1, calls["fallback"])
     }
 
+
+    @Test
+    fun failingProviderIsSuspendedWithoutBlockingHealthyFallback() {
+        var brokenCalls = 0
+        var healthyCalls = 0
+        val broken = provider("broken") {
+            brokenCalls++
+            error("offline")
+        }
+        val healthy = provider("healthy") {
+            healthyCalls++
+            listOf(event("safe"))
+        }
+        val resilient = ResilientLiveEventProvider(
+            listOf(broken, healthy),
+            maxAttemptsPerProvider = 2,
+            circuit = NavigationLiveProviderCircuit(failureThreshold = 2, suspensionMs = 100),
+        )
+        resilient.fetchAll(1_000)
+        resilient.fetchAll(1_001)
+        val duringCooldown = resilient.fetchAll(1_050)
+        assertEquals(listOf("safe"), duringCooldown.map { it.id })
+        assertEquals(4, brokenCalls)
+        assertEquals(3, healthyCalls)
+        assertEquals(2, resilient.providerHealth("broken").consecutiveFailures)
+        resilient.fetchAll(1_101)
+        assertEquals(6, brokenCalls)
+        assertEquals(1, resilient.providerHealth("broken").consecutiveFailures)
+    }
+
+    @Test
+    fun emptySuccessfulResponseResetsCircuit() {
+        var fail = true
+        val resilient = ResilientLiveEventProvider(
+            listOf(provider("live") {
+                if (fail) error("unavailable")
+                emptyList()
+            }),
+            maxAttemptsPerProvider = 1,
+            circuit = NavigationLiveProviderCircuit(failureThreshold = 2, suspensionMs = 100),
+        )
+        resilient.fetchAll(1_000)
+        fail = false
+        assertEquals(emptyList<NavigationLiveEvent>(), resilient.fetchAll(1_001))
+        assertEquals(0, resilient.providerHealth("live").consecutiveFailures)
+    }
+
     private fun provider(
         id: String,
         fetcher: () -> List<NavigationLiveEvent>,

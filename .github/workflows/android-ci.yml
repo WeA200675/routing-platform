@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - fix/verified-training-pipeline
       - "g6.*/*"
   pull_request:
     branches:
@@ -72,10 +73,36 @@ jobs:
             :app:compileReleaseKotlin \
             :app:assembleDebug
 
+      - name: Generate debug APK SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk_dir="app/build/outputs/apk/debug"
+          test -d "$apk_dir"
+          mapfile -d '' apks < <(find "$apk_dir" -maxdepth 1 -type f -name '*.apk' -print0)
+          test "${#apks[@]}" -eq 1
+          (
+            cd "$apk_dir"
+            sha256sum "$(basename "${apks[0]}")" > SHA256SUMS.txt
+            sha256sum --check --strict SHA256SUMS.txt
+            printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT.txt
+          )
+
+      - name: Verify APK provenance and tamper-detection tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ../../scripts/test_verify_android_apk_artifact.py
+          python3 ../../scripts/verify_android_apk_artifact.py \
+            app/build/outputs/apk/debug "$GITHUB_SHA"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: routing-platform-debug-apk
-          path: platform/android/app/build/outputs/apk/**/*.apk
+          path: |
+            platform/android/app/build/outputs/apk/**/*.apk
+            platform/android/app/build/outputs/apk/debug/SHA256SUMS.txt
+            platform/android/app/build/outputs/apk/debug/SOURCE_COMMIT.txt
           if-no-files-found: error
           retention-days: 14

@@ -176,7 +176,33 @@ class NavigationDiagnosticsStore(context: Context) {
 
     fun snapshotAndEnqueue(queue: NavigationDiagnosticsUploadQueue): JSONObject {
         val snapshot = snapshotJson()
-        queue.enqueue(snapshot)
+        val events = snapshot.getJSONArray("events")
+        if (events.length() == 0) return snapshot
+        val batches = mutableListOf<JSONObject>()
+        var batch = JSONArray()
+        fun flush() {
+            if (batch.length() > 0) {
+                batches.add(JSONObject().put("events", batch))
+                batch = JSONArray()
+            }
+        }
+        for (index in 0 until events.length()) {
+            val event = events.getJSONObject(index)
+            val candidate = JSONArray()
+            for (i in 0 until batch.length()) candidate.put(batch.getJSONObject(i))
+            candidate.put(event)
+            val candidateBytes = JSONObject().put("events", candidate).toString()
+                .toByteArray(Charsets.UTF_8).size
+            if (batch.length() > 0 && (candidate.length() > 256 || candidateBytes > 256 * 1024)) {
+                flush()
+            }
+            batch.put(event)
+            check(JSONObject().put("events", batch).toString().toByteArray(Charsets.UTF_8).size <= 256 * 1024) {
+                "Single diagnostic event exceeds server limit; source retained"
+            }
+        }
+        flush()
+        queue.enqueueAll(batches)
         return snapshot
     }
 

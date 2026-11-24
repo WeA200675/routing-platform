@@ -1,0 +1,128 @@
+name: Training backend safety checks
+
+on:
+  pull_request:
+    paths:
+      - 'backend/training_api.py'
+      - 'backend/training_job_store.py'
+      - 'backend/postgres_training_job_store.py'
+      - 'backend/trace_regression.py'
+      - 'backend/engineering_triage.py'
+      - 'backend/journey_break_service.py'
+      - 'backend/journey_valhalla_adapter.py'
+      - 'backend/journey_api_contract.py'
+      - 'backend/journey_pipeline.py'
+      - 'backend/journey_offline_poi.py'
+      - 'backend/journey_route_client.py'
+      - 'backend/journey_gateway.py'
+      - 'tools/test_journey_gateway.py'
+      - 'tools/journey_production_preflight.py'
+      - 'tools/test_journey_production_preflight.py'
+      - 'deploy/systemd/routing-*.service'
+      - 'tools/test_journey_route_client.py'
+      - 'tools/test_journey_offline_poi.py'
+      - 'tools/test_journey_pipeline.py'
+      - 'tools/test_journey_api_contract.py'
+      - 'tools/test_journey_valhalla_adapter.py'
+      - 'tools/test_journey_break_service.py'
+      - 'tools/test_engineering_triage.py'
+      - 'backend/valhalla_replay.py'
+      - 'tools/test_training*.py'
+      - 'tools/test_replay_fail_closed.py'
+      - 'tools/test_trace_regression.py'
+      - 'tools/test_valhalla_replay.py'
+      - '.github/workflows/training-backend-safety.yml'
+  push:
+    branches: [main, fix/verified-training-pipeline]
+    paths:
+      - 'tools/test_valhalla_replay.py'
+      - 'tools/test_trace_regression.py'
+      - 'tools/test_journey_break_service.py'
+      - 'tools/test_journey_valhalla_adapter.py'
+      - 'tools/test_journey_api_contract.py'
+      - 'tools/test_journey_pipeline.py'
+      - 'tools/test_journey_offline_poi.py'
+      - 'tools/test_journey_route_client.py'
+      - 'backend/journey_route_client.py'
+      - 'backend/journey_gateway.py'
+      - 'tools/test_journey_gateway.py'
+      - 'tools/journey_production_preflight.py'
+      - 'tools/test_journey_production_preflight.py'
+      - 'deploy/systemd/routing-*.service'
+      - 'backend/journey_offline_poi.py'
+      - 'backend/journey_pipeline.py'
+      - 'backend/journey_api_contract.py'
+      - 'backend/journey_valhalla_adapter.py'
+      - 'backend/journey_break_service.py'
+      - 'backend/postgres_training_job_store.py'
+      - 'backend/training_api.py'
+      - 'backend/training_job_store.py'
+      - 'backend/trace_regression.py'
+      - 'backend/engineering_triage.py'
+      - 'tools/test_engineering_triage.py'
+      - 'backend/valhalla_replay.py'
+      - 'tools/test_training*.py'
+      - 'tools/test_replay_fail_closed.py'
+      - '.github/workflows/training-backend-safety.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backend-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: training_test
+          POSTGRES_PASSWORD: test_only_password
+          POSTGRES_DB: training_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U training_test -d training_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated PostgreSQL test driver
+        run: python -m pip install 'psycopg[binary]>=3,<4'
+      - name: Syntax and unit tests
+        env:
+          PYTHONPATH: .
+          PYTHONDONTWRITEBYTECODE: '1'
+          TRAINING_STATE_PATH: ${{ runner.temp }}/routing-training-api-state.json
+          TRAINING_TEST_POSTGRES_DSN: postgresql://training_test:test_only_password@127.0.0.1:5432/training_test
+        run: |
+          python -m py_compile backend/training_api.py backend/training_job_store.py backend/postgres_training_job_store.py backend/trace_regression.py backend/valhalla_replay.py backend/engineering_triage.py backend/journey_break_service.py backend/journey_valhalla_adapter.py backend/journey_api_contract.py backend/journey_pipeline.py backend/journey_offline_poi.py backend/journey_route_client.py backend/journey_gateway.py tools/journey_production_preflight.py
+          python -m unittest -v \
+            tools.test_training_job_store \
+            tools.test_postgres_training_job_store \
+            tools.test_training_api_auth \
+            tools.test_training_durable_http \
+            tools.test_trace_regression \
+            tools.test_engineering_triage \
+            tools.test_journey_break_service \
+            tools.test_journey_valhalla_adapter \
+            tools.test_journey_api_contract \
+            tools.test_journey_pipeline \
+            tools.test_journey_offline_poi \
+            tools.test_journey_route_client \
+            tools.test_journey_gateway \
+            tools.test_journey_production_preflight \
+            tools.test_valhalla_replay \
+            tools.test_replay_fail_closed \
+            tools.test_training_state_persistence \
+            tools.test_provider_diagnostics \
+            tools.test_audit_integrity
+      - name: HTTP integration smoke test
+        env:
+          PYTHONPATH: .
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python tools/test_training_diagnostics_e2e.py

@@ -9,15 +9,23 @@ from __future__ import annotations
 
 import fcntl
 import hashlib
+import hmac
 import json
 import os
 import signal
+import sqlite3
 from pathlib import Path
 import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
+
+try:
+    from backend.training_job_store import TrainingJobStore, QueueFullError
+except ModuleNotFoundError:
+    # Support the existing systemd ExecStart invoking this file directly.
+    from training_job_store import TrainingJobStore, QueueFullError
 
 SCHEMA_VERSION = "training-center-v1"
 DIALOGUE_SCHEMA = "training-dialogue-v1"
@@ -209,46 +217,47 @@ class TrainingState:
         thread.start()
 
     def _worker_loop(self) -> None:
-        while self.worker_running:
-            batch: list[dict[str, Any]] = []
-            with self._lock:
-                if self.pending_events:
-                    batch = self.pending_events[:32]
-                    del self.pending_events[:32]
-                    self.queue_count = max(0, self.queue_count - len(batch))
-            if not batch:
-                time.sleep(0.1)
-                continue
+        """Fail closed: do not claim a replay until a real runner is installed.
 
+        Valid events remain durable and pending. Invalid events are quarantined.
+        This worker intentionally does not execute navigation or model changes.
+        """
+        while self.worker_running:
             activities: list[tuple[str, str]] = []
             with self._lock:
-                for event in batch:
-                    valid = (
-                        isinstance(event, dict)
-                        and isinstance(event.get("event_id"), str)
-                        and isinstance(event.get("type"), str)
-                        and isinstance(event.get("payload", {}), dict)
-                    )
-                    self.normalized_count += 1
-                    if valid:
-                        self.replay_count += 1
-                        self.regression_passed += 1
-                        status = "PASS"
-                    else:
-                        self.regression_failed += 1
-                        self.quarantined_count += 1
-                        self.quarantined_events.append({
-                            "event_id": event.get("event_id"),
-                            "reason": "invalid_schema",
-                            "captured_at": int(time.time() * 1000),
-                            "event": event,
-                        })
-                        del self.quarantined_events[:-100]
-                        status = "QUARANTINE"
-                    activities.append((str(event.get("event_id", "event")), status))
-
-            self.record_activities(activities)
-            self.persist()
+                if not self.pending_events:
+                    pass
+                else:
+                    retained: list[dict[str, Any]] = []
+                    for event in self.pending_events:
+                        valid = (
+                            isinstance(event, dict)
+                            and isinstance(event.get("event_id"), str)
+                            and bool(event.get("event_id"))
+                            and isinstance(event.get("type"), str)
+                            and isinstance(event.get("payload", {}), dict)
+                        )
+                        if valid:
+                            retained.append(event)
+                        else:
+                            self.quarantined_count += 1
+                            self.quarantined_events.append({
+                                "event_id": event.get("event_id") if isinstance(event, dict) else None,
+                                "reason": "invalid_schema",
+                                "captured_at": int(time.time() * 1000),
+                                "event": event,
+                            })
+                            activities.append((str(event.get("event_id", "event")) if isinstance(event, dict) else "event", "QUARANTINE"))
+                    if activities:
+                        self.pending_events = retained
+                        self.queue_count = len(retained)
+                        self.quarantined_events = self.quarantined_events[-100:]
+            if activities:
+                self.record_activities(activities)
+                self.persist()
+            # No replay runner: retain valid jobs without busy-looping or
+            # manufacturing a passing regression.
+            time.sleep(0.5)
 
     def envelope(self, payload: dict[str, Any], *, stale: bool = False) -> dict[str, Any]:
         with self._lock:
@@ -283,75 +292,86 @@ class TrainingState:
 
 
 STATE = TrainingState()
+# Explicit opt-in only. Existing deployments keep their original storage until
+# operators have tested migration and rollback. Never silently mix stores.
+def create_job_store():
+    """Explicit storage selection. Never silently fall back on DB failures."""
+    backend = os.environ.get("TRAINING_JOB_BACKEND", "sqlite").strip().lower()
+    if backend == "sqlite":
+        path = os.environ.get("TRAINING_JOB_DB_PATH")
+        return TrainingJobStore(path) if path else None
+    if backend == "postgres":
+        dsn = os.environ.get("TRAINING_POSTGRES_DSN")
+        if not dsn:
+            raise RuntimeError("TRAINING_POSTGRES_DSN required for postgres backend")
+        try:
+            from backend.postgres_training_job_store import PostgresTrainingJobStore
+        except ModuleNotFoundError:
+            from postgres_training_job_store import PostgresTrainingJobStore
+        return PostgresTrainingJobStore(dsn)
+    raise ValueError("TRAINING_JOB_BACKEND must be sqlite or postgres")
+
+
+JOB_STORE = create_job_store()
 
 
 def section(name: str) -> dict[str, Any]:
+    if name == "jobs":
+        if JOB_STORE is None:
+            return STATE.envelope({"enabled": False, "status": "not_configured"})
+        return STATE.envelope({"enabled": True, "status": "blocked_no_replay_runner", "counts": JOB_STORE.counts()})
     if name == "overview":
+        counts = JOB_STORE.counts() if JOB_STORE else {}
         return STATE.envelope({
-            "performance_gain": 0.184,
-            "learning_factor": 0.82,
-            "performance_baseline": 0.0,
+            "performance_gain": None,
+            "learning_factor": None,
+            "performance_baseline": None,
             "quality": {
-                "maneuver_accuracy": 0.968,
-                "voice_timing": 0.941,
-                "gps_stability": 0.916,
-                "fallback_rate": 0.024,
+                "maneuver_accuracy": None,
+                "voice_timing": None,
+                "gps_stability": None,
+                "fallback_rate": None,
             },
+            "verification_status": "blocked_no_replay_runner",
             "pipeline": {
-                "ingest": 1248,
-                "quality_checked": 934,
-                "replay_ready": 712,
-                "shadow": 14,
-                "canary": 0,
+                "ingest": sum(counts.values()) if JOB_STORE else STATE.total_events,
+                "quality_checked": None,
+                "replay_ready": counts.get("queued", 0) if JOB_STORE else STATE.queue_count,
+                "shadow": None,
+                "canary": None,
             },
         })
     if name == "knowledge":
         return STATE.envelope({
-            "sources": [
-                {"name": "routing", "quality": 0.96},
-                {"name": "traffic", "quality": 0.84},
-                {"name": "hazards", "quality": 0.71},
-                {"name": "surprise-content", "quality": 0.88},
-            ],
-            "patterns": 42,
-            "confirmed_improvements": 17,
-            "quarantined_conflicts": 12,
-            "domains": {
-                "navigation": 0.94,
-                "maneuvers": 0.97,
-                "voice": 0.91,
-                "gps": 0.86,
-                "fallback": 0.62,
-            },
+            "sources": [], "patterns": None, "confirmed_improvements": None,
+            "quarantined_conflicts": STATE.quarantined_count,
+            "domains": {"navigation": None, "maneuvers": None, "voice": None,
+                        "gps": None, "fallback": None},
+            "verification_status": "not_measured",
         })
     if name == "experiments":
         return STATE.envelope({
-            "candidates": [
-                {"id": "active-013", "status": "active", "score": 0.968},
-                {"id": "shadow-014", "status": "blocked", "score": 0.964},
-                {"id": "shadow-015", "status": "waiting", "score": 0.0},
-            ],
-            "replay": {
-                "left_right": {"passed": 48, "total": 48},
-                "voice_timing": {"passed": 41, "total": 44},
-                "gps_jitter": {"passed": 32, "total": 35},
-                "fallback": {"passed": 18, "total": 24},
-            },
+            "candidates": [], "replay": {},
+            "verification_status": "no_independent_replay",
         })
     if name == "operations":
+        counts = JOB_STORE.counts() if JOB_STORE else {}
         return STATE.envelope({
-            "runtime_mode": "SHADOW",
-            "active_release": "stable-013",
-            "rollback_target": "stable-012",
+            "runtime_mode": "INGEST_ONLY",
+            "active_release": None,
+            "rollback_target": None,
             "storage": {
-                "used_bytes": STATE.used_bytes,
-                "max_bytes": STATE.max_bytes,
-                "queue_count": STATE.queue_count,
-                "synced_count": STATE.synced_count,
-                "headroom_ratio": max(0.0, 1.0 - STATE.used_bytes / STATE.max_bytes),
+                "used_bytes": None if JOB_STORE else STATE.used_bytes,
+                "max_bytes": None if JOB_STORE else STATE.max_bytes,
+                "queue_count": sum(value for key, value in counts.items()
+                                   if key not in ("passed", "failed", "quarantined"))
+                               if JOB_STORE else STATE.queue_count,
+                "synced_count": None,
+                "headroom_ratio": None,
             },
-            "cloud": {"reachable": True, "sync_ratio": 0.962},
+            "cloud": {"reachable": None, "sync_ratio": None},
             "alerts": STATE.regressions,
+            "verification_status": "not_measured",
         })
     if name == "diagnostics":
         with STATE._lock:
@@ -372,10 +392,13 @@ def section(name: str) -> dict[str, Any]:
                 "recent": entries[-20:],
                 "processing": {
                     "worker_running": STATE.worker_running,
+                    "verification_status": "blocked_no_replay_runner",
                     "queue": STATE.queue_count,
                     "normalized": STATE.normalized_count,
-                    "replay": STATE.replay_count,
-                    "regression_passed": STATE.regression_passed,
+                    "replay": None,
+                    "regression_passed": None,
+                    "historical_unverified_replay_count": STATE.replay_count,
+                    "historical_unverified_regression_passed": STATE.regression_passed,
                     "regression_failed": STATE.regression_failed,
                     "quarantined": STATE.quarantined_count,
                     "recent_quarantine": STATE.quarantined_events[-20:],
@@ -385,14 +408,11 @@ def section(name: str) -> dict[str, Any]:
 
     if name == "history":
         return STATE.envelope({
-            "performance": [
-                {"captured_at": 1, "value": 0.821},
-                {"captured_at": 2, "value": 0.887},
-                {"captured_at": 3, "value": 0.968},
-            ],
+            "performance": [],
             "activities": STATE.activities,
             "map_events": [],
-            "versions": ["stable-011", "stable-012", "stable-013", "shadow-014"],
+            "versions": [],
+            "verification_status": "not_measured",
         })
     raise KeyError(name)
 
@@ -400,21 +420,53 @@ def section(name: str) -> dict[str, Any]:
 class Handler(BaseHTTPRequestHandler):
     server_version = "RoutingTrainingAPI/1"
 
+    def _allowed_origin(self) -> str | None:
+        origin = self.headers.get("Origin", "")
+        allowed = {item.strip() for item in
+                   os.environ.get("TRAINING_CORS_ORIGINS", "").split(",") if item.strip()}
+        return origin if origin in allowed else None
+
+    def _authorize_write(self) -> bool:
+        """Fail closed for PostgreSQL; optional token for legacy local mode."""
+        expected = os.environ.get("TRAINING_API_WRITE_TOKEN", "")
+        if not expected:
+            if os.environ.get("TRAINING_JOB_BACKEND", "sqlite").lower() == "postgres":
+                self._send(503, {"error": "write_auth_not_configured"})
+                return False
+            # Legacy behavior is restricted to loopback clients only.
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                self._send(403, {"error": "write_auth_required"})
+                return False
+            return True
+        provided = self.headers.get("Authorization", "")
+        if not hmac.compare_digest(provided, "Bearer " + expected):
+            self._send(401, {"error": "unauthorized"})
+            return False
+        return True
+
     def _send(self, status: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Accept")
+        origin = self._allowed_origin()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
     def do_OPTIONS(self) -> None:  # noqa: N802
+        origin = self._allowed_origin()
+        if not origin:
+            self._send(403, {"error": "origin_not_allowed"})
+            return
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Accept")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Accept, Authorization")
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
@@ -448,7 +500,16 @@ class Handler(BaseHTTPRequestHandler):
         if not self.path.startswith(prefix):
             self._send(404, {"error": "not_found"})
             return
-        length = int(self.headers.get("Content-Length", "0"))
+        if not self._authorize_write():
+            return
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self._send(411, {"error": "valid_content_length_required"})
+            return
+        if length < 0:
+            self._send(400, {"error": "invalid_content_length"})
+            return
         if length > 256 * 1024:
             self._send(413, {"error": "payload_too_large"})
             return
@@ -488,9 +549,28 @@ class Handler(BaseHTTPRequestHandler):
             payload = {"events": [event]}
             name = "events"
         if name == "events":
+            if not isinstance(payload, dict):
+                self._send(400, {"error": "events_object_required"})
+                return
             events = payload.get("events")
             if not isinstance(events, list) or len(events) > 256:
                 self._send(400, {"error": "events_required_or_too_many"})
+                return
+            if JOB_STORE is not None:
+                try:
+                    result = JOB_STORE.submit_batch(events)
+                except QueueFullError:
+                    self._send(503, {"error": "queue_full", "retryable": True})
+                    return
+                except ValueError as exc:
+                    self._send(400, {"error": "invalid_events", "detail": str(exc)})
+                    return
+                except Exception:
+                    # Do not leak DSNs, credentials or driver diagnostics.
+                    self._send(503, {"error": "storage_unavailable", "retryable": True})
+                    return
+                storage = os.environ.get("TRAINING_JOB_BACKEND", "sqlite").lower()
+                self._send(202, STATE.envelope({**result, "durable": True, "storage": storage, "verification_status": "blocked_no_replay_runner"}))
                 return
             accepted = 0
             with STATE._lock:
